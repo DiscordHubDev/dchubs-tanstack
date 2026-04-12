@@ -1,0 +1,667 @@
+import { useForm, useStore } from "@tanstack/react-form";
+import {
+	useMutation,
+	useQueryClient,
+	useSuspenseQuery,
+} from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
+import { useEffect, useMemo, useRef, useState } from "react";
+import Swal from "sweetalert2";
+import MarkdownRenderer from "#/components/MarkdownRenderer";
+import { Button } from "#/components/ui/button";
+import { Input } from "#/components/ui/input";
+import { Label } from "#/components/ui/label";
+import { Textarea } from "#/components/ui/textarea";
+import { runEffect, tryEffectPromise } from "#/lib/effect-utils";
+import { queryKeys } from "#/lib/query-keys";
+import { upsertServerPublishFn } from "../server-publish.functions";
+import { serverPublishQueryOptions } from "../server-publish.query";
+import {
+	InviteLinkSchema,
+	LongDescriptionSchema,
+	RuleSchema,
+	RulesSchema,
+	SecretSchema,
+	ServerFormSchema,
+	ServerNameSchema,
+	ShortDescriptionSchema,
+	TagSchema,
+	TagsSchema,
+	WebhookUrlSchema,
+	WebsiteLinkSchema,
+} from "../server-publish.schemas";
+import type { ServerPublishSubmitInput } from "../server-publish.types";
+import { effectValidator } from "../server-publish.validators";
+import { RulesField } from "./RulesField";
+import { ServerTagField } from "./ServerTagField";
+
+function readFirstError(errors: unknown[] | undefined): string | null {
+	if (!Array.isArray(errors) || errors.length === 0) {
+		return null;
+	}
+
+	const first = errors[0];
+	if (typeof first === "string") {
+		return first;
+	}
+
+	if (first instanceof Error) {
+		return first.message;
+	}
+
+	return String(first);
+}
+
+function normalizeExternalUrl(value: string): string | null {
+	const normalized = value.trim();
+	return normalized.length > 0 ? normalized : null;
+}
+
+function getErrorMessage(error: unknown): string {
+	if (error instanceof Error) {
+		return error.message;
+	}
+
+	return "儲存時發生未預期錯誤";
+}
+
+function hasRequiredPublishFields(values: {
+	shortDescription: string;
+	longDescription: string;
+	inviteLink: string;
+}): boolean {
+	return (
+		values.shortDescription.trim().length > 0 &&
+		values.longDescription.trim().length > 0 &&
+		values.inviteLink.trim().length > 0
+	);
+}
+
+export type ServerPublishPageProps = {
+	serverId: string;
+};
+
+export function ServerPublishPage({ serverId }: ServerPublishPageProps) {
+	const navigate = useNavigate();
+	const queryClient = useQueryClient();
+	const { data: bundle } = useSuspenseQuery(
+		serverPublishQueryOptions(serverId),
+	);
+
+	const [iconPreviewUrl, setIconPreviewUrl] = useState(bundle.iconUrl ?? "");
+	const [bannerPreviewUrl, setBannerPreviewUrl] = useState(
+		bundle.bannerUrl ?? "",
+	);
+	const [isIconUploading] = useState(false);
+	const [isBannerUploading] = useState(false);
+
+	const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+	const previewRef = useRef<HTMLDivElement | null>(null);
+
+	useEffect(() => {
+		setIconPreviewUrl(bundle.iconUrl ?? "");
+		setBannerPreviewUrl(bundle.bannerUrl ?? "");
+	}, [bundle.iconUrl, bundle.bannerUrl]);
+
+	const validateServerName = useMemo(
+		() =>
+			effectValidator(ServerNameSchema, {
+				label: "伺服器名稱",
+				required: "伺服器名稱不可為空",
+				maxLength: { value: 120, message: "伺服器名稱最多 120 字" },
+			}),
+		[],
+	);
+	const validateShortDescription = useMemo(
+		() =>
+			effectValidator(ShortDescriptionSchema, {
+				label: "簡短描述",
+				required: "請填寫簡短描述",
+				maxLength: { value: 200, message: "簡短描述最多 200 字" },
+			}),
+		[],
+	);
+	const validateLongDescription = useMemo(
+		() =>
+			effectValidator(LongDescriptionSchema, {
+				label: "詳細介紹",
+				required: "請填寫詳細介紹",
+				maxLength: { value: 8000, message: "詳細介紹最多 8000 字" },
+			}),
+		[],
+	);
+	const validateInviteLink = useMemo(
+		() =>
+			effectValidator(InviteLinkSchema, {
+				label: "Discord 邀請連結",
+				required: "請填寫 Discord 邀請連結",
+				maxLength: { value: 500, message: "Discord 邀請連結最多 500 字" },
+				fallback:
+					"請輸入有效的 Discord 邀請連結（例如 https://discord.gg/your-server）",
+			}),
+		[],
+	);
+	const validateWebsiteLink = useMemo(
+		() =>
+			effectValidator(WebsiteLinkSchema, {
+				label: "網站連結",
+				maxLength: { value: 500, message: "網站連結最多 500 字" },
+				fallback: "網站連結格式不正確，請使用 http:// 或 https:// 開頭",
+			}),
+		[],
+	);
+	const validateRules = useMemo(
+		() =>
+			effectValidator(RulesSchema, {
+				fallback: "規則內容格式不正確",
+			}),
+		[],
+	);
+	const validateRule = useMemo(
+		() =>
+			effectValidator(RuleSchema, {
+				label: "規則",
+				required: "規則不可為空",
+				maxLength: { value: 300, message: "單條規則最多 300 字" },
+			}),
+		[],
+	);
+	const validateTags = useMemo(
+		() =>
+			effectValidator(TagsSchema, {
+				fallback: "標籤格式不正確",
+			}),
+		[],
+	);
+	const validateTag = useMemo(
+		() =>
+			effectValidator(TagSchema, {
+				label: "標籤",
+				required: "標籤不可為空",
+				maxLength: { value: 24, message: "單一標籤最多 24 字" },
+			}),
+		[],
+	);
+	const validateSecret = useMemo(
+		() =>
+			effectValidator(SecretSchema, {
+				label: "secret",
+				maxLength: { value: 500, message: "secret 最多 500 字" },
+			}),
+		[],
+	);
+	const validateWebhookUrl = useMemo(
+		() =>
+			effectValidator(WebhookUrlSchema, {
+				label: "webhook_url",
+				maxLength: { value: 500, message: "webhook_url 最多 500 字" },
+				fallback: "Webhook 網址格式不正確，請使用 http:// 或 https:// 開頭",
+			}),
+		[],
+	);
+	const validateForm = useMemo(
+		() =>
+			effectValidator(ServerFormSchema, {
+				fallback: "表單內容有誤，請檢查欄位後再送出",
+			}),
+		[],
+	);
+
+	const saveMutation = useMutation({
+		mutationFn: (payload: ServerPublishSubmitInput) =>
+			runEffect(
+				tryEffectPromise("Failed to save server publish data", () =>
+					upsertServerPublishFn({ data: payload }),
+				),
+			),
+		onSuccess: async (result) => {
+			await Promise.all([
+				queryClient.invalidateQueries({
+					queryKey: queryKeys.servers.publish(serverId),
+				}),
+				queryClient.invalidateQueries({
+					queryKey: queryKeys.servers.detail(serverId),
+				}),
+				queryClient.invalidateQueries({ queryKey: queryKeys.servers.all }),
+			]);
+
+			await Swal.fire({
+				icon: "success",
+				title: "儲存成功",
+				text: result.message,
+				confirmButtonText: "前往伺服器頁面",
+			});
+
+			void navigate({
+				to: "/servers/$serverId",
+				params: { serverId },
+			});
+		},
+		onError: async (error) => {
+			await Swal.fire({
+				icon: "error",
+				title: "儲存失敗",
+				text: getErrorMessage(error),
+				confirmButtonText: "我知道了",
+			});
+		},
+	});
+
+	const form = useForm({
+		defaultValues: bundle.formValues,
+		validators: {
+			onSubmit: ({ value }) => validateForm(value),
+		},
+		onSubmit: async ({ value }) => {
+			await saveMutation.mutateAsync({
+				serverId,
+				iconUrl: normalizeExternalUrl(iconPreviewUrl),
+				bannerUrl: normalizeExternalUrl(bannerPreviewUrl),
+				form: value,
+			});
+		},
+	});
+
+	const longDescriptionValue = useStore(
+		form.store,
+		(state) => state.values.longDescription,
+	);
+
+	const handleScroll = () => {
+		if (!textareaRef.current || !previewRef.current) {
+			return;
+		}
+
+		previewRef.current.scrollTop = textareaRef.current.scrollTop;
+	};
+
+	const isUploading = isIconUploading || isBannerUploading;
+
+	return (
+		<div className="min-h-screen bg-[#1e1f22] px-4 py-8 text-white">
+			<div className="mx-auto max-w-7xl space-y-6">
+				<div className="flex flex-wrap items-center justify-between gap-3">
+					<div>
+						<h1 className="text-2xl font-bold">
+							{bundle.isPublished ? "編輯伺服器" : "發布伺服器"}
+						</h1>
+					</div>
+					<Button
+						type="button"
+						variant="outline"
+						onClick={() =>
+							void navigate({
+								to: "/servers/$serverId",
+								params: { serverId },
+							})
+						}
+					>
+						返回伺服器頁
+					</Button>
+				</div>
+
+				<form
+					onSubmit={(event) => {
+						event.preventDefault();
+						event.stopPropagation();
+						void form.handleSubmit();
+					}}
+					className="grid gap-6 lg:grid-cols-2"
+				>
+					<div className="space-y-6 rounded-xl border border-white/10 bg-[#2b2d31] p-5">
+						<form.Field
+							name="serverName"
+							validators={{
+								onChange: ({ value }) => validateServerName(value),
+							}}
+						>
+							{(field) => {
+								const errorMessage = readFirstError(field.state.meta.errors);
+								return (
+									<div className="space-y-2">
+										<Label htmlFor="serverName">伺服器名稱</Label>
+										<Input
+											id="serverName"
+											value={field.state.value}
+											disabled
+											onBlur={field.handleBlur}
+											onChange={(event) =>
+												field.handleChange(event.target.value)
+											}
+											aria-invalid={Boolean(errorMessage)}
+										/>
+										{errorMessage ? (
+											<p className="text-sm text-[#ed4245]">{errorMessage}</p>
+										) : null}
+									</div>
+								);
+							}}
+						</form.Field>
+
+						<form.Field
+							name="shortDescription"
+							validators={{
+								onChange: ({ value }) => validateShortDescription(value),
+							}}
+						>
+							{(field) => {
+								const errorMessage = readFirstError(field.state.meta.errors);
+								return (
+									<div className="space-y-2">
+										<Label htmlFor="shortDescription">簡短描述 *</Label>
+										<Textarea
+											id="shortDescription"
+											rows={3}
+											maxLength={200}
+											value={field.state.value}
+											onBlur={field.handleBlur}
+											onChange={(event) =>
+												field.handleChange(event.target.value)
+											}
+											placeholder="一句話介紹你的社群"
+											aria-invalid={Boolean(errorMessage)}
+										/>
+										<div className="flex items-center justify-between text-xs text-[#b9bbbe]">
+											<span>最多 200 字</span>
+											<span>{field.state.value.length}/200</span>
+										</div>
+										{errorMessage ? (
+											<p className="text-sm text-[#ed4245]">{errorMessage}</p>
+										) : null}
+									</div>
+								);
+							}}
+						</form.Field>
+
+						<form.Field
+							name="longDescription"
+							validators={{
+								onChange: ({ value }) => validateLongDescription(value),
+							}}
+						>
+							{(field) => {
+								const errorMessage = readFirstError(field.state.meta.errors);
+								return (
+									<div className="space-y-2">
+										<Label htmlFor="longDescription">詳細介紹 *</Label>
+										<textarea
+											id="longDescription"
+											ref={textareaRef}
+											rows={14}
+											className="flex min-h-16 w-full rounded-md border border-input bg-transparent px-3 py-2 text-base shadow-xs transition-[color,box-shadow] outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:aria-invalid:ring-destructive/40"
+											value={field.state.value}
+											onBlur={field.handleBlur}
+											onScroll={handleScroll}
+											onChange={(event) =>
+												field.handleChange(event.target.value)
+											}
+											placeholder="支援 Markdown，右側可即時預覽"
+											aria-invalid={Boolean(errorMessage)}
+										/>
+										{errorMessage ? (
+											<p className="text-sm text-[#ed4245]">{errorMessage}</p>
+										) : null}
+									</div>
+								);
+							}}
+						</form.Field>
+
+						<form.Field
+							name="inviteLink"
+							validators={{
+								onChange: ({ value }) => validateInviteLink(value),
+							}}
+						>
+							{(field) => {
+								const errorMessage = readFirstError(field.state.meta.errors);
+								return (
+									<div className="space-y-2">
+										<Label htmlFor="inviteLink">Discord 邀請連結 *</Label>
+										<Input
+											id="inviteLink"
+											value={field.state.value}
+											onBlur={field.handleBlur}
+											onChange={(event) =>
+												field.handleChange(event.target.value)
+											}
+											placeholder="https://discord.gg/your-server"
+											aria-invalid={Boolean(errorMessage)}
+										/>
+										{errorMessage ? (
+											<p className="text-sm text-[#ed4245]">{errorMessage}</p>
+										) : null}
+									</div>
+								);
+							}}
+						</form.Field>
+
+						<form.Field
+							name="websiteLink"
+							validators={{
+								onChange: ({ value }) => validateWebsiteLink(value),
+							}}
+						>
+							{(field) => {
+								const errorMessage = readFirstError(field.state.meta.errors);
+								return (
+									<div className="space-y-2">
+										<Label htmlFor="websiteLink">網站連結</Label>
+										<Input
+											id="websiteLink"
+											value={field.state.value}
+											onBlur={field.handleBlur}
+											onChange={(event) =>
+												field.handleChange(event.target.value)
+											}
+											placeholder="https://your-website.example"
+											aria-invalid={Boolean(errorMessage)}
+										/>
+										{errorMessage ? (
+											<p className="text-sm text-[#ed4245]">{errorMessage}</p>
+										) : null}
+									</div>
+								);
+							}}
+						</form.Field>
+
+						<form.Field
+							name="rules"
+							validators={{
+								onChange: ({ value }) => {
+									const listError = validateRules(value);
+									if (listError) {
+										return listError;
+									}
+
+									for (const rule of value) {
+										const ruleError = validateRule(rule);
+										if (ruleError) {
+											return ruleError;
+										}
+									}
+
+									return undefined;
+								},
+							}}
+						>
+							{(field) => <RulesField field={field} />}
+						</form.Field>
+
+						<form.Field
+							name="tags"
+							validators={{
+								onChange: ({ value }) => {
+									const listError = validateTags(value);
+									if (listError) {
+										return listError;
+									}
+
+									for (const tag of value) {
+										const tagError = validateTag(tag);
+										if (tagError) {
+											return tagError;
+										}
+									}
+
+									return undefined;
+								},
+							}}
+						>
+							{(field) => <ServerTagField field={field} />}
+						</form.Field>
+
+						<form.Field
+							name="secret"
+							validators={{
+								onChange: ({ value }) => validateSecret(value),
+							}}
+						>
+							{(field) => {
+								const errorMessage = readFirstError(field.state.meta.errors);
+								return (
+									<div className="space-y-2">
+										<Label htmlFor="secret">密鑰</Label>
+										<Input
+											id="secret"
+											value={field.state.value}
+											onBlur={field.handleBlur}
+											onChange={(event) =>
+												field.handleChange(event.target.value)
+											}
+											placeholder="可選：Webhook 密鑰 (用於驗證來自 Discord 的 Webhook 請求)"
+											aria-invalid={Boolean(errorMessage)}
+										/>
+										{errorMessage ? (
+											<p className="text-sm text-[#ed4245]">{errorMessage}</p>
+										) : null}
+									</div>
+								);
+							}}
+						</form.Field>
+
+						<form.Field
+							name="webhook_url"
+							validators={{
+								onChange: ({ value }) => validateWebhookUrl(value),
+							}}
+						>
+							{(field) => {
+								const errorMessage = readFirstError(field.state.meta.errors);
+								return (
+									<div className="space-y-2">
+										<Label htmlFor="webhook_url">Webhook 網址</Label>
+										<Input
+											id="webhook_url"
+											value={field.state.value}
+											onBlur={field.handleBlur}
+											onChange={(event) =>
+												field.handleChange(event.target.value)
+											}
+											placeholder="可選：Discord Webhook 網址"
+											aria-invalid={Boolean(errorMessage)}
+										/>
+										{errorMessage ? (
+											<p className="text-sm text-[#ed4245]">{errorMessage}</p>
+										) : null}
+									</div>
+								);
+							}}
+						</form.Field>
+
+						<div className="space-y-2">
+							<Label htmlFor="bannerPreviewUrl">自訂 Banner 圖片</Label>
+							<Input
+								id="bannerPreviewUrl"
+								value={bannerPreviewUrl}
+								onChange={(event) => setBannerPreviewUrl(event.target.value)}
+								placeholder="https://..."
+							/>
+						</div>
+
+						<form.Subscribe
+							selector={(state) => ({
+								canSubmit: state.canSubmit,
+								isSubmitting: state.isSubmitting,
+								hasRequiredFields: hasRequiredPublishFields({
+									shortDescription: state.values.shortDescription,
+									longDescription: state.values.longDescription,
+									inviteLink: state.values.inviteLink,
+								}),
+							})}
+						>
+							{({ canSubmit, isSubmitting, hasRequiredFields }) => (
+								<Button
+									type="submit"
+									disabled={
+										!hasRequiredFields ||
+										!canSubmit ||
+										isSubmitting ||
+										saveMutation.isPending ||
+										isUploading
+									}
+									className="w-full bg-[#5865f2] text-white hover:bg-[#4752c4] disabled:cursor-not-allowed disabled:bg-[#5865f2]/70"
+								>
+									{saveMutation.isPending || isSubmitting
+										? "儲存中..."
+										: bundle.isPublished
+											? "更新伺服器"
+											: "發布伺服器"}
+								</Button>
+							)}
+						</form.Subscribe>
+					</div>
+
+					<div className="space-y-4 rounded-xl border border-white/10 bg-[#2b2d31] p-5">
+						<div className="space-y-2">
+							<Label>Icon 預覽</Label>
+							<div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-full border border-white/10 bg-[#36393f]">
+								{iconPreviewUrl ? (
+									<img
+										src={iconPreviewUrl}
+										alt="Server icon preview"
+										className="h-full w-full object-cover"
+									/>
+								) : (
+									<span className="text-xs text-[#b9bbbe]">沒有伺服器</span>
+								)}
+							</div>
+						</div>
+
+						<div className="space-y-2">
+							<Label>Banner 預覽</Label>
+							<div className="h-40 overflow-hidden rounded-lg border border-white/10 bg-[#36393f]">
+								{bannerPreviewUrl ? (
+									<img
+										src={bannerPreviewUrl}
+										alt="Server banner preview"
+										className="h-full w-full object-cover"
+									/>
+								) : (
+									<div className="flex h-full items-center justify-center text-sm text-[#b9bbbe]">
+										沒有伺服器旗幟
+									</div>
+								)}
+							</div>
+						</div>
+
+						<div className="space-y-2">
+							<Label>Markdown 預覽</Label>
+							<div
+								ref={previewRef}
+								className="h-105 overflow-y-auto rounded-lg border border-white/10 bg-[#1f2124] p-4"
+							>
+								{longDescriptionValue.trim() ? (
+									<MarkdownRenderer content={longDescriptionValue} />
+								) : (
+									<p className="text-sm text-[#b9bbbe]">
+										在左側輸入詳細介紹後，這裡會同步顯示預覽。
+									</p>
+								)}
+							</div>
+						</div>
+					</div>
+				</form>
+			</div>
+		</div>
+	);
+}
