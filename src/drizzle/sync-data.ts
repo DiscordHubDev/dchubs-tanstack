@@ -1,5 +1,5 @@
 import "dotenv/config";
-import { Pool } from "@neondatabase/serverless";
+import { Pool } from "pg";
 
 type Edge = { child: string; parent: string };
 
@@ -69,10 +69,11 @@ function getTopologicalOrder(tables: string[], edges: Edge[]): string[] {
 
 async function main() {
 	const sourceUrl = process.env.DATABASE_URL;
-	const targetUrl = process.env.NEON_DATABASE_URL;
+	const targetUrl = process.env.NEW_DATABASE_URL;
+	const shouldTruncateTarget = process.env.TRUNCATE_TARGET_FIRST !== "false";
 
 	if (!sourceUrl || !targetUrl) {
-		throw new Error("Both DATABASE_URL and NEON_DATABASE_URL are required.");
+		throw new Error("Both DATABASE_URL and NEW_DATABASE_URL are required.");
 	}
 
 	const sourceDb = new Pool({
@@ -88,7 +89,10 @@ async function main() {
 		idleTimeoutMillis: 5000,
 	});
 
-	const excludedTables = new Set(["_prisma_migrations"]);
+	const excludedTables = new Set([
+		"_prisma_migrations",
+		"__drizzle_migrations",
+	]);
 	const batchSize = 200;
 
 	try {
@@ -130,6 +134,14 @@ async function main() {
 		let totalInserted = 0;
 
 		await targetDb.query("begin");
+
+		if (shouldTruncateTarget && orderedTables.length > 0) {
+			const truncateTables = orderedTables.map(quoteIdent).join(", ");
+			await targetDb.query(
+				`truncate table ${truncateTables} restart identity cascade`,
+			);
+			console.log(`target tables truncated: ${orderedTables.length}`);
+		}
 
 		for (const table of orderedTables) {
 			const columnsResult = await sourceDb.query<{
@@ -193,7 +205,7 @@ async function main() {
 					})
 					.join(", ");
 
-				const insertSql = `insert into ${quoteIdent(table)} (${columnList}) values ${valuesSql} on conflict do nothing`;
+				const insertSql = `insert into ${quoteIdent(table)} (${columnList}) values ${valuesSql}`;
 				const inserted = await targetDb.query(insertSql, params);
 				insertedForTable += inserted.rowCount ?? 0;
 			}

@@ -5,11 +5,9 @@ export default defineNitroConfig({
     routes: ["/profile"],
   },
   compressPublicAssets: true,
-  exportConditions: ['edge', 'worker'],
   alias: {
     'react-dom/server': 'react-dom/server.edge'
   },
-  preset: "cloudflare-module",
   externals: {
     inline: [
       "@tanstack/react-start",
@@ -28,7 +26,6 @@ export default defineNitroConfig({
       "canvas",
       "jsdom",
       /^node:/,
-      /^cloudflare:/,
     ],
   },
   minify: true,

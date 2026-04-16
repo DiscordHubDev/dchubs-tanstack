@@ -1,0 +1,54 @@
+name: Deploy TanStack Start to R2 & Pterodactyl
+
+on:
+  push:
+    branches: [ main ] # 只有推送到 main 分支時才執行
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # 允許 Actions 推送內容到 deploy 分支
+
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - name: Install Dependencies
+        run: bun install
+
+      - name: Build Project
+        run: bun run build
+
+      # --- 步驟 1: 上傳前端資源到 Cloudflare R2 ---
+      - name: Upload Static Assets to R2
+        uses: cloudflare/wrangler-action@v3
+        with:
+          apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
+          accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+          command: r2 object put dchubs/assets --file ./.output/public/assets --recursive
+
+      # --- 步驟 2: 將編譯後的後端程式碼推送到 deploy 分支 ---
+      - name: Push Server Output to Deploy Branch
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          branch: deploy
+          folder: .output/server # 只推送後端執行檔
+          clean: true
+          single-commit: true
+
+      # --- 步驟 3: 通知 Pterodactyl 重啟 ---
+      - name: Trigger Pterodactyl Restart
+        run: |
+          curl -X POST "${{ secrets.PTERO_URL }}/api/client/servers/${{ secrets.PTERO_SERVER_ID }}/power" \
+            -H "Authorization: Bearer ${{ secrets.PTERO_API_KEY }}" \
+            -H "Content-Type: application/json" \
+            -H "Accept: application/json" \
+            -d '{"signal": "restart"}'

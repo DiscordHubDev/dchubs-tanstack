@@ -23,4 +23,5 @@ export default defineConfig({
   verbose: true,
   strict: true,
   schemaFilter: ["public"],
+  tablesFilter: ["Bot", "Server", "Review", "Vote", "ApiKey", "BotCommand", "Notification", "Report", "User", "!directus_*"],
 });
