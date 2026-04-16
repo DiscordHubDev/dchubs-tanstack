@@ -33,7 +33,7 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: r2 object put dchubs/assets --file ./.output/public/assets --recursive
+          command: r2 bucket directory upload dchubs/assets --directory ./.output/public/assets
 
       # --- 步驟 2: 將編譯後的後端程式碼推送到 deploy 分支 ---
       - name: Push Server Output to Deploy Branch
