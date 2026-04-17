@@ -1,10 +1,7 @@
-# 使用 slim 版本可以大幅減少 Image 體積
 FROM oven/bun:slim
 
 LABEL author="Mantouisyummy" maintainer="opcantel@gmail.com"
 
-# 1. 集中安裝依賴並清理
-# 額外加入 libpq5 以確保 PostgreSQL 連線正常 (根據你先前的報錯)
 RUN apt-get update \
     && apt-get -y install --no-install-recommends \
         ffmpeg \
@@ -26,15 +23,13 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/* \
     && useradd -m -d /home/container container
 
-# --- 關鍵修改：將代碼放在 /app 避開掛載點 ---
 WORKDIR /app
 
-COPY .output .
+COPY .output/server ./server
+COPY .output/public ./public
 
-# 修正權限：讓 container 使用者可以存取 /app
 RUN chown -R container:container /app
 
-# 設定 Pterodactyl 預設工作目錄 (雖然我們代碼在 /app)
 WORKDIR /home/container
 
 USER container

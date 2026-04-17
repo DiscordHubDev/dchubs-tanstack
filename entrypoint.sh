@@ -3,7 +3,15 @@ cd /home/container
 
 if [ -f ".env" ]; then
     echo "Loading environment variables from .env file..."
-    export $(grep -v '^#' .env | xargs)
+    set -a
+    source .env
+    set +a
+fi
+
+if [ -d "/app/server" ]; then
+    cd /app/server
+else
+    cd /home/container
 fi
 
 INTERNAL_IP=$(ip route get 1 | awk '{print $(NF-2);exit}')
