@@ -28,8 +28,8 @@ RUN apt-get update \
 
 # --- 關鍵修改：將代碼放在 /app 避開掛載點 ---
 WORKDIR /app
-# 複製 .output/server 到 /app
-COPY .output/server .
+
+COPY .output .
 
 # 修正權限：讓 container 使用者可以存取 /app
 RUN chown -R container:container /app
