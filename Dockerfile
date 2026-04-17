@@ -1,10 +1,10 @@
-# 建議考慮使用 slim 版本，例如 FROM oven/bun:slim
-FROM oven/bun:latest
+# 使用 slim 版本可以大幅減少 Image 體積
+FROM oven/bun:slim
 
 LABEL author="Mantouisyummy" maintainer="opcantel@gmail.com"
 
-# 1. 集中執行 apt 命令，並在結尾強制清理快取與暫存檔
-# 2. 如果可以，請嘗試把 build-essential 和 python3-dev 移除，除非你的程式在執行期真的會用到它們
+# 1. 集中安裝依賴並清理
+# 額外加入 libpq5 以確保 PostgreSQL 連線正常 (根據你先前的報錯)
 RUN apt-get update \
     && apt-get -y install --no-install-recommends \
         ffmpeg \
@@ -21,23 +21,28 @@ RUN apt-get update \
         curl \
         libtool \
         tini \
+        libpq5 \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/* \
     && useradd -m -d /home/container container
 
-USER container
-ENV USER=container HOME=/home/container
+# --- 關鍵修改：將代碼放在 /app 避開掛載點 ---
+WORKDIR /app
+# 複製 .output/server 到 /app
+COPY .output/server .
+
+# 修正權限：讓 container 使用者可以存取 /app
+RUN chown -R container:container /app
+
+# 設定 Pterodactyl 預設工作目錄 (雖然我們代碼在 /app)
 WORKDIR /home/container
 
-# 確保你的 .dockerignore 有設定好，避免把本機龐大的 node_modules 或日誌檔也 copy 進去
-COPY .output/server .
+USER container
+ENV USER=container HOME=/home/container NODE_ENV=production
 
 STOPSIGNAL SIGINT
 
-COPY --chown=container:container ./../entrypoint.sh /entrypoint.sh
-
-# 這邊把權限設定移到 root 階段，或是如果你要在 user 階段執行，要確保 user 有權限
-# 不過更乾淨的做法是事先在本機就將 entrypoint.sh 賦予執行權限
+COPY --chown=container:container ./entrypoint.sh /entrypoint.sh
 USER root
 RUN chmod +x /entrypoint.sh
 USER container
