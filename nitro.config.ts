@@ -3,7 +3,7 @@ import { defineNitroConfig } from "nitropack/config";
 export default defineNitroConfig({
   preset: 'bun',
   prerender: {
-    routes: ["/profile"],
+    crawlLinks: true,
   },
   publicAssets: [
       {

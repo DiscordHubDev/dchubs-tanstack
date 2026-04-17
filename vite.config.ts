@@ -51,10 +51,15 @@ function manualVendorChunks(id: string) {
 		return "markdown-vendor";
 	}
 	if (pkg === "lucide-react" || pkg === "react-icons") return "icons-vendor";
+
 	// better-auth 在 SSR/prerender bundle 內有循環初始化相依，
 	// 強制手動分 chunk 可能導致 "Cannot access ... before initialization"。
 	// 交給 Rollup 自動決定 chunk 邊界可避免 TDZ 初始化順序錯誤。
 	if (pkg === "better-auth" || pkg.startsWith("@better-auth/")) return;
+
+	// 解決 pg -> pg-pool 的 Circular chunk 錯誤
+	// 交給 Rollup 原生處理依賴圖，避免強制分包導致循環參照
+	if (pkg === "pg" || pkg.startsWith("pg-")) return;
 
 	return "vendor";
 }
