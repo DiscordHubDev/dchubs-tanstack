@@ -8,6 +8,7 @@ import {
 	useCallback,
 	useEffect,
 	useMemo,
+	useRef,
 	useState,
 	useTransition,
 } from "react";
@@ -27,6 +28,7 @@ import {
 	paginateServers,
 	sortServersByCategory,
 } from "#/features/servers/servers.utils";
+import { signIn, useSession } from "#/lib/auth-client";
 import type { CategoryType } from "#/lib/types";
 
 const DEFAULT_CATEGORY: ServerCategory = "popular";
@@ -90,6 +92,28 @@ function validateSearch(search: Record<string, unknown>): HomeSearch {
 	return parsed;
 }
 
+function normalizeRedirectTarget(value: string): string {
+	if (value.startsWith("/")) {
+		return value;
+	}
+
+	if (typeof window === "undefined") {
+		return "/";
+	}
+
+	try {
+		const parsed = new URL(value, window.location.origin);
+
+		if (parsed.origin !== window.location.origin) {
+			return "/";
+		}
+
+		return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+	} catch {
+		return "/";
+	}
+}
+
 export const Route = createFileRoute("/")({
 	validateSearch,
 	loaderDeps: ({ search }) => ({
@@ -114,6 +138,8 @@ export const Route = createFileRoute("/")({
 function HomePage() {
 	const navigate = Route.useNavigate();
 	const search = Route.useSearch();
+	const { status } = useSession();
+	const autoSignInTriggeredRef = useRef(false);
 	const [isPending, startTransition] = useTransition();
 
 	const activeTab = (search.tab ?? DEFAULT_CATEGORY) as ServerCategory;
@@ -149,6 +175,27 @@ function HomePage() {
 		);
 		window.scrollTo({ top: 0, behavior: "auto" });
 	}, []);
+
+	useEffect(() => {
+		if (typeof search.redirect !== "string" || !search.redirect) return;
+		if (status === "loading") return;
+
+		if (status === "authenticated") {
+			navigate({
+				to: "/",
+				replace: true,
+				search: (previous) => ({
+					...previous,
+					redirect: undefined,
+				}),
+			});
+			return;
+		}
+
+		if (autoSignInTriggeredRef.current) return;
+		autoSignInTriggeredRef.current = true;
+		void signIn(normalizeRedirectTarget(search.redirect));
+	}, [navigate, search.redirect, status]);
 
 	const serversList = useSuspenseQuery(
 		serversListQueryOptions({

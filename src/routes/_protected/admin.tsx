@@ -16,6 +16,7 @@ export const Route = createFileRoute("/_protected/admin")({
 
 function Dashboard() {
 	const { user } = Route.useRouteContext();
+	const displayName = user?.global_name ?? "User";
 
-	return <div>Welcome, {user.global_name}!</div>;
+	return <div>Welcome, {displayName}!</div>;
 }

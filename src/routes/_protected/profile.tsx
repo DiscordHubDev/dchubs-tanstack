@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { UserProfilePage } from "#/features/users/components/profile-page";
 import type {
 	ProfileSearch,
@@ -38,12 +38,24 @@ export const Route = createFileRoute("/_protected/profile")({
 	loaderDeps: ({ search }) => ({
 		viewedUserId: search.id,
 	}),
-	loader: async ({ context, deps }) => {
-		const targetUserId = deps.viewedUserId ?? context.user.id;
+	loader: async ({ context, deps, location }) => {
+		const currentUserId = context.user?.id;
+
+		if (!currentUserId) {
+			throw redirect({
+				to: "/",
+				search: { redirect: location.href },
+			});
+		}
+
+		const targetUserId = deps.viewedUserId ?? currentUserId;
 		await context.queryClient.ensureQueryData(
 			userProfileQueryOptions(targetUserId),
 		);
-		return { viewedUserId: targetUserId };
+		return {
+			viewedUserId: targetUserId,
+			currentUserId,
+		};
 	},
 	pendingComponent: ProfilePending,
 	component: RouteComponent,
@@ -52,15 +64,14 @@ export const Route = createFileRoute("/_protected/profile")({
 function RouteComponent() {
 	const navigate = Route.useNavigate();
 	const search = Route.useSearch();
-	const { viewedUserId } = Route.useLoaderData();
-	const { user } = Route.useRouteContext();
+	const { viewedUserId, currentUserId } = Route.useLoaderData();
 
 	const activeTab = (search.tab ?? "servers") as ProfileTab;
 
 	return (
 		<UserProfilePage
 			viewedUserId={viewedUserId}
-			currentUserId={user.id}
+			currentUserId={currentUserId}
 			activeTab={activeTab}
 			onTabChange={(tab) => {
 				navigate({
