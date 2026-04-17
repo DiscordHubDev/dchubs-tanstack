@@ -1,4 +1,9 @@
 #!/bin/bash
+if [ -f "/home/container/.env" ]; then
+    ln -sf /home/container/.env /app/.env
+    echo "linked .env to /app/.env"
+fi
+
 if [ -d "/app" ]; then
     cd /app
 else
