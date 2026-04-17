@@ -12,7 +12,7 @@ jobs:
 
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -33,7 +33,9 @@ jobs:
         with:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
-          command: r2 bucket directory upload dchubs/assets --directory ./.output/public/assets
+          command: |
+            test -d ./.output/public/assets
+            wrangler r2 object put "assets/" --bucket dchubs --file ./.output/public/assets --recursive
 
       # --- 步驟 2: 將編譯後的後端程式碼推送到 deploy 分支 ---
       - name: Push Server Output to Deploy Branch
