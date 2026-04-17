@@ -1,32 +1,18 @@
-FROM oven/bun:latest AS builder
+FROM oven/bun:latest
 
-WORKDIR /app
+RUN apt-get update && apt-get install -y git libpq5 iproute2 zip tar curl && rm -rf /var/lib/apt/lists/*3 && useradd -m -d /home/container container
 
-RUN apt-get update && apt-get install -y \
-    python3 \
-    make \
-    g++ \
-    libpq-dev \
-    && rm -rf /var/lib/apt/lists/*
+RUN bun upgrade
 
-COPY package.json bun.lock ./
-RUN bun install --frozen-lockfile
+USER container
+ENV USER=container HOME=/home/container
+WORKDIR /home/container
 
-COPY . .
+COPY .output/server .
 
-ARG CDN_ORIGIN
-ENV CDN_ORIGIN=$CDN_ORIGIN
-RUN bun run build
+STOPSIGNAL SIGINT
 
-FROM oven/bun:latest AS runner
-
-WORKDIR /app
-
-COPY --from=builder /app/.output ./.output
-
-ENV NODE_ENV=production
-ENV PORT=10000
-
-EXPOSE 10000
-
-CMD ["./.output/server/index.mjs"]
+COPY        --chown=container:container ./../entrypoint.sh /entrypoint.sh
+RUN         chmod +x /entrypoint.sh
+ENTRYPOINT    ["/usr/bin/tini", "-g", "--"]
+CMD         ["/entrypoint.sh"]
