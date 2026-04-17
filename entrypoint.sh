@@ -3,9 +3,14 @@ cd /home/container
 
 if [ -f ".env" ]; then
     echo "Loading environment variables from .env file..."
+    tr -d '\r' < .env > .env.unix
+    
     set -a
-    source .env
+    source .env.unix
     set +a
+    
+    # 載入完畢後刪除暫存檔
+    rm .env.unix
 fi
 
 if [ -d "/app/server" ]; then

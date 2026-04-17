@@ -19,7 +19,6 @@ export default defineNitroConfig({
     inline: [
       "@tanstack/react-start",
       'effect',
-      '@neondatabase/serverless', 
     ],
     external: [
       "pg",

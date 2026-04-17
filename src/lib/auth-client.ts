@@ -26,14 +26,46 @@ export type LegacySessionData = {
 	};
 };
 
-export function useSession() {
-	const { data, isPending, error, refetch } = authClient.useSession();
+function withDiscordProfile(
+	session: LegacySessionData | null,
+): LegacySessionData | null {
+	if (!session) return session;
+	if (session.discordProfile?.id) return session;
+
+	const user = session.user;
+	const id = user?.discordId || user?.id;
+	if (!id) return session;
 
 	return {
-		data: (data as LegacySessionData | null) ?? null,
+		...session,
+		discordProfile: {
+			id,
+			username: user?.name || "",
+			global_name: user?.name || "",
+			image_url: user?.image || "",
+			avatar: user?.image || "",
+			banner_url: null,
+			banner_color: null,
+		},
+		error: session.error ?? null,
+	};
+}
+
+export function useSession() {
+	const { data, isPending, error, refetch } = authClient.useSession();
+	const normalizedData = withDiscordProfile(
+		(data as LegacySessionData | null) ?? null,
+	);
+
+	return {
+		data: normalizedData,
 		isPending,
 		error,
-		status: isPending ? "loading" : data ? "authenticated" : "unauthenticated",
+		status: isPending
+			? "loading"
+			: normalizedData
+				? "authenticated"
+				: "unauthenticated",
 		update: refetch,
 	};
 }

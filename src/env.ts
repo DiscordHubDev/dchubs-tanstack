@@ -27,10 +27,10 @@ export const env = createEnv({
 
 	/**
 	 * By default, this library will feed the environment variables directly to
-	 * the Zod validator.
+	 * the configured validator.
 	 *
 	 * This means that if you have an empty string for a value that is supposed
-	 * to be a number (e.g. `PORT=` in a ".env" file), Zod will incorrectly flag
+	 * to be a number (e.g. `PORT=` in a ".env" file), validation may flag
 	 * it as a type mismatch violation. Additionally, if you have an empty string
 	 * for a value that is supposed to be a string with a default value (e.g.
 	 * `DOMAIN=` in an ".env" file), the default value will never be applied.
