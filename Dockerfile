@@ -1,6 +1,10 @@
 FROM oven/bun:latest
 
-RUN apt-get update && apt-get install -y git libpq5 iproute2 zip tar curl && rm -rf /var/lib/apt/lists/*3 && useradd -m -d /home/container container
+LABEL author="Mantouisyummy" maintainer="opcantel@gmail.com"
+
+RUN  apt update \
+            && apt -y install ffmpeg iproute2 git sqlite3 libsqlite3-dev python3 python3-dev ca-certificates dnsutils tzdata zip tar curl build-essential libtool tini \
+            && useradd -m -d /home/container container
 
 RUN bun upgrade
 
