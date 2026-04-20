@@ -66,7 +66,7 @@ function manualVendorChunks(id: string) {
 
 export default defineConfig(({ isSsrBuild }) => {
 	return {
-		base: process.env.CDN_ORIGIN || "/",
+		base: process.env.CDN_ORIGIN ? `${process.env.CDN_ORIGIN}/` : "/",
 		ssr: {
 			noExternal: ["lucide-react"],
 		},
