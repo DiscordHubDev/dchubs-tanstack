@@ -66,15 +66,7 @@ function manualVendorChunks(id: string) {
 
 export default defineConfig(({ isSsrBuild }) => {
 	return {
-		base: "",
-		experimental: {
-			renderBuiltUrl(filename, { hostType }) {
-				if (hostType === "js") {
-					return { relative: true };
-				}
-				return `https://${process.env.CDN_ORIGIN}/${filename}`;
-			},
-		},
+		base: process.env.CDN_ORIGIN || "/",
 		ssr: {
 			noExternal: ["lucide-react"],
 		},

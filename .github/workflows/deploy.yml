@@ -30,6 +30,9 @@ jobs:
         run: bun install
 
       - name: Build Project
+        env:
+          CDN_ORIGIN: "https://assets.dchubs.org"
+          NODE_ENV: production
         run: bun run build
 
       # --- 步驟 1: 上傳前端資源到 Cloudflare R2 ---
