@@ -90,6 +90,16 @@ function calculateAvgRating(reviewList: ServerReview[]): number {
 	return Number((sum / reviewList.length).toFixed(2));
 }
 
+function isCloudinaryUrl(value: string): boolean {
+	try {
+		const url = new URL(value);
+		const host = url.hostname.toLowerCase();
+		return host === "res.cloudinary.com" || host.endsWith(".cloudinary.com");
+	} catch {
+		return false;
+	}
+}
+
 export function ServerDetailPage() {
 	const { serverId } = routeApi.useParams();
 	const search = routeApi.useSearch();
@@ -105,6 +115,9 @@ export function ServerDetailPage() {
 	const activeTab = (search.tab ?? "about") as ServerDetailTab;
 	const sessionUserId = getSessionUserId(session);
 	const isSignedIn = Boolean(sessionUserId);
+	const bannerIsCloudinary = Boolean(
+		detail?.banner && isCloudinaryUrl(detail.banner),
+	);
 	const detailQueryKey = useMemo(
 		() => queryKeys.servers.detail(serverId),
 		[serverId],
@@ -337,15 +350,24 @@ export function ServerDetailPage() {
 			<div className="relative h-52 overflow-hidden bg-[#36393f] md:h-64 lg:h-80">
 				{detail.banner ? (
 					<>
-						<Image
-							layout="fixed"
-							width={1280}
-							height={480}
-							className="h-full w-full object-cover"
-							loading="eager"
-							src={detail.banner}
-							alt={`${detail.name} banner`}
-						/>
+						{bannerIsCloudinary ? (
+							<Image
+								cdn="cloudinary"
+								src={detail.banner}
+								alt={`${detail.name} banner`}
+								layout="fullWidth"
+								height={480}
+								className="absolute inset-0 h-full w-full object-cover"
+								loading="eager"
+							/>
+						) : (
+							<img
+								src={detail.banner}
+								alt={`${detail.name} banner`}
+								className="absolute inset-0 h-full w-full object-cover"
+								loading="eager"
+							/>
+						)}
 						<div className="absolute inset-0 bg-linear-to-t from-[#1e1f22] to-transparent" />
 					</>
 				) : (

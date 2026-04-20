@@ -129,6 +129,8 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
 			},
 		],
 		links: [
+			{ rel: "preconnect", href: "https://assets.dchubs.org" },
+			{ rel: "dns-prefetch", href: "https://assets.dchubs.org" },
 			{
 				rel: "stylesheet",
 				href: appCss,

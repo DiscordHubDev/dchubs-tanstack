@@ -2,16 +2,7 @@ import { defineNitroConfig } from "nitropack/config";
 
 export default defineNitroConfig({
   preset: 'bun',
-  prerender: {
-    crawlLinks: true,
-  },
-  publicAssets: [
-      {
-        dir: './public',
-        maxAge: 31536000, // 1 year
-      },
-  ],
-  compressPublicAssets: true,
+  compressPublicAssets: false,
   alias: {
     'react-dom/server': 'react-dom/server.edge'
   },
@@ -36,6 +27,7 @@ export default defineNitroConfig({
   },
   minify: true,
   debug: process.env.NODE_ENV !== "production",
+  sourceMap: process.env.NODE_ENV !== "production",
   rollupConfig: {
 		external: [/^@sentry\//],
 	},

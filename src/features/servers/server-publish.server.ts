@@ -1,3 +1,4 @@
+import { v2 as cloudinary } from "cloudinary";
 import { and, eq } from "drizzle-orm";
 import { Effect } from "effect";
 import { db } from "#/drizzle/db";
@@ -7,6 +8,8 @@ import { runEffect, tryEffectPromise } from "#/lib/effect-utils";
 import { fetchDiscordGuilds } from "./add-server.api";
 import type { DiscordGuild } from "./add-server.types";
 import type {
+	ServerBannerUploadInput,
+	ServerBannerUploadResult,
 	ServerPublishBundle,
 	ServerPublishResult,
 	ServerPublishSubmitInput,
@@ -131,6 +134,137 @@ function buildGuildIconUrl(guild: DiscordGuild): string | null {
 	}
 
 	return `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png?size=256`;
+}
+
+function getCloudinaryCredentialsEffect(): Effect.Effect<
+	{
+		cloudName: string;
+		apiKey: string;
+		apiSecret: string;
+		uploadPreset: string | null;
+	},
+	Error
+> {
+	return Effect.gen(function* () {
+		const cloudName = process.env.CLOUDINARY_CLOUD_NAME;
+		const apiKey = process.env.CLOUDINARY_API_KEY;
+		const apiSecret = process.env.CLOUDINARY_API_SECRET;
+		const uploadPreset = normalizeOptionalString(
+			process.env.CLOUDINARY_UPLOAD_PRESET ?? process.env.UPLOAD_PRESET,
+		);
+
+		if (!cloudName || !apiKey || !apiSecret) {
+			return yield* Effect.fail(
+				new Error(
+					"Cloudinary 環境變數未設定完整，請確認 CLOUDINARY_CLOUD_NAME、CLOUDINARY_API_KEY、CLOUDINARY_API_SECRET",
+				),
+			);
+		}
+
+		return {
+			cloudName,
+			apiKey,
+			apiSecret,
+			uploadPreset,
+		};
+	});
+}
+
+function getServerBannerPublicId(serverId: string): string {
+	return `servers/${serverId}/banner`;
+}
+
+function getExistingBannerFingerprint(resource: unknown): string | null {
+	const candidate = (
+		resource as {
+			context?: {
+				custom?: {
+					fingerprint?: unknown;
+				};
+			};
+		}
+	)?.context?.custom?.fingerprint;
+
+	if (typeof candidate !== "string") {
+		return null;
+	}
+
+	const normalized = candidate.trim().toLowerCase();
+	return normalized.length > 0 ? normalized : null;
+}
+
+function getExistingBannerUrl(resource: unknown): string | null {
+	const secureUrl = (resource as { secure_url?: unknown })?.secure_url;
+	if (typeof secureUrl !== "string") {
+		return null;
+	}
+
+	const normalized = secureUrl.trim();
+	return normalized.length > 0 ? normalized : null;
+}
+
+function getCloudinaryErrorDetails(error: unknown): {
+	httpCode: number | null;
+	message: string;
+} {
+	const topLevel = error as {
+		http_code?: unknown;
+		message?: unknown;
+		error?: {
+			http_code?: unknown;
+			message?: unknown;
+		};
+	};
+
+	const nestedError = topLevel?.error;
+	const httpCodeCandidate =
+		typeof topLevel?.http_code === "number"
+			? topLevel.http_code
+			: typeof nestedError?.http_code === "number"
+				? nestedError.http_code
+				: null;
+
+	const messageCandidate =
+		typeof topLevel?.message === "string"
+			? topLevel.message
+			: typeof nestedError?.message === "string"
+				? nestedError.message
+				: null;
+
+	if (messageCandidate) {
+		return {
+			httpCode: httpCodeCandidate,
+			message: messageCandidate,
+		};
+	}
+
+	if (error instanceof Error && error.message) {
+		return {
+			httpCode: httpCodeCandidate,
+			message: error.message,
+		};
+	}
+
+	try {
+		return {
+			httpCode: httpCodeCandidate,
+			message: JSON.stringify(error),
+		};
+	} catch {
+		return {
+			httpCode: httpCodeCandidate,
+			message: String(error),
+		};
+	}
+}
+
+function isCloudinaryNotFoundError(error: unknown): boolean {
+	const details = getCloudinaryErrorDetails(error);
+	if (details.httpCode === 404) {
+		return true;
+	}
+
+	return details.message.toLowerCase().includes("not found");
 }
 
 function getAccessibleGuildEffect(serverId: string): Effect.Effect<
@@ -335,6 +469,101 @@ function upsertServerPublishEffect(
 	});
 }
 
+function uploadServerBannerEffect(
+	input: ServerBannerUploadInput,
+): Effect.Effect<ServerBannerUploadResult, Error> {
+	return Effect.gen(function* () {
+		yield* getAccessibleGuildEffect(input.serverId);
+
+		const { cloudName, apiKey, apiSecret, uploadPreset } =
+			yield* getCloudinaryCredentialsEffect();
+
+		cloudinary.config({
+			cloud_name: cloudName,
+			api_key: apiKey,
+			api_secret: apiSecret,
+			secure: true,
+		});
+
+		const publicId = getServerBannerPublicId(input.serverId);
+		const normalizedFingerprint = input.fingerprint.toLowerCase();
+
+		const existingResource = yield* Effect.tryPromise({
+			try: () =>
+				cloudinary.api.resource(publicId, {
+					resource_type: "image",
+					type: "upload",
+					context: true,
+				}),
+			catch: (error) => {
+				if (isCloudinaryNotFoundError(error)) {
+					return null;
+				}
+
+				const details = getCloudinaryErrorDetails(error);
+				throw new Error(
+					`Failed to inspect existing Cloudinary banner: ${details.message}`,
+				);
+			},
+		}).pipe(
+			// 即使 inspect 失敗也不中斷，改由 upload 流程繼續執行。
+			Effect.catchAll(() => Effect.succeed(null)),
+		);
+
+		const existingFingerprint = getExistingBannerFingerprint(existingResource);
+		const existingBannerUrl = getExistingBannerUrl(existingResource);
+
+		if (
+			existingFingerprint === normalizedFingerprint &&
+			typeof existingBannerUrl === "string"
+		) {
+			return {
+				bannerUrl: existingBannerUrl,
+				fingerprint: normalizedFingerprint,
+				skipped: true,
+				message: "選擇的圖片與目前 Banner 相同，已略過上傳",
+			};
+		}
+
+		const uploadResult = yield* Effect.tryPromise({
+			try: () =>
+				cloudinary.uploader.upload(input.dataUrl, {
+					resource_type: "image",
+					public_id: publicId,
+					overwrite: true,
+					invalidate: true,
+					unique_filename: false,
+					use_filename: false,
+					...(uploadPreset ? { upload_preset: uploadPreset } : {}),
+					context: {
+						fingerprint: normalizedFingerprint,
+						server_id: input.serverId,
+						file_name: input.fileName,
+					},
+				}),
+			catch: (error) => {
+				const details = getCloudinaryErrorDetails(error);
+				return new Error(
+					`Failed to upload banner image to Cloudinary: ${details.message}`,
+				);
+			},
+		});
+
+		if (!uploadResult.secure_url) {
+			return yield* Effect.fail(
+				new Error("Cloudinary 未回傳有效的 Banner URL"),
+			);
+		}
+
+		return {
+			bannerUrl: uploadResult.secure_url,
+			fingerprint: normalizedFingerprint,
+			skipped: false,
+			message: "Banner 圖片上傳成功，已覆蓋更新",
+		};
+	});
+}
+
 export function getServerPublishBundleById(
 	serverId: string,
 ): Promise<ServerPublishBundle> {
@@ -345,4 +574,10 @@ export function upsertServerPublish(
 	input: ServerPublishSubmitInput,
 ): Promise<ServerPublishResult> {
 	return runEffect(upsertServerPublishEffect(input));
+}
+
+export function uploadServerBanner(
+	input: ServerBannerUploadInput,
+): Promise<ServerBannerUploadResult> {
+	return runEffect(uploadServerBannerEffect(input));
 }

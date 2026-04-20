@@ -57,6 +57,19 @@ const OptionalHttpUrlSchema = Schema.String.pipe(
 	}),
 );
 
+const SupportedBannerMimeTypeSchema = Schema.Union(
+	Schema.Literal("image/gif"),
+	Schema.Literal("image/png"),
+	Schema.Literal("image/jpeg"),
+	Schema.Literal("image/webp"),
+);
+
+const BannerImageDataUrlSchema = Schema.String.pipe(
+	Schema.maxLength(20_000_000),
+	Schema.pattern(/^data:image\/(?:gif|png|jpe?g|webp);base64,[A-Za-z0-9+/=]+$/),
+);
+const FingerprintSchema = Schema.String.pipe(Schema.pattern(/^[a-f0-9]{64}$/));
+
 export const ServerPublishInputSchema = Schema.Struct({
 	serverId: NonEmptyString,
 });
@@ -103,4 +116,19 @@ export const ServerPublishSubmitSchema = Schema.Struct({
 	iconUrl: NullableUrlSchema,
 	bannerUrl: NullableUrlSchema,
 	form: ServerFormSchema,
+});
+
+export const ServerBannerUploadSchema = Schema.Struct({
+	serverId: NonEmptyString,
+	fileName: NonEmptyString.pipe(Schema.maxLength(255)),
+	mimeType: SupportedBannerMimeTypeSchema,
+	dataUrl: BannerImageDataUrlSchema,
+	fingerprint: FingerprintSchema,
+});
+
+export const ServerBannerUploadResultSchema = Schema.Struct({
+	bannerUrl: Schema.String.pipe(Schema.maxLength(2000)),
+	fingerprint: FingerprintSchema,
+	skipped: Schema.Boolean,
+	message: NonEmptyString.pipe(Schema.maxLength(200)),
 });

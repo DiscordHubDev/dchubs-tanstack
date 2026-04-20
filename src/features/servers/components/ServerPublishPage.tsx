@@ -5,7 +5,7 @@ import {
 	useSuspenseQuery,
 } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { type ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import Swal from "sweetalert2";
 import MarkdownRenderer from "#/components/MarkdownRenderer";
 import { Button } from "#/components/ui/button";
@@ -14,7 +14,10 @@ import { Label } from "#/components/ui/label";
 import { Textarea } from "#/components/ui/textarea";
 import { runEffect, tryEffectPromise } from "#/lib/effect-utils";
 import { queryKeys } from "#/lib/query-keys";
-import { upsertServerPublishFn } from "../server-publish.functions";
+import {
+	uploadServerBannerFn,
+	upsertServerPublishFn,
+} from "../server-publish.functions";
 import { serverPublishQueryOptions } from "../server-publish.query";
 import {
 	InviteLinkSchema,
@@ -57,6 +60,87 @@ function normalizeExternalUrl(value: string): string | null {
 	return normalized.length > 0 ? normalized : null;
 }
 
+const SUPPORTED_BANNER_FILE_TYPES = [
+	"image/gif",
+	"image/png",
+	"image/jpeg",
+	"image/webp",
+] as const;
+const SUPPORTED_BANNER_EXTENSIONS = [".gif", ".png", ".jpg", ".jpeg", ".webp"];
+const SUPPORTED_BANNER_FILE_ACCEPT = [
+	...SUPPORTED_BANNER_FILE_TYPES,
+	...SUPPORTED_BANNER_EXTENSIONS,
+].join(",");
+const MAX_BANNER_IMAGE_BYTES = 10 * 1024 * 1024;
+
+type SupportedBannerMimeType = (typeof SUPPORTED_BANNER_FILE_TYPES)[number];
+
+function resolveSupportedBannerMimeType(
+	file: File,
+): SupportedBannerMimeType | null {
+	const mimeType = file.type.toLowerCase();
+	if (
+		SUPPORTED_BANNER_FILE_TYPES.includes(mimeType as SupportedBannerMimeType)
+	) {
+		return mimeType as SupportedBannerMimeType;
+	}
+
+	const fileName = file.name.toLowerCase();
+	if (fileName.endsWith(".gif")) {
+		return "image/gif";
+	}
+
+	if (fileName.endsWith(".png")) {
+		return "image/png";
+	}
+
+	if (fileName.endsWith(".jpg") || fileName.endsWith(".jpeg")) {
+		return "image/jpeg";
+	}
+
+	if (fileName.endsWith(".webp")) {
+		return "image/webp";
+	}
+
+	return null;
+}
+
+function readFileAsDataUrl(file: File): Promise<string> {
+	return new Promise((resolve, reject) => {
+		const reader = new FileReader();
+
+		reader.onerror = () => {
+			reject(new Error("無法讀取選取的圖片檔案"));
+		};
+
+		reader.onload = () => {
+			const result = reader.result;
+			if (typeof result !== "string") {
+				reject(new Error("無法解析選取的圖片檔案"));
+				return;
+			}
+
+			resolve(result);
+		};
+
+		reader.readAsDataURL(file);
+	});
+}
+
+async function buildFileFingerprint(file: File): Promise<string> {
+	const subtle = globalThis.crypto?.subtle;
+	if (!subtle) {
+		throw new Error("目前瀏覽器不支援檔案雜湊，請更新後重試");
+	}
+
+	const buffer = await file.arrayBuffer();
+	const digest = await subtle.digest("SHA-256", buffer);
+
+	return Array.from(new Uint8Array(digest), (value) =>
+		value.toString(16).padStart(2, "0"),
+	).join("");
+}
+
 function getErrorMessage(error: unknown): string {
 	if (error instanceof Error) {
 		return error.message;
@@ -92,15 +176,27 @@ export function ServerPublishPage({ serverId }: ServerPublishPageProps) {
 	const [bannerPreviewUrl, setBannerPreviewUrl] = useState(
 		bundle.bannerUrl ?? "",
 	);
+	const [bannerFingerprint, setBannerFingerprint] = useState<string | null>(
+		null,
+	);
+	const [bannerUploadStatus, setBannerUploadStatus] = useState<string | null>(
+		null,
+	);
+	const [bannerUploadError, setBannerUploadError] = useState<string | null>(
+		null,
+	);
 	const [isIconUploading] = useState(false);
-	const [isBannerUploading] = useState(false);
 
 	const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 	const previewRef = useRef<HTMLDivElement | null>(null);
+	const bannerFileInputRef = useRef<HTMLInputElement | null>(null);
 
 	useEffect(() => {
 		setIconPreviewUrl(bundle.iconUrl ?? "");
 		setBannerPreviewUrl(bundle.bannerUrl ?? "");
+		setBannerFingerprint(null);
+		setBannerUploadStatus(null);
+		setBannerUploadError(null);
 	}, [bundle.iconUrl, bundle.bannerUrl]);
 
 	const validateServerName = useMemo(
@@ -247,6 +343,74 @@ export function ServerPublishPage({ serverId }: ServerPublishPageProps) {
 		},
 	});
 
+	const bannerUploadMutation = useMutation({
+		mutationFn: async (file: File) => {
+			const mimeType = resolveSupportedBannerMimeType(file);
+			if (!mimeType) {
+				throw new Error("請選擇 GIF、PNG、JPG、JPEG 或 WEBP 圖片檔案");
+			}
+
+			if (file.size <= 0) {
+				throw new Error("選擇的檔案內容為空，請重新選擇");
+			}
+
+			if (file.size > MAX_BANNER_IMAGE_BYTES) {
+				throw new Error("圖片檔案大小不可超過 10MB");
+			}
+
+			const fingerprint = await buildFileFingerprint(file);
+
+			if (
+				bannerFingerprint === fingerprint &&
+				bannerPreviewUrl.trim().length > 0
+			) {
+				return {
+					bannerUrl: bannerPreviewUrl,
+					fingerprint,
+					skipped: true,
+					message: "選擇的圖片與目前 Banner 相同，已略過上傳",
+				};
+			}
+
+			const dataUrl = await readFileAsDataUrl(file);
+
+			return runEffect(
+				tryEffectPromise("Failed to upload server banner", () =>
+					uploadServerBannerFn({
+						data: {
+							serverId,
+							fileName: file.name,
+							mimeType,
+							dataUrl,
+							fingerprint,
+						},
+					}),
+				),
+			);
+		},
+		onMutate: () => {
+			setBannerUploadError(null);
+			setBannerUploadStatus("Banner 圖片上傳中...");
+		},
+		onSuccess: (result) => {
+			setBannerPreviewUrl(result.bannerUrl);
+			setBannerFingerprint(result.fingerprint);
+			setBannerUploadStatus(result.message);
+			setBannerUploadError(null);
+		},
+		onError: (error) => {
+			const message = getErrorMessage(error);
+			setBannerUploadStatus(null);
+			setBannerUploadError(message);
+			void Swal.fire({
+				icon: "error",
+				title: "Banner 上傳失敗",
+				text: message,
+				confirmButtonText: "我知道了",
+			});
+		},
+	});
+
 	const form = useForm({
 		defaultValues: bundle.formValues,
 		validators: {
@@ -274,6 +438,23 @@ export function ServerPublishPage({ serverId }: ServerPublishPageProps) {
 
 		previewRef.current.scrollTop = textareaRef.current.scrollTop;
 	};
+
+	const handleBannerFileChange = async (
+		event: ChangeEvent<HTMLInputElement>,
+	) => {
+		const file = event.target.files?.[0];
+		if (!file) {
+			return;
+		}
+
+		try {
+			await bannerUploadMutation.mutateAsync(file);
+		} finally {
+			event.target.value = "";
+		}
+	};
+
+	const isBannerUploading = bannerUploadMutation.isPending;
 
 	const isUploading = isIconUploading || isBannerUploading;
 
@@ -569,13 +750,34 @@ export function ServerPublishPage({ serverId }: ServerPublishPageProps) {
 						</form.Field>
 
 						<div className="space-y-2">
-							<Label htmlFor="bannerPreviewUrl">自訂 Banner 圖片</Label>
-							<Input
-								id="bannerPreviewUrl"
-								value={bannerPreviewUrl}
-								onChange={(event) => setBannerPreviewUrl(event.target.value)}
-								placeholder="https://..."
+							<Label htmlFor="bannerImageFile">
+								自訂 Banner 圖片（GIF/PNG/JPG/WEBP）
+							</Label>
+							<input
+								ref={bannerFileInputRef}
+								id="bannerImageFile"
+								type="file"
+								accept={SUPPORTED_BANNER_FILE_ACCEPT}
+								disabled={isBannerUploading}
+								className="sr-only"
+								onChange={(event) => {
+									void handleBannerFileChange(event);
+								}}
 							/>
+							<Button
+								type="button"
+								className="bg-discord text-white hover:bg-discord-hover disabled:cursor-not-allowed disabled:bg-discord/70"
+								disabled={isBannerUploading}
+								onClick={() => bannerFileInputRef.current?.click()}
+							>
+								{isBannerUploading ? "圖片上傳中..." : "選擇 Banner 圖片"}
+							</Button>
+							{bannerUploadStatus ? (
+								<p className="text-sm text-[#57f287]">{bannerUploadStatus}</p>
+							) : null}
+							{bannerUploadError ? (
+								<p className="text-sm text-[#ed4245]">{bannerUploadError}</p>
+							) : null}
 						</div>
 
 						<form.Subscribe

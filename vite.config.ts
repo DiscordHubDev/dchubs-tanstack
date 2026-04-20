@@ -98,6 +98,7 @@ export default defineConfig(({ isSsrBuild }) => {
 		].filter(Boolean),
 
 		build: {
+			sourcemap: "hidden",
 			target: "es2022",
 			cssMinify: "lightningcss",
 			minify: "terser",
