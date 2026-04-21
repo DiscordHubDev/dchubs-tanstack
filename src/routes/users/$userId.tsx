@@ -35,6 +35,7 @@ function getSessionUserId(
 
 export const Route = createFileRoute("/users/$userId")({
 	ssr: false,
+	preloadStaleTime: 10 * 60 * 1000,
 	validateSearch: (search): UserProfileSearch => {
 		const tab = parseProfileTab(search.tab);
 		return {

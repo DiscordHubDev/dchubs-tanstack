@@ -18,6 +18,7 @@ export const Route = createFileRoute("/sitemap.xml")({
 		handlers: {
 			GET: async () => {
 				const urls = [
+					new URL("/api/sitemap/static", siteUrl).toString(),
 					new URL("/api/sitemap/servers", siteUrl).toString(),
 					new URL("/api/sitemap/bots", siteUrl).toString(),
 				];

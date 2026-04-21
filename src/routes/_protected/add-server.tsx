@@ -5,6 +5,7 @@ import type { DiscordGuild } from "#/features/servers/add-server.types";
 import { useGuilds } from "#/hooks/use-guilds";
 
 export const Route = createFileRoute("/_protected/add-server")({
+	preload: false,
 	component: RouteComponent,
 });
 

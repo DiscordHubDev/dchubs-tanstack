@@ -35,7 +35,7 @@ export const Route = createFileRoute("/api/sitemap/bots")({
 				});
 
 				const scores = bots.map(
-					(item) => (item.upvotes ?? 0) * 0.6 + (item.servers ?? 0) * 0.4,
+					(item) => (item.upvotes ?? 0) * 0.7 + (item.servers ?? 0) * 0.3,
 				);
 				const maxScore = Math.max(...scores, 1);
 

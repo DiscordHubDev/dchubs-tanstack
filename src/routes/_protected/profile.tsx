@@ -26,6 +26,7 @@ function parseNonEmptyString(value: unknown): string | undefined {
 
 export const Route = createFileRoute("/_protected/profile")({
 	ssr: false,
+	preloadStaleTime: 10 * 60 * 1000,
 	validateSearch: (search): ProfileSearch => {
 		const id = parseNonEmptyString(search.id);
 		const tab = parseProfileTab(search.tab);

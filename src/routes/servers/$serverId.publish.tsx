@@ -3,6 +3,7 @@ import { ServerPublishPage } from "#/features/servers/components/ServerPublishPa
 import { serverPublishQueryOptions } from "#/features/servers/server-publish.query";
 
 export const Route = createFileRoute("/servers/$serverId/publish")({
+	preload: false,
 	loader: async ({ context, params }) => {
 		await context.queryClient.ensureQueryData(
 			serverPublishQueryOptions(params.serverId),

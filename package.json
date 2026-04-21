@@ -9,7 +9,7 @@
     "dev": "vite dev",
     "build": "NODE_ENV=production vite build",
     "preview": "vite preview",
-    "deploy": "pnpm run build && wrangler deploy",
+    "deploy": "bun run build && wrangler deploy",
     "cf-typegen": "wrangler types",
     "test": "vitest run",
     "format": "biome format",
@@ -19,16 +19,15 @@
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
     "db:export:sql": "drizzle-kit export --sql > src/drizzle/schema.export.sql",
-    "db:apply:sql": "tsx src/drizzle/apply-sql.ts src/drizzle/schema.export.sql",
-    "db:sync:data": "tsx src/drizzle/sync-data.ts",
-    "db:migrate:sql": "set -a && . ./.env && set +a && test -n \"$DATABASE_URL\" && test -n \"$NEW_DATABASE_URL\" && pnpm run db:export:sql && pnpm run db:apply:sql && pnpm run db:sync:data",
+    "db:apply:sql": "bun src/drizzle/apply-sql.ts src/drizzle/schema.export.sql",
+    "db:sync:data": "bun src/drizzle/sync-data.ts",
+    "db:migrate:sql": "set -a && . ./.env && set +a && test -n \"$DATABASE_URL\" && test -n \"$NEW_DATABASE_URL\" && bun run db:export:sql && bun run db:apply:sql && bun run db:sync:data",
     "db:migrate:data": "bun run db:migrate:sql",
     "db:pull": "drizzle-kit pull",
     "db:studio": "drizzle-kit studio"
   },
   "dependencies": {
     "@better-auth/drizzle-adapter": "^1.6.2",
-    "@neondatabase/serverless": "^1.0.2",
     "@radix-ui/react-separator": "^1.1.8",
     "@radix-ui/react-slot": "^1.2.4",
     "@t3-oss/env-core": "^0.13.10",
@@ -90,11 +89,5 @@
     "vite-tsconfig-paths": "^5.1.4",
     "vitest": "^3.0.5",
     "wrangler": "^4.81.1"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "esbuild",
-      "lightningcss"
-    ]
   }
 }

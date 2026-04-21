@@ -45,13 +45,15 @@ function BotList({ bots, isLoading, skeletonCount = 10 }: BotListProps) {
 					key={item.id}
 					className="relative rounded-xl border border-white/10 bg-[#2b2d31] p-4 transition hover:border-white/20"
 				>
-					<a
-						href={`/bots/${item.id}`}
+					<Link
+						to="/bots/$botId"
+						params={{ botId: item.id }}
+						preload="intent"
 						className="absolute inset-0 z-10 rounded-xl"
 						aria-label={`前往 ${item.name} 機器人頁面`}
 					>
 						<span className="sr-only">前往 {item.name} 機器人頁面</span>
-					</a>
+					</Link>
 					<div className="flex flex-col gap-4 sm:flex-row">
 						<Image
 							src={

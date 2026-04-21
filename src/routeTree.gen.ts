@@ -22,6 +22,7 @@ import { Route as ProtectedProfileRouteImport } from './routes/_protected/profil
 import { Route as ProtectedAdminRouteImport } from './routes/_protected/admin'
 import { Route as ProtectedAddServerRouteImport } from './routes/_protected/add-server'
 import { Route as ServersServerIdPublishRouteImport } from './routes/servers/$serverId.publish'
+import { Route as ApiSitemapStaticRouteImport } from './routes/api/sitemap/static'
 import { Route as ApiSitemapServersRouteImport } from './routes/api/sitemap/servers'
 import { Route as ApiSitemapBotsRouteImport } from './routes/api/sitemap/bots'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
@@ -90,6 +91,11 @@ const ServersServerIdPublishRoute = ServersServerIdPublishRouteImport.update({
   path: '/publish',
   getParentRoute: () => ServersServerIdRoute,
 } as any)
+const ApiSitemapStaticRoute = ApiSitemapStaticRouteImport.update({
+  id: '/api/sitemap/static',
+  path: '/api/sitemap/static',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiSitemapServersRoute = ApiSitemapServersRouteImport.update({
   id: '/api/sitemap/servers',
   path: '/api/sitemap/servers',
@@ -121,6 +127,7 @@ export interface FileRoutesByFullPath {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/sitemap/bots': typeof ApiSitemapBotsRoute
   '/api/sitemap/servers': typeof ApiSitemapServersRoute
+  '/api/sitemap/static': typeof ApiSitemapStaticRoute
   '/servers/$serverId/publish': typeof ServersServerIdPublishRoute
 }
 export interface FileRoutesByTo {
@@ -138,6 +145,7 @@ export interface FileRoutesByTo {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/sitemap/bots': typeof ApiSitemapBotsRoute
   '/api/sitemap/servers': typeof ApiSitemapServersRoute
+  '/api/sitemap/static': typeof ApiSitemapStaticRoute
   '/servers/$serverId/publish': typeof ServersServerIdPublishRoute
 }
 export interface FileRoutesById {
@@ -157,6 +165,7 @@ export interface FileRoutesById {
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/sitemap/bots': typeof ApiSitemapBotsRoute
   '/api/sitemap/servers': typeof ApiSitemapServersRoute
+  '/api/sitemap/static': typeof ApiSitemapStaticRoute
   '/servers/$serverId/publish': typeof ServersServerIdPublishRoute
 }
 export interface FileRouteTypes {
@@ -176,6 +185,7 @@ export interface FileRouteTypes {
     | '/api/auth/$'
     | '/api/sitemap/bots'
     | '/api/sitemap/servers'
+    | '/api/sitemap/static'
     | '/servers/$serverId/publish'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -193,6 +203,7 @@ export interface FileRouteTypes {
     | '/api/auth/$'
     | '/api/sitemap/bots'
     | '/api/sitemap/servers'
+    | '/api/sitemap/static'
     | '/servers/$serverId/publish'
   id:
     | '__root__'
@@ -211,6 +222,7 @@ export interface FileRouteTypes {
     | '/api/auth/$'
     | '/api/sitemap/bots'
     | '/api/sitemap/servers'
+    | '/api/sitemap/static'
     | '/servers/$serverId/publish'
   fileRoutesById: FileRoutesById
 }
@@ -227,6 +239,7 @@ export interface RootRouteChildren {
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiSitemapBotsRoute: typeof ApiSitemapBotsRoute
   ApiSitemapServersRoute: typeof ApiSitemapServersRoute
+  ApiSitemapStaticRoute: typeof ApiSitemapStaticRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -322,6 +335,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ServersServerIdPublishRouteImport
       parentRoute: typeof ServersServerIdRoute
     }
+    '/api/sitemap/static': {
+      id: '/api/sitemap/static'
+      path: '/api/sitemap/static'
+      fullPath: '/api/sitemap/static'
+      preLoaderRoute: typeof ApiSitemapStaticRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/sitemap/servers': {
       id: '/api/sitemap/servers'
       path: '/api/sitemap/servers'
@@ -387,6 +407,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiSitemapBotsRoute: ApiSitemapBotsRoute,
   ApiSitemapServersRoute: ApiSitemapServersRoute,
+  ApiSitemapStaticRoute: ApiSitemapStaticRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
