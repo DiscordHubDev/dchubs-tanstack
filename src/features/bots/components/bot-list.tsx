@@ -138,7 +138,7 @@ function BotList({ bots, isLoading, skeletonCount = 10 }: BotListProps) {
 									<Badge
 										key={tag}
 										variant="secondary"
-										className="cursor-default bg-[#36393f] text-gray-300 hover:bg-[#4f545c]"
+										className="relative z-20 cursor-default bg-[#36393f] text-gray-300 hover:bg-[#4f545c]"
 									>
 										{tag}
 									</Badge>

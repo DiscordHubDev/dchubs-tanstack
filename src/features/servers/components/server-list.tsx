@@ -100,7 +100,7 @@ function ServerList({
 									<Badge
 										key={tag}
 										variant="secondary"
-										className="bg-[#36393f] hover:bg-[#4f545c] text-gray-300 cursor-default"
+										className="relative z-20 bg-[#36393f] hover:bg-[#4f545c] text-gray-300 cursor-default"
 									>
 										{tag}
 									</Badge>
