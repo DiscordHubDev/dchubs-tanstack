@@ -77,7 +77,7 @@ function BotList({ bots, isLoading, skeletonCount = 10 }: BotListProps) {
 									<TooltipProvider>
 										<Tooltip>
 											<TooltipTrigger asChild>
-												<Badge className="bg-[#5865F2] text-white text-sm px-3 rounded-full gap-1 inline-flex items-center cursor-default hover:bg-[#4752c4] hover:text-white">
+												<Badge className="relative z-20 bg-[#5865F2] text-white text-sm px-3 rounded-full gap-1 inline-flex items-center cursor-default hover:bg-[#4752c4] hover:text-white">
 													<FaCheck className="w-3.5 h-3.5" />
 													驗證
 												</Badge>
@@ -91,7 +91,7 @@ function BotList({ bots, isLoading, skeletonCount = 10 }: BotListProps) {
 									<TooltipProvider>
 										<Tooltip>
 											<TooltipTrigger asChild>
-												<div className="text-yellow-600 hover:text-yellow-500 cursor-pointer">
+												<div className="relative z-20 text-yellow-600 hover:text-yellow-500 cursor-pointer">
 													<AlertTriangle className="w-5 h-5" />
 												</div>
 											</TooltipTrigger>
