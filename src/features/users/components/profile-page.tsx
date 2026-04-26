@@ -55,6 +55,7 @@ import {
 import { userProfileQueryOptions } from "#/features/users/users.query";
 import type { UserDetail } from "#/features/users/users.types";
 import { runEffect, tryEffectPromise } from "#/lib/effect-utils";
+import { showErrorAlert } from "#/lib/error-alert";
 import { queryKeys } from "#/lib/query-keys";
 import { SOCIAL_PLATFORMS } from "#/lib/socal";
 import type { ProfileTab } from "../profile.schemas";
@@ -89,7 +90,7 @@ function showSuccessNotification(message: string) {
 }
 
 function showErrorNotification(message: string) {
-	toast.error(message);
+	showErrorAlert(message, "操作失敗");
 }
 
 export function UserProfilePage({

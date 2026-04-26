@@ -52,17 +52,89 @@ function shouldIgnoreError(error: unknown): boolean {
 	return false;
 }
 
-export function showErrorAlert(error: unknown, title = "Error") {
-	if (typeof window === "undefined") return;
-	if (shouldIgnoreError(error)) return;
+type ErrorAlertPriority = "normal" | "critical";
 
-	void import("sweetalert2").then(({ default: Swal }) => {
-		void Swal.fire({
+type ErrorAlertOptions = {
+	priority?: ErrorAlertPriority;
+};
+
+type ErrorAlertItem = {
+	title: string;
+	message: string;
+	priority: ErrorAlertPriority;
+};
+
+const normalQueue: ErrorAlertItem[] = [];
+const criticalQueue: ErrorAlertItem[] = [];
+let isShowingAlert = false;
+let activeAlert: ErrorAlertItem | null = null;
+
+async function getSwal() {
+	const { default: Swal } = await import("sweetalert2");
+	return Swal;
+}
+
+async function showAlert(item: ErrorAlertItem) {
+	isShowingAlert = true;
+	activeAlert = item;
+
+	try {
+		const Swal = await getSwal();
+		await Swal.fire({
 			icon: "error",
-			title,
-			text: toDisplayMessage(error),
+			title: item.title,
+			text: item.message,
 			confirmButtonText: "關閉",
 			heightAuto: false,
 		});
-	});
+	} finally {
+		activeAlert = null;
+		isShowingAlert = false;
+		void processQueue();
+	}
+}
+
+async function processQueue() {
+	if (isShowingAlert) return;
+
+	const next = criticalQueue.shift() ?? normalQueue.shift();
+	if (!next) return;
+
+	await showAlert(next);
+}
+
+async function preemptNormalAlert() {
+	if (!activeAlert || activeAlert.priority !== "normal") return;
+
+	normalQueue.unshift(activeAlert);
+	activeAlert = null;
+
+	const Swal = await getSwal();
+	Swal.close();
+}
+
+export function showErrorAlert(
+	error: unknown,
+	title = "Error",
+	options?: ErrorAlertOptions,
+) {
+	if (typeof window === "undefined") return;
+	if (shouldIgnoreError(error)) return;
+
+	const item: ErrorAlertItem = {
+		title,
+		message: toDisplayMessage(error),
+		priority: options?.priority ?? "normal",
+	};
+
+	if (item.priority === "critical") {
+		criticalQueue.push(item);
+		void preemptNormalAlert().finally(() => {
+			void processQueue();
+		});
+		return;
+	}
+
+	normalQueue.push(item);
+	void processQueue();
 }

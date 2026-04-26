@@ -13,6 +13,7 @@ import { Input } from "#/components/ui/input";
 import { Label } from "#/components/ui/label";
 import { Textarea } from "#/components/ui/textarea";
 import { runEffect, tryEffectPromise } from "#/lib/effect-utils";
+import { showErrorAlert } from "#/lib/error-alert";
 import { queryKeys } from "#/lib/query-keys";
 import {
 	uploadServerBannerFn,
@@ -333,13 +334,8 @@ export function ServerPublishPage({ serverId }: ServerPublishPageProps) {
 				params: { serverId },
 			});
 		},
-		onError: async (error) => {
-			await Swal.fire({
-				icon: "error",
-				title: "儲存失敗",
-				text: getErrorMessage(error),
-				confirmButtonText: "我知道了",
-			});
+		onError: (error) => {
+			showErrorAlert(getErrorMessage(error), "儲存失敗");
 		},
 	});
 
@@ -402,12 +398,7 @@ export function ServerPublishPage({ serverId }: ServerPublishPageProps) {
 			const message = getErrorMessage(error);
 			setBannerUploadStatus(null);
 			setBannerUploadError(message);
-			void Swal.fire({
-				icon: "error",
-				title: "Banner 上傳失敗",
-				text: message,
-				confirmButtonText: "我知道了",
-			});
+			showErrorAlert(message, "Banner 上傳失敗");
 		},
 	});
 

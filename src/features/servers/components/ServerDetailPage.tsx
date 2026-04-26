@@ -124,6 +124,7 @@ export function ServerDetailPage() {
 	);
 
 	const favoriteMutation = useMutation({
+		meta: { suppressErrorAlert: true },
 		mutationFn: () =>
 			runEffect(
 				tryEffectPromise("Failed to toggle favorite", () =>
@@ -170,6 +171,7 @@ export function ServerDetailPage() {
 	});
 
 	const voteMutation = useMutation({
+		meta: { suppressErrorAlert: true },
 		mutationFn: () =>
 			runEffect(
 				tryEffectPromise("Failed to vote server", () =>
@@ -217,6 +219,7 @@ export function ServerDetailPage() {
 	});
 
 	const rateMutation = useMutation({
+		meta: { suppressErrorAlert: true },
 		mutationFn: (rating: number) =>
 			runEffect(
 				tryEffectPromise("Failed to rate server", () =>
@@ -289,6 +292,7 @@ export function ServerDetailPage() {
 	});
 
 	const reportMutation = useMutation({
+		meta: { suppressErrorAlert: true },
 		mutationFn: (payload: { subject: string; content: string }) =>
 			runEffect(
 				tryEffectPromise("Failed to submit report", () =>

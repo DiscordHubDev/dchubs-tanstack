@@ -261,6 +261,7 @@ function BotDetailPage() {
 	const detailQueryKey = useMemo(() => queryKeys.bots.detail(botId), [botId]);
 
 	const favoriteMutation = useMutation({
+		meta: { suppressErrorAlert: true },
 		mutationFn: () =>
 			runEffect(
 				tryEffectPromise("Failed to toggle favorite", () =>
@@ -301,6 +302,7 @@ function BotDetailPage() {
 	});
 
 	const voteMutation = useMutation({
+		meta: { suppressErrorAlert: true },
 		mutationFn: () =>
 			runEffect(
 				tryEffectPromise("Failed to vote bot", () =>
@@ -351,6 +353,7 @@ function BotDetailPage() {
 	});
 
 	const rateMutation = useMutation({
+		meta: { suppressErrorAlert: true },
 		mutationFn: (rating: number) =>
 			runEffect(
 				tryEffectPromise("Failed to rate bot", () =>
@@ -426,6 +429,7 @@ function BotDetailPage() {
 	});
 
 	const reportMutation = useMutation({
+		meta: { suppressErrorAlert: true },
 		mutationFn: (payload: { subject: string; content: string }) =>
 			runEffect(
 				tryEffectPromise("Failed to submit report", () =>
