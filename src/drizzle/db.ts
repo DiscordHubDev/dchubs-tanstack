@@ -1,10 +1,12 @@
-import { drizzle } from "drizzle-orm/node-postgres";
+import "dotenv/config";
+import { SQL } from "bun";
+import { drizzle } from "drizzle-orm/bun-sql";
 import * as schema from "./schema";
 
+const client = new SQL(process.env.DATABASE_URL || "");
+
 export const db = drizzle({
-	schema, // 關鍵：將 schema 物件傳入
+	client,
+	schema,
 	logger: true,
-	connection: {
-		connectionString: process.env.NEW_DATABASE_URL,
-	},
 });

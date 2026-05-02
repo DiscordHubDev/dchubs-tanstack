@@ -5,7 +5,33 @@ import viteReact from "@vitejs/plugin-react";
 import { nitro } from "nitro/vite";
 import visualizer from "rollup-plugin-visualizer";
 import { defineConfig } from "vite";
-import tsconfigPaths from "vite-tsconfig-paths";
+
+const bunExternals = ["bun", "bun:sqlite", "bun:postgres"];
+const serverExternal = [
+	"cloudflare:sockets",
+	"drizzle-orm/bun-sqlite",
+	"drizzle-orm/sqlite-core",
+	"drizzle-orm/d1",
+	"pg",
+	"pg-native",
+	"pg-query-stream",
+	"sqlite3",
+	"mysql2",
+	"better-sqlite3",
+	"fsevents",
+	"ws",
+	"canvas",
+	"jsdom",
+	/^node:/,
+	...bunExternals,
+];
+
+const base =
+	process.env.NODE_ENV === "production" && process.env.CDN_ORIGIN
+		? `${process.env.CDN_ORIGIN}/`
+		: "/";
+
+const databaseUrl = process.env.DATABASE_URL;
 
 function getPackageName(id: string) {
 	const modulePath = id.split("node_modules/").pop();
@@ -52,79 +78,86 @@ function manualVendorChunks(id: string) {
 	}
 	if (pkg === "lucide-react" || pkg === "react-icons") return "icons-vendor";
 
-	// better-auth 在 SSR/prerender bundle 內有循環初始化相依，
-	// 強制手動分 chunk 可能導致 "Cannot access ... before initialization"。
-	// 交給 Rollup 自動決定 chunk 邊界可避免 TDZ 初始化順序錯誤。
+	// Let Rollup decide chunk boundaries to avoid TDZ init issues.
 	if (pkg === "better-auth" || pkg.startsWith("@better-auth/")) return;
 
-	// 解決 pg -> pg-pool 的 Circular chunk 錯誤
-	// 交給 Rollup 原生處理依賴圖，避免強制分包導致循環參照
+	// Let Rollup resolve pg graphs to avoid circular chunk warnings.
 	if (pkg === "pg" || pkg.startsWith("pg-")) return;
 
 	return "vendor";
 }
 
-export default defineConfig(({ isSsrBuild }) => {
-	return {
-		base: process.env.CDN_ORIGIN ? `${process.env.CDN_ORIGIN}/` : "/",
-		ssr: {
-			noExternal: ["lucide-react"],
-		},
-		css: {
-			transformer: "lightningcss",
-		},
-		plugins: [
-			// cloudflare({ viteEnvironment: { name: "ssr" } }),
-			devtools(),
-			nitro(),
-			tsconfigPaths({ projects: ["./tsconfig.json"] }),
-			tailwindcss(),
-			tanstackStart(),
-			viteReact({
-				babel: {
-					plugins: ["babel-plugin-react-compiler"],
-				},
-			}),
-			process.env.ANALYZE === "true" &&
-				visualizer({ open: true, gzipSize: true, brotliSize: true }),
-		].filter(Boolean),
-
-		build: {
-			sourcemap: "hidden",
-			target: "es2022",
-			cssMinify: "lightningcss",
-			minify: "terser",
-
-			rollupOptions: {
-				// 將 output 和 external 都透過 isSsrBuild 來動態給予
-				...(isSsrBuild
-					? {
-							// SSR 構建：告訴 Vite 忽略這些 Cloudflare / 後端專屬套件，把它們保留給之後的 Nitro 處理
-							external: [
-								"cloudflare:sockets",
-								"drizzle-orm/bun-sqlite",
-								"drizzle-orm/sqlite-core",
-								"drizzle-orm/d1",
-								// 如果 Vite 在 SSR 打包時抱怨找不到 node 內建模組，也可以加在這裡
-								// /^node:/
-							],
-						}
-					: {
-							// Client 構建：不需要 external 後端套件，但需要做 code splitting (你原本的 vendor chunks)
-							output: { manualChunks: manualVendorChunks },
-						}),
-
-				onwarn(warning, warn) {
-					// 忽略 "use client" 警告
-					if (warning.message.includes("use client")) {
-						return;
-					}
-					if (warning.code === "CIRCULAR_DEPENDENCY") {
-						return;
-					}
-					warn(warning);
+export default defineConfig({
+	base,
+	resolve: {
+		tsconfigPaths: true,
+	},
+	optimizeDeps: {
+		include: [
+			"react",
+			"react-dom",
+			"@tanstack/react-router",
+			"@tanstack/start",
+		],
+		exclude: bunExternals,
+	},
+	ssr: {
+		noExternal: ["@tanstack/react-start", "effect", "lucide-react"],
+		external: bunExternals,
+	},
+	css: {
+		transformer: "lightningcss",
+	},
+	plugins: [
+		devtools(),
+		tailwindcss(),
+		nitro({
+			preset: "bun",
+			compressPublicAssets: false,
+			alias: {
+				"react-dom/server": "react-dom/server.edge",
+			},
+			minify: true,
+			debug: process.env.NODE_ENV !== "production",
+			sourcemap: process.env.NODE_ENV !== "production",
+			rollupConfig: {
+				external: [/^@sentry\//, /^bun:/],
+			},
+			prerender: {
+				crawlLinks: true,
+				ignore: ["/api/**"],
+			},
+			storage: {
+				cache: {
+					driver: "fs",
+					base: "./.tanstack/cache",
 				},
 			},
+			runtimeConfig: {
+				databaseUrl,
+			},
+		}),
+		tanstackStart(),
+		viteReact(),
+		process.env.ANALYZE === "true" &&
+			visualizer({ open: true, gzipSize: true, brotliSize: true }),
+	].filter(Boolean),
+	build: {
+		sourcemap: "hidden",
+		target: "es2022",
+		cssMinify: "lightningcss",
+		minify: "esbuild",
+		chunkSizeWarningLimit: 1500, // 調高警告閾值 (單位 KB)
+		rollupOptions: {
+			external: serverExternal,
+			output: {
+				manualChunks: manualVendorChunks,
+			},
+			onwarn(warning, warn) {
+				if (warning.message.includes("use client")) return;
+				if (warning.code === "CIRCULAR_DEPENDENCY") return;
+				warn(warning);
+			},
 		},
-	};
+	},
 });

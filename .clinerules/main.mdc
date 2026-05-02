@@ -1,0 +1,82 @@
+You are operating in a full-stack, type-safe web application built with **TanStack Start**, **TanStack Router**, **React**, **TypeScript**, and **Vinxi** (Vite + Nitro). 
+
+* **File-Based Routing:** Strictly adhere to TanStack Router file-based routing conventions.
+* **Type Safety:** Maintain end-to-end type safety across the client and server.
+* **API Philosophy:** Start is NOT an API-first framework. Rely on Server Functions (`createServerFn`) to replace traditional REST endpoints for most use cases. API routes (`createAPIFileRoute`) are reserved exclusively for raw HTTP endpoints like webhooks or third-party integrations.
+
+---
+
+## 2. Project Structure
+Maintain the following directory structure and separation of concerns:
+
+```text
+src/
+  routes/
+    __root.tsx          ← Root layout with HTML shell & providers
+    index.tsx           ← Home route
+    api/                ← Raw HTTP endpoints (webhooks)
+  server/
+    functions/          ← Server functions (e.g., posts.ts, auth.ts)
+  lib/
+    db.ts               ← Database client
+    auth.ts             ← Auth utilities
+app.config.ts           ← TanStack Start / Vinxi config
+```
+
+---
+
+## 3. Development Guidelines
+
+### Routing & Root Setup
+* Define the global HTML shell, `<ScrollRestoration />`, `<Scripts />`, and global devtools (Router, React Query) in `src/routes/__root.tsx`.
+* Use `beforeLoad` in routes for authentication guards and redirects.
+
+### Server Functions & Mutations
+* Use `createServerFn` for server-side logic.
+* **Validation:** Always validate inputs using Effect via `.validator()`.
+* **Implementation:** Place the core logic inside `.handler()`.
+* **Mutations:** Call server functions directly in event handlers or integrate them with TanStack Query (`useMutation`) for client-side state management and cache invalidation.
+
+### Data Fetching, Streaming & Suspense
+* **TanStack Query:** Provide a `QueryClient` via router context. Use `ensureQueryData` in loaders to populate the cache before rendering to eliminate loading states.
+* **Streaming:** Treat streaming and Suspense as first-class citizens.
+* **Deferred Data:** Use `defer()` inside loaders to stream non-critical data after the initial render. Wrap deferred data consumers in `<Suspense>` and `<Await>`.
+
+### Authentication & Environment Variables
+* **Server Auth:** Read cookies/headers in server functions using `getWebRequest()` and standard cookie parsers.
+* **Env Vars:** Access server-only variables directly from `process.env` inside server functions.
+* **Client Vars:** Use Vite's `import.meta.env` for client-exposed variables (must be prefixed with `VITE_`). **Never** access `process.env` in client components.
+
+### Deployment Targets
+* Ensure server compatibility based on the target defined in `app.config.ts` under `server.preset` (`node-server`, `vercel`, `netlify`, `bun`, or `cloudflare-pages`).
+
+---
+
+## 4. Version Control: Conventional Commits
+
+All commit messages MUST adhere strictly to the Conventional Commits specification.
+
+### Commit Message Structure
+```text
+<type>[optional scope]: <description>
+
+[optional body]
+
+[optional footer(s)]
+```
+
+### Allowed Types
+* **`feat`**: Introduces a new feature (correlates with MINOR in SemVer).
+* **`fix`**: Patches a bug (correlates with PATCH in SemVer).
+* **`build`**, **`chore`**, **`ci`**, **`docs`**, **`style`**, **`refactor`**, **`perf`**, **`test`**.
+
+### Formatting Rules
+* **Prefix:** Commits MUST be prefixed with a type (noun), an OPTIONAL scope in parentheses, an OPTIONAL `!`, followed by a REQUIRED terminal colon and space.
+* **Description:** MUST immediately follow the colon and space. It MUST be a short summary of the code changes.
+* **Body (Optional):** MUST begin one blank line after the description. Free-form, newline-separated paragraphs providing additional context.
+* **Footers (Optional):** MUST begin one blank line after the body. Token MUST use `-` in place of whitespace (e.g., `Acked-by:`), except for `BREAKING CHANGE`.
+
+### Breaking Changes
+* MUST be indicated either by a `!` immediately before the `:` in the type/scope prefix (e.g., `feat(auth)!: replace jwt with session`), OR as a footer.
+* If in the footer, it MUST consist of the uppercase text `BREAKING CHANGE`, followed by a colon, space, and description.
+* Introduces a breaking API change (correlates with MAJOR in SemVer).

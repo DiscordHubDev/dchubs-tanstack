@@ -15,6 +15,7 @@ import Footer from "../components/Footer";
 import Header from "../components/Header";
 import appCss from "../styles.css?url";
 import "react-toastify/dist/ReactToastify.css";
+import { ErrorState } from "#/components/ErrorState";
 
 interface MyRouterContext {
 	queryClient: QueryClient;
@@ -151,14 +152,7 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
 		],
 	}),
 	shellComponent: RootDocument,
-	errorComponent: ({ error }) => (
-		<div className="p-6 text-red-300">
-			<h1 className="text-xl font-semibold mb-2">頁面載入失敗</h1>
-			<p className="text-sm text-red-200/90 wrap-break-word">
-				{error instanceof Error ? error.message : "發生未知錯誤"}
-			</p>
-		</div>
-	),
+	errorComponent: ({ error }) => <ErrorState error={error} />,
 	notFoundComponent: NotFound,
 });
 

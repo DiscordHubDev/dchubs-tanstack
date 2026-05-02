@@ -19,6 +19,7 @@ export type LegacySessionData = {
 		id?: string;
 		discordId?: string;
 		name?: string;
+		username?: string;
 		image?: string;
 	};
 	session?: {
@@ -40,7 +41,7 @@ function withDiscordProfile(
 		...session,
 		discordProfile: {
 			id,
-			username: user?.name || "",
+			username: user?.username || "",
 			global_name: user?.name || "",
 			image_url: user?.image || "",
 			avatar: user?.image || "",

@@ -11,7 +11,9 @@ import {
 	useState,
 	useTransition,
 } from "react";
-import Pagination from "#/components/feedback/Pagination";
+
+const Pagination = lazy(() => import("#/components/feedback/Pagination"));
+
 import { Input } from "#/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "#/components/ui/tabs";
 import {
@@ -26,7 +28,9 @@ import {
 	paginateBots,
 	sortBotsByCategory,
 } from "#/features/bots/bots.utils";
-import BotList from "#/features/bots/components/bot-list";
+
+const BotList = lazy(() => import("#/features/bots/components/bot-list"));
+
 import type { CategoryType } from "#/lib/types";
 
 const DEFAULT_CATEGORY: BotCategory = "popular";
@@ -512,19 +516,29 @@ function BotsPage() {
 										)}
 									</div>
 
-									<BotList
-										bots={displayData.bots}
-										isLoading={shouldShowSkeleton}
-										skeletonCount={ITEMS_PER_PAGE}
-									/>
+									<Suspense
+										fallback={<div className="h-40 rounded-lg bg-[#2b2d31]" />}
+									>
+										<BotList
+											bots={displayData.bots}
+											isLoading={shouldShowSkeleton}
+											skeletonCount={ITEMS_PER_PAGE}
+										/>
+									</Suspense>
 
 									{!shouldShowSkeleton && displayData.totalPages > 1 && (
 										<div className="mt-6">
-											<Pagination
-												currentPage={displayData.page}
-												totalPages={displayData.totalPages}
-												onPageChange={handlePageChange}
-											/>
+											<Suspense
+												fallback={
+													<div className="h-10 rounded-md bg-[#1f2125]" />
+												}
+											>
+												<Pagination
+													currentPage={displayData.page}
+													totalPages={displayData.totalPages}
+													onPageChange={handlePageChange}
+												/>
+											</Suspense>
 										</div>
 									)}
 								</TabsContent>
