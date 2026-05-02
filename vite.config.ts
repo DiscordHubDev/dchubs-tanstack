@@ -1,13 +1,16 @@
 import tailwindcss from "@tailwindcss/vite";
 import { devtools } from "@tanstack/devtools-vite";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
-import viteReact from "@vitejs/plugin-react";
+// 優化 3: 建議改用 swc 替換傳統 babel-based 的 react plugin (需 npm install @vitejs/plugin-react-swc)
+import react from "@vitejs/plugin-react-swc";
 import { nitro } from "nitro/vite";
 import visualizer from "rollup-plugin-visualizer";
 import { defineConfig } from "vite";
 
+const isProd = process.env.NODE_ENV === "production";
+
 const bunExternals = ["bun", "bun:sqlite", "bun:postgres"];
-const serverExternal = [
+const baseServerExternal = [
 	"cloudflare:sockets",
 	"drizzle-orm/bun-sqlite",
 	"drizzle-orm/sqlite-core",
@@ -22,15 +25,13 @@ const serverExternal = [
 	"ws",
 	"canvas",
 	"jsdom",
-	/^node:/,
 	...bunExternals,
 ];
 
-const base =
-	process.env.NODE_ENV === "production" && process.env.CDN_ORIGIN
-		? `${process.env.CDN_ORIGIN}/`
-		: "/";
+const rollupExternal = [...baseServerExternal, /^node:/];
 
+const base =
+	isProd && process.env.CDN_ORIGIN ? `${process.env.CDN_ORIGIN}/` : "/";
 const databaseUrl = process.env.DATABASE_URL;
 
 function getPackageName(id: string) {
@@ -44,44 +45,37 @@ function getPackageName(id: string) {
 	return segments[0];
 }
 
+// 優化 1: 將 Set 提取到外層，避免打包時重複宣告消耗 CPU 與記憶體
+const reactPackages = new Set([
+	"react",
+	"react-dom",
+	"scheduler",
+	"use-sync-external-store",
+	"loose-envify",
+	"js-tokens",
+	"object-assign",
+]);
+
 function manualVendorChunks(id: string) {
 	if (!id.includes("node_modules")) return;
 
 	const pkg = getPackageName(id);
 	if (!pkg) return;
 
-	const reactPackages = new Set([
-		"react",
-		"react-dom",
-		"scheduler",
-		"use-sync-external-store",
-		"loose-envify",
-		"js-tokens",
-		"object-assign",
-	]);
-
 	if (reactPackages.has(pkg)) return "react-vendor";
 	if (pkg.startsWith("@tanstack/")) return "tanstack-vendor";
 	if (pkg.startsWith("@radix-ui/")) return "radix-vendor";
+
+	// 將多個 startsWith 優化為 Regex 或維持現狀，這裡維持原意但稍微整理
 	if (
 		pkg === "react-markdown" ||
-		pkg.startsWith("remark-") ||
-		pkg.startsWith("rehype-") ||
-		pkg.startsWith("micromark") ||
-		pkg.startsWith("mdast") ||
-		pkg.startsWith("hast") ||
-		pkg.startsWith("unified") ||
-		pkg.startsWith("vfile") ||
-		pkg.startsWith("unist-")
+		/^(remark-|rehype-|micromark|mdast|hast|unified|vfile|unist-)/.test(pkg)
 	) {
 		return "markdown-vendor";
 	}
 	if (pkg === "lucide-react" || pkg === "react-icons") return "icons-vendor";
 
-	// Let Rollup decide chunk boundaries to avoid TDZ init issues.
 	if (pkg === "better-auth" || pkg.startsWith("@better-auth/")) return;
-
-	// Let Rollup resolve pg graphs to avoid circular chunk warnings.
 	if (pkg === "pg" || pkg.startsWith("pg-")) return;
 
 	return "vendor";
@@ -103,13 +97,15 @@ export default defineConfig({
 	},
 	ssr: {
 		noExternal: ["@tanstack/react-start", "effect", "lucide-react"],
-		external: bunExternals,
+		external: baseServerExternal,
 	},
 	css: {
 		transformer: "lightningcss",
 	},
 	plugins: [
-		devtools(),
+		// 優化 2: 生產環境直接不載入此 plugin，避免掃描 AST。
+		// *注意：這要求你在業務代碼中，使用 React.lazy 或 process.env.NODE_ENV 來動態 import Devtools
+		!isProd && devtools(),
 		tailwindcss(),
 		nitro({
 			preset: "bun",
@@ -118,8 +114,8 @@ export default defineConfig({
 				"react-dom/server": "react-dom/server.edge",
 			},
 			minify: true,
-			debug: process.env.NODE_ENV !== "production",
-			sourcemap: process.env.NODE_ENV !== "production",
+			debug: !isProd,
+			sourcemap: !isProd,
 			rollupConfig: {
 				external: [/^@sentry\//, /^bun:/],
 			},
@@ -138,7 +134,7 @@ export default defineConfig({
 			},
 		}),
 		tanstackStart(),
-		viteReact(),
+		react(),
 		process.env.ANALYZE === "true" &&
 			visualizer({ open: true, gzipSize: true, brotliSize: true }),
 	].filter(Boolean),
@@ -147,9 +143,9 @@ export default defineConfig({
 		target: "es2022",
 		cssMinify: "lightningcss",
 		minify: "esbuild",
-		chunkSizeWarningLimit: 1500, // 調高警告閾值 (單位 KB)
+		chunkSizeWarningLimit: 1500,
 		rollupOptions: {
-			external: serverExternal,
+			external: rollupExternal,
 			output: {
 				manualChunks: manualVendorChunks,
 			},
