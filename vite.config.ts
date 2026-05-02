@@ -103,8 +103,6 @@ export default defineConfig({
 		transformer: "lightningcss",
 	},
 	plugins: [
-		// 優化 2: 生產環境直接不載入此 plugin，避免掃描 AST。
-		// *注意：這要求你在業務代碼中，使用 React.lazy 或 process.env.NODE_ENV 來動態 import Devtools
 		!isProd && devtools(),
 		tailwindcss(),
 		nitro({
@@ -142,7 +140,7 @@ export default defineConfig({
 		sourcemap: "hidden",
 		target: "es2022",
 		cssMinify: "lightningcss",
-		minify: "esbuild",
+		minify: "oxc",
 		chunkSizeWarningLimit: 1500,
 		rollupOptions: {
 			external: rollupExternal,

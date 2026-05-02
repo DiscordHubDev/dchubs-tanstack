@@ -38,9 +38,7 @@ export const Route = createFileRoute("/users/$userId")({
 	preloadStaleTime: 10 * 60 * 1000,
 	validateSearch: (search): UserProfileSearch => {
 		const tab = parseProfileTab(search.tab);
-		return {
-			...(tab ? { tab } : {}),
-		};
+		return (tab ? { tab } : {});
 	},
 	loader: async ({ context, params }) => {
 		await context.queryClient.ensureQueryData(

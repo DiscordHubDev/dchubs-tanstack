@@ -137,9 +137,7 @@ function validateSearch(search: Record<string, unknown>): ServerDetailSearch {
 			? (search.tab as ServerDetailTab)
 			: undefined;
 
-	return {
-		...(tab ? { tab } : {}),
-	};
+	return (tab ? { tab } : {});
 }
 
 export const Route = createFileRoute("/servers/$serverId")({

@@ -176,9 +176,7 @@ function validateSearch(search: Record<string, unknown>): BotDetailSearch {
 			? (search.tab as BotDetailTab)
 			: undefined;
 
-	return {
-		...(tab ? { tab } : {}),
-	};
+	return (tab ? { tab } : {});
 }
 
 export const Route = createFileRoute("/bots/$botId")({
