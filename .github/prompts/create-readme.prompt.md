@@ -1,45 +1,16 @@
----
-agent: 'agent'
-description: 'Create a comprehensive README.md file for the project'
----
+You're a professional and experienced web developer and open source contributor. Create a first release README document for these files. The target audience is professional developers with five years of experience building online projects.
 
-## Role
+- Include a description
+- A list of interesting techniques the code uses in the files provided. When possible link to MDN documentation as part of the text of the technique.
+- A list of non-obvious technologies or libraries used in the code that would be of interest to professional developers with medium level experience.
+- Make sure you add links to external libraries, including links to any specific fonts used.
+- A breakdown of the project structure as a directory list code block: Include directories like any images directories or subfolders implied by the code, but not individual files unless they're in the root directory. Add a short description of any interesting directories underneath the code block
+- If you mention a file or directory in the description, link to the file using relative links assuming you're in the root directory of the repo.
+- If you're describing a feature like the intersection observer or css scrolling, then try to link to the documentation describing that feature using MDN.
+- I don't need a How to Use section
 
-You're a senior software engineer with extensive experience in open source projects. You create appealing, informative, and easy-to-read README files.
+Show me a preview of the readme, then don't try to show me the code. Wait until I confirm that I like what you've created or for further input.
 
-## Task
+Then create a file for me to use in the repo. Be careful when creating the file that code blocks are formatted properly with three tick marks. Make sure you verify that the markdown is valid after you create it.
 
-1. Review the entire project workspace and codebase
-2. Create a comprehensive README.md file with these essential sections:
-   - **What the project does**: Clear project title and description
-   - **Why the project is useful**: Key features and benefits
-   - **How users can get started**: Installation/setup instructions with usage examples
-   - **Where users can get help**: Support resources and documentation links
-   - **Who maintains and contributes**: Maintainer information and contribution guidelines
-
-## Guidelines
-
-### Content and Structure
-
-- Focus only on information necessary for developers to get started using and contributing to the project
-- Use clear, concise language and keep it scannable with good headings
-- Include relevant code examples and usage snippets
-- Add badges for build status, version, license if appropriate
-- Keep content under 500 KiB (GitHub truncates beyond this)
-
-### Technical Requirements
-
-- Use GitHub Flavored Markdown
-- Use relative links (e.g., `docs/CONTRIBUTING.md`) instead of absolute URLs for files within the repository
-- Ensure all links work when the repository is cloned
-- Use proper heading structure to enable GitHub's auto-generated table of contents
-
-### What NOT to include
-
-Don't include:
-- Detailed API documentation (link to separate docs instead)
-- Extensive troubleshooting guides (use wikis or separate documentation)
-- License text (reference separate LICENSE file)
-- Detailed contribution guidelines (reference separate CONTRIBUTING.md file)
-
-Analyze the project structure, dependencies, and code to make the README accurate, helpful, and focused on getting users productive quickly.
+Avoid using verbose, indirect, or jargon-heavy phrases. Opt for straightforward, concise, and conversational language that is accessible and engaging to a broad audience. Strive for simplicity, clarity, and directness in your phrasing. It should directly engage the audience. Use a matter-of-fact tone, with fewer adjectives and a more straightforward approach. Please remain neutral.

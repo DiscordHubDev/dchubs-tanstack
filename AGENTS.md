@@ -114,7 +114,7 @@ flowchart LR
 	Query --> ServerFns[Feature server functions]
 	ServerFns --> Effect[Effect runtime]
 	Effect --> Drizzle[Drizzle ORM]
-	Drizzle --> Postgres[(PostgreSQL: Neon/Supabase)]
+	Drizzle --> Postgres[(PostgreSQL: Directus/Supabase)]
 	Router --> UI[React UI + Tailwind]
 	UI --> Browser
 ```
@@ -135,8 +135,7 @@ Cloudflare Pages via Wrangler.
 ## Security & Compliance
 - Store local secrets in `.env.local`; never commit real credentials.
 - Production secrets should be set with `wrangler secret put <VAR>`.
-- Database URL resolution order is `DRIZZLE_DATABASE_URL` then
-	`NEON_DATABASE_URL` then `DATABASE_URL`.
+- Database URL resolution order is `NEW_DATABASE_URL`
 - Client-exposed environment variables must be prefixed with `VITE_`.
 - Dependency scanning: > TODO: document any automated scans.
 - License and third-party notices: > TODO: add if required.
