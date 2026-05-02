@@ -1,7 +1,7 @@
 import tailwindcss from "@tailwindcss/vite";
 import { devtools } from "@tanstack/devtools-vite";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
-// 優化 3: 建議改用 swc 替換傳統 babel-based 的 react plugin (需 npm install @vitejs/plugin-react-swc)
+import { tanstackRouter } from "@tanstack/router-plugin/vite";
 import react from "@vitejs/plugin-react-swc";
 import { nitro } from "nitro/vite";
 import visualizer from "rollup-plugin-visualizer";
@@ -45,7 +45,6 @@ function getPackageName(id: string) {
 	return segments[0];
 }
 
-// 優化 1: 將 Set 提取到外層，避免打包時重複宣告消耗 CPU 與記憶體
 const reactPackages = new Set([
 	"react",
 	"react-dom",
@@ -66,7 +65,6 @@ function manualVendorChunks(id: string) {
 	if (pkg.startsWith("@tanstack/")) return "tanstack-vendor";
 	if (pkg.startsWith("@radix-ui/")) return "radix-vendor";
 
-	// 將多個 startsWith 優化為 Regex 或維持現狀，這裡維持原意但稍微整理
 	if (
 		pkg === "react-markdown" ||
 		/^(remark-|rehype-|micromark|mdast|hast|unified|vfile|unist-)/.test(pkg)
@@ -131,6 +129,7 @@ export default defineConfig({
 				databaseUrl,
 			},
 		}),
+		tanstackRouter({ target: "react", autoCodeSplitting: true }),
 		tanstackStart(),
 		react(),
 		process.env.ANALYZE === "true" &&
