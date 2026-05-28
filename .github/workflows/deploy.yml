@@ -47,6 +47,7 @@ jobs:
           fi
           aws s3 sync ./.output/public/assets s3://dchubs/assets/ \
             --endpoint-url https://${{ secrets.CLOUDFLARE_ACCOUNT_ID }}.r2.cloudflarestorage.com \
+            --cache-control "public, max-age=31536000, immutable" \
             --no-progress
 
       - name: Set up Docker Buildx
