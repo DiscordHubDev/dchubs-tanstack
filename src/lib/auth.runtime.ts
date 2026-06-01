@@ -108,8 +108,6 @@ export async function createAuth() {
 			},
 		},
 
-		// ✅ 新增：讓 session cookie 本身成為 JWT，Worker 才能在邊緣驗證
-
 		session: {
 			modelName: "authSession",
 			cookieCache: {
