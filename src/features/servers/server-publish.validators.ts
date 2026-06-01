@@ -1,5 +1,5 @@
-import { Schema } from "effect";
-import { toErrorMessage } from "#/lib/effect-utils";
+import type { Schema } from "effect";
+import { effectInputValidator, toErrorMessage } from "#/lib/effect-utils";
 
 export type EffectValidatorMessages = {
 	label?: string;
@@ -36,7 +36,7 @@ export function effectValidator<A, I>(
 	schema: Schema.Schema<A, I, never>,
 	messages: EffectValidatorMessages = {},
 ) {
-	const decode = Schema.decodeUnknownSync(schema);
+	const decode = effectInputValidator(schema);
 
 	return (value: unknown): string | undefined => {
 		if (typeof value === "string") {

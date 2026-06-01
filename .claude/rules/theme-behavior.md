@@ -1,0 +1,2 @@
+- 2026-04-21: Global theme is intentionally locked to dark to prevent AppSidebar flashing light during route changes.
+- Keep html class as dark and root init script forcing dark; avoid reintroducing auto/light toggling unless requested.

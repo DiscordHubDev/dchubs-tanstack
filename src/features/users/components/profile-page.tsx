@@ -167,9 +167,9 @@ export function UserProfilePage({
 
 	if (!viewedUser) {
 		return (
-			<div className="min-h-dvh flex items-center justify-center bg-[#2b2d31] text-white">
+			<div className="flex min-h-dvh items-center justify-center bg-[#2b2d31] text-white">
 				<div className="text-center">
-					<h2 className="text-2xl font-semibold mb-2">找不到用戶</h2>
+					<h2 className="mb-2 font-semibold text-2xl">找不到用戶</h2>
 					<p className="text-gray-400 text-sm">用戶資料不存在或已被移除。</p>
 				</div>
 			</div>
@@ -179,7 +179,7 @@ export function UserProfilePage({
 	return (
 		<div className="min-h-screen bg-[#1e1f22] text-white">
 			<UserHeader user={viewedUser} />
-			<div className="max-w-7xl mx-auto px-4 py-8">
+			<div className="mx-auto max-w-7xl px-4 py-8">
 				<Tabs
 					value={activeTab}
 					onValueChange={(value) => {
@@ -189,7 +189,7 @@ export function UserProfilePage({
 					}}
 					className="mb-8"
 				>
-					<TabsList className="bg-[#2b2d31] border-b border-[#1e1f22] w-full h-full overflow-x-auto overflow-y-auto">
+					<TabsList className="h-full w-full overflow-x-auto overflow-y-auto border-[#1e1f22] border-b bg-[#2b2d31]">
 						<TabsTrigger
 							value="servers"
 							className="data-[state=active]:bg-[#36393f]"
@@ -261,8 +261,8 @@ const SecureAPIKeyButton = memo(({ isOwner }: { isOwner: boolean }) => {
 
 	return (
 		<div className="mt-6 items-center">
-			<div className="bg-[#2b2d31] rounded-lg p-6">
-				<h2 className="text-xl font-bold mb-6">API 設置</h2>
+			<div className="rounded-lg bg-[#2b2d31] p-6">
+				<h2 className="mb-6 font-bold text-xl">API 設置</h2>
 				<div className="flex justify-center">
 					<APIKeyManager />
 				</div>
@@ -318,11 +318,11 @@ function APIKeyManager() {
 	}, [isLoading, mutation]);
 
 	return (
-		<div className="flex flex-col items-center mt-4 space-y-6 w-full">
+		<div className="mt-4 flex w-full flex-col items-center space-y-6">
 			{apiKey ? <TokenDisplaySection tokens={apiKey} /> : null}
 
 			<Button
-				className="bg-discord hover:bg-discord-hover text-white cursor-pointer disabled:opacity-50"
+				className="cursor-pointer bg-discord text-white hover:bg-discord-hover disabled:opacity-50"
 				onClick={handleCreateOrRegen}
 				disabled={isLoading || isRequestingRef.current}
 			>
@@ -346,8 +346,8 @@ function APIKeyManager() {
 
 const TokenDisplaySection = memo(
 	({ tokens }: { tokens: { accessToken: string; refreshToken: string } }) => (
-		<div className="space-y-4 w-full">
-			<div className="text-yellow-200 rounded-md text-xl p-4 bg-yellow-900/20 border border-yellow-700">
+		<div className="w-full space-y-4">
+			<div className="rounded-md border border-yellow-700 bg-yellow-900/20 p-4 text-xl text-yellow-200">
 				注意：此 API Key 僅會顯示一次，請妥善保存。
 			</div>
 			<SecureTokenDisplay label="存取令牌" token={tokens.accessToken} />
@@ -393,10 +393,10 @@ const SecureTokenDisplay = memo(
 
 		return (
 			<div>
-				<p className="text-gray-200 mb-2">{label}：</p>
+				<p className="mb-2 text-gray-200">{label}：</p>
 				<button
 					type="button"
-					className={`p-3 rounded-md font-mono text-sm break-all cursor-pointer transition-colors ${
+					className={`cursor-pointer break-all rounded-md p-3 font-mono text-sm transition-colors ${
 						copied
 							? "bg-green-800 text-green-100"
 							: "bg-gray-800 text-gray-100 hover:bg-gray-700"
@@ -424,11 +424,11 @@ const ServersTab = memo(
 		onManageServer: (id: string, e: MouseEvent) => void;
 	}) => (
 		<div className="mt-6">
-			<div className="flex justify-between items-center mb-4">
-				<h2 className="text-2xl font-bold">{isOwner ? "我" : "他"}的伺服器</h2>
+			<div className="mb-4 flex items-center justify-between">
+				<h2 className="font-bold text-2xl">{isOwner ? "我" : "他"}的伺服器</h2>
 				{isOwner ? (
-					<Link to="/add-server">
-						<Button className="bg-[#5865f2] hover:bg-[#4752c4] text-white">
+					<Link to="/protected/add-server">
+						<Button className="bg-[#5865f2] text-white hover:bg-[#4752c4]">
 							<Plus size={16} />
 							新增伺服器
 						</Button>
@@ -437,7 +437,7 @@ const ServersTab = memo(
 			</div>
 
 			{managedServers.length > 0 ? (
-				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+				<div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
 					{managedServers.map((server) => (
 						<ServerCard
 							key={server.id}
@@ -452,8 +452,8 @@ const ServersTab = memo(
 					message={`${isOwner ? "你" : "他"}尚未建立任何伺服器`}
 					actionButton={
 						isOwner ? (
-							<Link to="/add-server">
-								<Button className="bg-[#5865f2] hover:bg-[#4752c4] text-white">
+							<Link to="/protected/add-server">
+								<Button className="bg-[#5865f2] text-white hover:bg-[#4752c4]">
 									<Plus size={16} />
 									新增伺服器
 								</Button>
@@ -493,7 +493,7 @@ const ServerCard = memo(
 		);
 
 		return (
-			<Card className="bg-[#2b2d31] border-[#1e1f22] hover:border-[#5865f2] transition-all duration-200 flex flex-col h-full">
+			<Card className="flex h-full flex-col border-[#1e1f22] bg-[#2b2d31] transition-all duration-200 hover:border-[#5865f2]">
 				<Link
 					to="/servers/$serverId"
 					params={{ serverId: server.id }}
@@ -501,16 +501,16 @@ const ServerCard = memo(
 				>
 					<CardHeader className="pb-2">
 						<div className="flex items-center space-x-3">
-							<div className="w-10 h-10 rounded-full bg-[#36393f] overflow-hidden">
+							<div className="h-10 w-10 overflow-hidden rounded-full bg-[#36393f]">
 								<img
 									src={server.icon || "/placeholder.png?height=40&width=40"}
 									alt={server.name}
-									className="w-full h-full object-cover"
+									className="h-full w-full object-cover"
 									loading="lazy"
 								/>
 							</div>
 							<div>
-								<CardTitle className="text-white truncate w-full">
+								<CardTitle className="w-full truncate text-white">
 									{server.name}
 								</CardTitle>
 								<CardDescription className="text-gray-400">
@@ -520,10 +520,10 @@ const ServerCard = memo(
 						</div>
 					</CardHeader>
 					<CardContent className="pb-2">
-						<p className="text-gray-300 text-sm line-clamp-2">
+						<p className="line-clamp-2 text-gray-300 text-sm">
 							{server.description}
 						</p>
-						<div className="flex flex-wrap gap-2 mt-2">
+						<div className="mt-2 flex flex-wrap gap-2">
 							{server.tags.slice(0, 3).map((tag) => (
 								<Badge
 									key={tag}
@@ -543,7 +543,7 @@ const ServerCard = memo(
 							variant="outline"
 							size="sm"
 							onClick={handleManageClick}
-							className="w-full border-[#5865f2] text-white hover:bg-[#5865f2] hover:text-[#5865f2] cursor-pointer h-10"
+							className="h-10 w-full cursor-pointer border-[#5865f2] text-white hover:bg-[#5865f2] hover:text-[#5865f2]"
 						>
 							管理伺服器
 						</Button>
@@ -574,13 +574,13 @@ const BotsTab = memo(
 
 		return (
 			<div className="mt-6">
-				<div className="flex justify-between items-center mb-4">
-					<h2 className="text-2xl font-bold">
+				<div className="mb-4 flex items-center justify-between">
+					<h2 className="font-bold text-2xl">
 						{isOwner ? "我" : "他"}的機器人
 					</h2>
 					{isOwner ? (
-						<Link to="/add-bot">
-							<Button className="bg-[#5865f2] hover:bg-[#4752c4] text-white">
+						<Link to="/protected/add-bot">
+							<Button className="bg-[#5865f2] text-white hover:bg-[#4752c4]">
 								<Plus size={16} />
 								新增機器人
 							</Button>
@@ -589,7 +589,7 @@ const BotsTab = memo(
 				</div>
 
 				{approvedBots.length > 0 ? (
-					<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+					<div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
 						{approvedBots.map((bot) => (
 							<BotCard
 								key={bot.id}
@@ -604,8 +604,8 @@ const BotsTab = memo(
 						message={`${isOwner ? "你" : "他"}尚未建立任何機器人`}
 						actionButton={
 							isOwner ? (
-								<Link to="/add-bot">
-									<Button className="bg-[#5865f2] hover:bg-[#4752c4] text-white">
+								<Link to="/protected/add-bot">
+									<Button className="bg-[#5865f2] text-white hover:bg-[#4752c4]">
 										<Plus size={16} />
 										新增機器人
 									</Button>
@@ -646,28 +646,28 @@ const BotCard = memo(
 		);
 
 		return (
-			<Card className="bg-[#2b2d31] border-[#1e1f22] hover:border-[#5865f2] transition-all duration-200 flex flex-col h-full">
+			<Card className="flex h-full flex-col border-[#1e1f22] bg-[#2b2d31] transition-all duration-200 hover:border-[#5865f2]">
 				<Link to="/bots/$botId" params={{ botId: bot.id }} className="block">
 					<CardHeader className="pb-2">
 						<div className="flex items-center space-x-3">
-							<div className="w-10 h-10 rounded-full bg-[#36393f] overflow-hidden">
+							<div className="h-10 w-10 overflow-hidden rounded-full bg-[#36393f]">
 								<img
 									src={bot.icon || "/placeholder.png?height=40&width=40"}
 									alt={bot.name}
-									className="w-full h-full object-cover"
+									className="h-full w-full object-cover"
 									loading="lazy"
 								/>
 							</div>
 							<div className="flex items-center gap-2">
-								<CardTitle className="text-white truncate">
+								<CardTitle className="truncate text-white">
 									{bot.name}
 								</CardTitle>
 								{bot.verified && (
 									<TooltipProvider>
 										<Tooltip>
 											<TooltipTrigger asChild>
-												<Badge className="5865F2 text-white text-sm px-3 rounded-full gap-1 inline-flex items-center cursor-default bg-discord hover:bg-discord-hover hover:text-white">
-													<FaCheck className="w-3.5 h-3.5" />
+												<Badge className="5865F2 inline-flex cursor-default items-center gap-1 rounded-full bg-discord px-3 text-sm text-white hover:bg-discord-hover hover:text-white">
+													<FaCheck className="h-3.5 w-3.5" />
 													驗證
 												</Badge>
 											</TooltipTrigger>
@@ -679,10 +679,10 @@ const BotCard = memo(
 						</div>
 					</CardHeader>
 					<CardContent className="pb-2">
-						<p className="text-gray-300 text-sm line-clamp-2">
+						<p className="line-clamp-2 text-gray-300 text-sm">
 							{bot.description ?? ""}
 						</p>
-						<div className="flex flex-wrap gap-2 mt-2">
+						<div className="mt-2 flex flex-wrap gap-2">
 							{(bot.tags ?? []).slice(0, 3).map((tag) => (
 								<Badge
 									key={tag}
@@ -693,7 +693,7 @@ const BotCard = memo(
 								</Badge>
 							))}
 						</div>
-						<div className="flex items-center text-sm text-gray-400 mt-2">
+						<div className="mt-2 flex items-center text-gray-400 text-sm">
 							<Users size={14} className="mr-1" />
 							<span>{(bot.servers ?? 0).toLocaleString()} 伺服器</span>
 						</div>
@@ -707,7 +707,7 @@ const BotCard = memo(
 							variant="outline"
 							size="sm"
 							onClick={handleManageClick}
-							className="w-full border-[#5865f2] text-white hover:bg-[#5865f2] hover:text-[#5865f2] cursor-pointer h-10"
+							className="h-10 w-full cursor-pointer border-[#5865f2] text-white hover:bg-[#5865f2] hover:text-[#5865f2]"
 						>
 							管理機器人
 						</Button>
@@ -725,14 +725,14 @@ const BotStatusIndicator = memo(({ status }: { status: string }) => {
 	switch (status) {
 		case "pending":
 			return (
-				<div className="flex items-center text-sm text-yellow-500 mt-2">
+				<div className="mt-2 flex items-center text-sm text-yellow-500">
 					<Clock size={14} className="mr-1" />
 					<span>機器人仍在審核中</span>
 				</div>
 			);
 		case "approved":
 			return (
-				<div className="flex items-center text-sm text-green-500 mt-2">
+				<div className="mt-2 flex items-center text-green-500 text-sm">
 					<CheckCircle size={14} className="mr-1" />
 					<span>機器人已通過審核</span>
 				</div>
@@ -764,9 +764,9 @@ FavoritesTab.displayName = "FavoritesTab";
 const FavoriteServersSection = memo(
 	({ servers }: { servers: UserDetail["favoriteServers"] }) => (
 		<div>
-			<h2 className="text-2xl font-bold mb-4">收藏的伺服器</h2>
+			<h2 className="mb-4 font-bold text-2xl">收藏的伺服器</h2>
 			{servers.length > 0 ? (
-				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+				<div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
 					{servers.map((server) => (
 						<FavoriteServerCard key={server.id} server={server} />
 					))}
@@ -783,9 +783,9 @@ FavoriteServersSection.displayName = "FavoriteServersSection";
 const FavoriteBotsSection = memo(
 	({ bots }: { bots: UserDetail["favoriteBots"] }) => (
 		<div>
-			<h2 className="text-2xl font-bold mb-4">收藏的機器人</h2>
+			<h2 className="mb-4 font-bold text-2xl">收藏的機器人</h2>
 			{bots.length > 0 ? (
-				<div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+				<div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
 					{bots.map((bot) => (
 						<FavoriteBotCard key={bot.id} bot={bot} />
 					))}
@@ -806,29 +806,29 @@ const FavoriteServerCard = memo(
 			params={{ serverId: server.id }}
 			className="block"
 		>
-			<Card className="bg-[#2b2d31] border-[#1e1f22] hover:border-[#5865f2] transition-all duration-200">
+			<Card className="border-[#1e1f22] bg-[#2b2d31] transition-all duration-200 hover:border-[#5865f2]">
 				<CardHeader className="pb-2">
 					<div className="flex items-center space-x-3">
-						<div className="w-10 h-10 rounded-full bg-[#36393f] overflow-hidden">
+						<div className="h-10 w-10 overflow-hidden rounded-full bg-[#36393f]">
 							<img
 								src={server.icon || "/placeholder.png?height=40&width=40"}
 								alt={server.name}
-								className="w-full h-full object-cover"
+								className="h-full w-full object-cover"
 								loading="lazy"
 							/>
 						</div>
 						<div>
-							<CardTitle className="text-white truncate">
+							<CardTitle className="truncate text-white">
 								{server.name}
 							</CardTitle>
-							<CardDescription className="text-gray-400 mt-1">
+							<CardDescription className="mt-1 text-gray-400">
 								{(server.members ?? 0).toLocaleString()} 成員
 							</CardDescription>
 						</div>
 					</div>
 				</CardHeader>
 				<CardContent>
-					<p className="text-gray-300 text-sm line-clamp-2">
+					<p className="line-clamp-2 text-gray-300 text-sm">
 						{server.description ?? ""}
 					</p>
 				</CardContent>
@@ -842,25 +842,25 @@ FavoriteServerCard.displayName = "FavoriteServerCard";
 const FavoriteBotCard = memo(
 	({ bot }: { bot: UserDetail["favoriteBots"][0] }) => (
 		<Link to="/bots/$botId" params={{ botId: bot.id }} className="block">
-			<Card className="bg-[#2b2d31] border-[#1e1f22] hover:border-[#5865f2] transition-all duration-200">
+			<Card className="border-[#1e1f22] bg-[#2b2d31] transition-all duration-200 hover:border-[#5865f2]">
 				<CardHeader className="pb-2">
 					<div className="flex items-center space-x-3">
-						<div className="w-10 h-10 rounded-full bg-[#36393f] overflow-hidden">
+						<div className="h-10 w-10 overflow-hidden rounded-full bg-[#36393f]">
 							<img
 								src={bot.icon || "/placeholder.png?height=40&width=40"}
 								alt={bot.name}
-								className="w-full h-full object-cover"
+								className="h-full w-full object-cover"
 								loading="lazy"
 							/>
 						</div>
 						<div className="flex items-center gap-2">
-							<CardTitle className="text-white truncate">{bot.name}</CardTitle>
+							<CardTitle className="truncate text-white">{bot.name}</CardTitle>
 							{bot.verified && (
 								<TooltipProvider>
 									<Tooltip>
 										<TooltipTrigger asChild>
-											<Badge className="5865F2 text-white text-sm px-3 rounded-full gap-1 inline-flex items-center cursor-default bg-discord hover:bg-discord-hover hover:text-white">
-												<FaCheck className="w-3.5 h-3.5" />
+											<Badge className="5865F2 inline-flex cursor-default items-center gap-1 rounded-full bg-discord px-3 text-sm text-white hover:bg-discord-hover hover:text-white">
+												<FaCheck className="h-3.5 w-3.5" />
 												驗證
 											</Badge>
 										</TooltipTrigger>
@@ -872,7 +872,7 @@ const FavoriteBotCard = memo(
 					</div>
 				</CardHeader>
 				<CardContent>
-					<p className="text-gray-300 text-sm line-clamp-2">
+					<p className="line-clamp-2 text-gray-300 text-sm">
 						{bot.description ?? ""}
 					</p>
 				</CardContent>
@@ -885,8 +885,8 @@ FavoriteBotCard.displayName = "FavoriteBotCard";
 
 const SettingsTab = memo(({ user }: { user: UserDetail }) => (
 	<div className="mt-6">
-		<div className="bg-[#2b2d31] rounded-lg p-6">
-			<h2 className="text-xl font-bold mb-6">帳號設置</h2>
+		<div className="rounded-lg bg-[#2b2d31] p-6">
+			<h2 className="mb-6 font-bold text-xl">帳號設置</h2>
 			<UserSettingsForm user={user} />
 		</div>
 	</div>
@@ -902,7 +902,7 @@ const EmptyState = memo(
 		message: string;
 		actionButton?: ReactNode;
 	}) => (
-		<div className="bg-[#2b2d31] rounded-lg p-8 text-center">
+		<div className="rounded-lg bg-[#2b2d31] p-8 text-center">
 			<p className="text-gray-300">{message}</p>
 			{actionButton}
 		</div>
@@ -915,9 +915,9 @@ const UserHeader = memo(({ user }: { user: UserDetail }) => {
 	return (
 		<div>
 			{/* Banner */}
-			<div className="h-90 bg-[#36393f] relative overflow-hidden">
+			<div className="relative h-90 overflow-hidden bg-[#36393f]">
 				{user.banner ? (
-					<div className="relative w-full h-full overflow-hidden">
+					<div className="relative h-full w-full overflow-hidden">
 						<div
 							className="absolute inset-0 bg-center bg-cover"
 							style={{ backgroundImage: `url(${user.banner})` }}
@@ -925,25 +925,25 @@ const UserHeader = memo(({ user }: { user: UserDetail }) => {
 					</div>
 				) : user.bannerColor ? (
 					<div
-						className="w-full h-full"
+						className="h-full w-full"
 						style={{ backgroundColor: user.bannerColor }}
 					></div>
 				) : (
-					<div className="w-full h-full bg-linear-to-r from-[#5865f2] to-[#8c54ff]"></div>
+					<div className="h-full w-full bg-linear-to-r from-[#5865f2] to-[#8c54ff]"></div>
 				)}
 			</div>
 
 			{/* User Info */}
-			<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 -mt-13 relative z-10">
-				<div className="flex flex-col md:flex-row items-start md:items-end gap-4">
-					<Avatar className="w-32 h-32 border-4 border-[#1e1f22] bg-[#36393f]">
+			<div className="relative z-10 mx-auto -mt-13 max-w-7xl px-4 sm:px-6 lg:px-8">
+				<div className="flex flex-col items-start gap-4 md:flex-row md:items-end">
+					<Avatar className="h-32 w-32 border-4 border-[#1e1f22] bg-[#36393f]">
 						<AvatarImage
 							src={user.avatar}
 							alt={user.username}
-							className="object-cover w-full h-full"
+							className="h-full w-full object-cover"
 						/>
 						<AvatarFallback
-							className="text-3xl bg-[#5865f2]"
+							className="bg-[#5865f2] text-3xl"
 							suppressHydrationWarning
 						>
 							{user.username}
@@ -951,10 +951,10 @@ const UserHeader = memo(({ user }: { user: UserDetail }) => {
 					</Avatar>
 
 					<div className="flex flex-col">
-						<h1 className="text-2xl md:text-3xl font-bold text-white">
+						<h1 className="font-bold text-2xl text-white md:text-3xl">
 							{user.username}
 						</h1>
-						<div className="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-gray-300 mt-2">
+						<div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-gray-300 text-sm">
 							<div className="flex items-center">
 								<Calendar size={16} className="mr-1" />
 								<span>
@@ -971,7 +971,7 @@ const UserHeader = memo(({ user }: { user: UserDetail }) => {
 
 				{/* Bio */}
 				{user.bio && (
-					<div className="mt-6 bg-[#2b2d31] rounded-lg p-4">
+					<div className="mt-6 rounded-lg bg-[#2b2d31] p-4">
 						<p className="text-gray-300">{user.bio}</p>
 					</div>
 				)}
@@ -979,23 +979,27 @@ const UserHeader = memo(({ user }: { user: UserDetail }) => {
 				{user.social && Object.entries(user.social).some(([, val]) => val) && (
 					<div className="mt-6 flex flex-wrap gap-4">
 						{Object.entries(user.social).map(([platform, value]) => {
+							// 這裡的 value 自動被推導為 string | null | undefined
 							if (!value) return null;
-							const config = SOCIAL_PLATFORMS[platform];
+
+							// 這裡的 platform 也因為 Object.entries 的限制，需要斷言為正確的 Key
+							const config =
+								SOCIAL_PLATFORMS[platform as keyof typeof SOCIAL_PLATFORMS];
 							if (!config) return null;
 
 							const Icon = config.icon;
-							const link = config.link ? config.link(value) : "#";
+							const href = config.link ? config.link(value) : value;
 
 							return (
 								<a
 									key={platform}
-									href={link}
+									href={href}
 									target="_blank"
 									rel="noopener noreferrer"
-									className="flex items-center gap-2 px-4 py-2 bg-[#2b2d31] hover:bg-[#36393f] text-gray-300 hover:text-white rounded-md transition-colors"
+									className="flex items-center gap-2 rounded-md bg-[#2b2d31] px-4 py-2 text-gray-300 transition-colors hover:bg-[#36393f] hover:text-white"
 								>
 									<Icon size={16} />
-									<span className="truncate max-w-37.5">{value}</span>
+									<span className="max-w-37.5 truncate">{value}</span>
 								</a>
 							);
 						})}
@@ -1011,7 +1015,7 @@ UserHeader.displayName = "UserHeader";
 const PinActionButton = memo(({ itemName }: { itemName: string }) => (
 	<Button
 		variant="outline"
-		className="w-full border-[#5865f2] text-white hover:bg-[#5865f2] hover:text-[#5865f2] cursor-pointer h-10"
+		className="h-10 w-full cursor-pointer border-[#5865f2] text-white hover:bg-[#5865f2] hover:text-[#5865f2]"
 		onClick={() =>
 			showSuccessNotification(`${itemName} 的置頂設定已保留舊版樣式`)
 		}
@@ -1084,56 +1088,56 @@ const UserSettingsForm = memo(({ user }: { user: UserDetail }) => {
 	return (
 		<form onSubmit={handleSubmit} className="space-y-4">
 			<div className="space-y-6">
-				<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+				<div className="grid grid-cols-1 gap-6 md:grid-cols-2">
 					<div className="space-y-2">
-						<label className="text-sm font-medium text-gray-300">
+						<label className="font-medium text-gray-300 text-sm">
 							用戶名
 							<input
 								type="text"
 								value={user.username}
 								disabled
-								className="w-full px-3 py-2 bg-[#36393f] border border-[#1e1f22] rounded-md text-white opacity-50 cursor-not-allowed"
+								className="w-full cursor-not-allowed rounded-md border border-[#1e1f22] bg-[#36393f] px-3 py-2 text-white opacity-50"
 							/>
 						</label>
 					</div>
 
 					<div className="space-y-2"></div>
 
-					<div className="md:col-span-2 space-y-2">
-						<label className="text-sm font-medium text-gray-300">
+					<div className="space-y-2 md:col-span-2">
+						<label className="font-medium text-gray-300 text-sm">
 							個人簡介
 							<textarea
 								name="bio"
 								defaultValue={user.bio ?? ""}
 								rows={4}
-								className="w-full px-3 py-2 bg-[#36393f] border border-[#1e1f22] rounded-md text-white"
+								className="w-full rounded-md border border-[#1e1f22] bg-[#36393f] px-3 py-2 text-white"
 							/>
 						</label>
 					</div>
 				</div>
 
 				<div className="space-y-4">
-					<h3 className="text-xl font-bold mb-6">社交連結</h3>
-					<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+					<h3 className="mb-6 font-bold text-xl">社交連結</h3>
+					<div className="grid grid-cols-1 gap-6 md:grid-cols-2">
 						{socialEntries.map(([platform, config]) => (
 							<div key={platform} className="space-y-2">
-								<label className="text-sm font-medium text-gray-300">
+								<label className="font-medium text-gray-300 text-sm">
 									{config.name}
 									<input
 										type="text"
 										name={`social.${platform}`}
 										defaultValue={socialData?.[platform] || ""}
-										className="w-full px-3 py-2 bg-[#36393f] border border-[#1e1f22] rounded-md text-white"
+										className="w-full rounded-md border border-[#1e1f22] bg-[#36393f] px-3 py-2 text-white"
 									/>
 								</label>
 							</div>
 						))}
 					</div>
 
-					<div className="flex justify-end mt-4">
+					<div className="mt-4 flex justify-end">
 						<Button
 							type="submit"
-							className="bg-[#5865f2] hover:bg-[#4752c4] text-white"
+							className="bg-[#5865f2] text-white hover:bg-[#4752c4]"
 						>
 							保存更改
 						</Button>

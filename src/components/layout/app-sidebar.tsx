@@ -47,11 +47,11 @@ const data = {
 			items: [
 				{
 					title: "弦樂（DawnGS）",
-					url: "https://dawngs.xyz/",
+					url: "https://dawngs.com/",
 				},
 				{
 					title: "鰻頭(´・ω・)（mantouisyummy）",
-					url: "https://github.com/Mantouisyummy",
+					url: "https://mantou.dev",
 				},
 			],
 		},
@@ -155,6 +155,7 @@ export function DiscordUser(session?: LegacySessionData): DiscordUser {
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 	const { data: session, status } = useSession();
+
 	const [activeItem, setActiveItem] = useState<string | null>(null);
 
 	const [selectedMail, setSelectedMail] = useState<Mail | null>(null);
@@ -257,34 +258,32 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 	};
 
 	const user =
-		status === "loading"
+		session?.user && !session?.error // 建議改用 session.user 來判斷是否登入
 			? {
-					display_name: "Loading...",
-					username: "Loading...",
-					avatar: "https://cdn.discordapp.com/embed/avatars/0.png",
-					id: "",
+					display_name:
+						session.user.name ?? // 通常套件會整理在 session.user.name
+						session.discordProfile?.global_name ??
+						session.discordProfile?.username ??
+						"未登入",
+
+					username: session.discordProfile?.username ?? "未登入",
+
+					// 💡 修改這裡：先找套件處理好的 image，沒有的話再手動組裝 Discord 網址
+					avatar:
+						session.user.image ??
+						session.user.image ??
+						(session.discordProfile?.id && session.discordProfile?.avatar
+							? `https://cdn.discordapp.com/avatars/${session.discordProfile.id}/${session.discordProfile.avatar}.png`
+							: "https://cdn.discordapp.com/embed/avatars/0.png"),
+
+					id: session.user.id ?? session.discordProfile?.id,
 				}
-			: session?.discordProfile?.id && !session?.error
-				? {
-						display_name:
-							session.discordProfile.global_name ??
-							session.discordProfile.username ??
-							"未登入",
-
-						username: session.discordProfile.username ?? "未登入",
-
-						avatar:
-							session.discordProfile.image_url ??
-							"https://cdn.discordapp.com/embed/avatars/0.png",
-
-						id: undefined,
-					}
-				: {
-						display_name: "未登入",
-						username: "未登入",
-						avatar: "https://cdn.discordapp.com/embed/avatars/0.png",
-						id: undefined,
-					};
+			: {
+					display_name: "未登入",
+					username: "未登入",
+					avatar: "https://cdn.discordapp.com/embed/avatars/0.png",
+					id: undefined,
+				};
 
 	const filterednavSecondary = data.navSecondary.filter((item) => {
 		if (!item.onlyFor) return true;
@@ -342,20 +341,20 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 				</SidebarFooter>
 				<SidebarRail />
 			</Sidebar>
-			<div className="flex-1 flex flex-col">
+			<div className="flex flex-1 flex-col">
 				{showInbox && !isMobile && (
 					<Sidebar
 						collapsible="none"
 						className="fixed inset-y-0 left-(--sidebar-width) z-30 flex h-svh w-(--sidebar-width) flex-col border-r"
 					>
-						<SidebarHeader className="justify-between items-center px-4 py-2 flex flex-row">
-							<span className="text-sm font-medium">個人收件匣</span>
+						<SidebarHeader className="flex flex-row items-center justify-between px-4 py-2">
+							<span className="font-medium text-sm">個人收件匣</span>
 							<div className="flex items-center space-x-2">
-								<span className="text-sm text-muted-foreground">未讀</span>
+								<span className="text-muted-foreground text-sm">未讀</span>
 								<Switch checked={onlyUnread} onCheckedChange={setOnlyUnread} />
 							</div>
 						</SidebarHeader>
-						<div className="p-4 border-t border-border">
+						<div className="border-border border-t p-4">
 							<SidebarInput
 								placeholder="搜尋郵件..."
 								value={search}
@@ -373,12 +372,12 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 				)}
 
 				{showInbox && isMobile && (
-					<div className="fixed inset-0 z-50 bg-background shadow-xl flex flex-col max-h-screen overflow-hidden">
-						<SidebarHeader className="shrink-0 border-b p-4 flex flex-col space-y-2">
-							<div className="flex justify-between items-center">
-								<div className="text-base font-semibold">個人收件匣</div>
+					<div className="fixed inset-0 z-50 flex max-h-screen flex-col overflow-hidden bg-background shadow-xl">
+						<SidebarHeader className="flex shrink-0 flex-col space-y-2 border-b p-4">
+							<div className="flex items-center justify-between">
+								<div className="font-semibold text-base">個人收件匣</div>
 								<div className="flex items-center space-x-2">
-									<span className="text-sm text-muted-foreground">未讀</span>
+									<span className="text-muted-foreground text-sm">未讀</span>
 									<Switch
 										checked={onlyUnread}
 										onCheckedChange={setOnlyUnread}
@@ -388,7 +387,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
 							<button
 								type="button"
-								className="text-sm text-muted-foreground mx-auto"
+								className="mx-auto text-muted-foreground text-sm"
 								onClick={() => setShowInbox(false)}
 							>
 								關閉

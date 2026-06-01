@@ -14,6 +14,7 @@ import {
 	uniqueIndex,
 	varchar,
 } from "drizzle-orm/pg-core";
+import type { SocialData } from "#/types/social";
 
 export const emailPriority = pgEnum("EmailPriority", [
 	"success",
@@ -175,6 +176,16 @@ export const authAccount = pgTable(
 			.onDelete("cascade"),
 	],
 );
+
+export const jwks = pgTable("jwks", {
+	id: text().primaryKey().notNull(),
+	publicKey: text().notNull(),
+	privateKey: text().notNull(),
+	createdAt: timestamp({ precision: 3, mode: "string" })
+		.default(sql`CURRENT_TIMESTAMP`)
+		.notNull(),
+	expiresAt: timestamp({ precision: 3, mode: "string" }),
+});
 
 export const administrators = pgTable("Administrators", {
 	id: text().primaryKey().notNull(),
@@ -661,7 +672,7 @@ export const user = pgTable(
 		joinedAt: timestamp({ precision: 3, mode: "string" })
 			.default(sql`CURRENT_TIMESTAMP`)
 			.notNull(),
-		social: jsonb(),
+		social: jsonb().$type<SocialData>(),
 	},
 	(table) => [
 		index("User_joinedAt_idx").using(

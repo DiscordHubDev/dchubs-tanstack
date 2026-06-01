@@ -11,7 +11,7 @@ import {
 	userFavoriteBots,
 	vote,
 } from "#/drizzle/schema";
-import { getSession } from "#/lib/auth.functions";
+import { getSessionUserIdEffect } from "#/lib/edge-context";
 import { runEffect, tryEffectPromise } from "#/lib/effect-utils";
 import type {
 	BotDetail,
@@ -76,31 +76,6 @@ function mapRowToPublicBot(
 		isFavorite: favoriteIds.has(row.id),
 		isAdmin: row.isAdmin,
 	};
-}
-
-function getSessionUserIdEffect(): Effect.Effect<string | null, Error> {
-	return Effect.gen(function* () {
-		const session = yield* dbEffect("Failed to fetch session", () =>
-			getSession(),
-		);
-
-		const typedSession = session as {
-			discordProfile?: {
-				id?: string;
-			};
-			user?: {
-				discordId?: string;
-				id?: string;
-			};
-		} | null;
-
-		return (
-			typedSession?.discordProfile?.id ??
-			typedSession?.user?.discordId ??
-			typedSession?.user?.id ??
-			null
-		);
-	});
 }
 
 function getFavoriteIdsEffect(

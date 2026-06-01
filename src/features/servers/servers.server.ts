@@ -2,7 +2,7 @@ import { desc, eq, gte, sql } from "drizzle-orm";
 import { Effect } from "effect";
 import { db } from "#/drizzle/db";
 import { server, userFavoriteServers } from "#/drizzle/schema";
-import { getSession } from "#/lib/auth.functions";
+import { getSessionUserIdEffect } from "#/lib/edge-context";
 import { runEffect, tryEffectPromise } from "#/lib/effect-utils";
 import type { CategoryType } from "#/lib/types";
 import type {
@@ -63,21 +63,6 @@ function mapRowToPublicServer(
 		pinExpiry: row.pinExpiry,
 		isFavorite: favoriteIds.has(row.id),
 	};
-}
-
-function getSessionUserIdEffect(): Effect.Effect<string | null, Error> {
-	return Effect.gen(function* () {
-		const session = yield* tryEffectPromise("Failed to fetch session", () =>
-			getSession(),
-		);
-
-		return (
-			(session as any)?.discordProfile?.id ??
-			(session as any)?.user?.discordId ??
-			(session as any)?.user?.id ??
-			null
-		);
-	});
 }
 
 function getFavoriteIdsEffect(

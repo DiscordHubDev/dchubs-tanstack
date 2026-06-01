@@ -15,6 +15,20 @@
 			"when": 1775930031421,
 			"tag": "0001_concerned_scorpion",
 			"breakpoints": true
+		},
+		{
+			"idx": 2,
+			"version": "7",
+			"when": 1780076114530,
+			"tag": "0002_jwks_table",
+			"breakpoints": true
+		},
+		{
+			"idx": 3,
+			"version": "7",
+			"when": 1780076473206,
+			"tag": "0003_broad_master_chief",
+			"breakpoints": true
 		}
 	]
 }

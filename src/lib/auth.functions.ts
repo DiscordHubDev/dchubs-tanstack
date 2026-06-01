@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { getRequestHeaders } from "@tanstack/react-start/server";
+import { requireDomainUser } from "./edge-context";
 
 type SessionUserLike = {
 	id?: string;
@@ -12,27 +13,39 @@ type SessionUserLike = {
 	bannerColor?: string | null;
 };
 
+export type NormalizedDiscordProfile = {
+	id: string;
+	username: string;
+	global_name: string;
+	image_url: string;
+	avatar: string;
+	banner_url: string | null;
+	banner_color: string | null;
+};
+
 type SessionLike = {
 	user?: SessionUserLike | null;
-	discordProfile?: {
-		id: string;
-		username?: string;
-		global_name?: string;
-		image_url?: string;
-		avatar?: string;
-		banner_url?: string | null;
-		banner_color?: string | null;
-	} | null;
+	discordProfile?: Partial<NormalizedDiscordProfile> | null;
 	error?: string | null;
 } | null;
 
-function withDiscordProfile(session: SessionLike): SessionLike {
-	if (!session) return session;
-	if (session.discordProfile?.id) return session;
+export type NormalizedSession = NonNullable<SessionLike> & {
+	discordProfile?: NormalizedDiscordProfile;
+};
+
+function withDiscordProfile(session: null): null;
+function withDiscordProfile(
+	session: NonNullable<SessionLike>,
+): NormalizedSession;
+function withDiscordProfile(session: SessionLike): NormalizedSession | null;
+function withDiscordProfile(session: SessionLike): NormalizedSession | null {
+	if (!session) return null;
+
+	if (session.discordProfile?.id) return session as NormalizedSession;
 
 	const user = session.user;
 	const id = user?.discordId || user?.id;
-	if (!id) return session;
+	if (!id) return session as NormalizedSession;
 
 	return {
 		...session,
@@ -73,5 +86,22 @@ export const ensureSession = createServerFn({ method: "GET" }).handler(
 		}
 
 		return normalizedSession;
+	},
+);
+
+export const checkAuthServerFn = createServerFn({ method: "GET" }).handler(
+	async () => {
+		try {
+			// 嘗試取得帶有真實 Discord ID 的 Domain User
+			const { user } = await requireDomainUser();
+			return { isAuthenticated: true, userId: user.discordId };
+		} catch (error) {
+			// 如果 Header 沒有憑證或找不到 User，就會走到這裡
+			return {
+				isAuthenticated: false,
+				userId: null,
+				error: error instanceof Error ? error.message : "Unknown error",
+			};
+		}
 	},
 );

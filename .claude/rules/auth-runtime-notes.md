@@ -1,0 +1,4 @@
+- Better Auth runtime in this repo requires Zod v4 APIs (e.g., z.string(), z.email(), schema.meta()).
+- If root dependency resolution falls back to Zod v3, SSR runtime fails with `(void 0) is not a function` or `.meta is not a function` in auth bundle.
+- Keep `zod` as a direct dependency in `package.json` (currently `^4`) to stabilize Bun/Nitro bundle resolution.
+- Auth cycle/TDZ mitigation: keep `src/lib/auth.ts` as a thin async loader and move heavy Better Auth setup into `src/lib/auth.runtime.ts`.

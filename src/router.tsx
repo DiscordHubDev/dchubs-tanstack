@@ -1,5 +1,6 @@
 import { createRouter as createTanStackRouter } from "@tanstack/react-router";
 import { setupRouterSsrQueryIntegration } from "@tanstack/react-router-ssr-query";
+import { ErrorState } from "./components/ErrorState";
 import { getContext } from "./integrations/tanstack-query/root-provider";
 import { routeTree } from "./routeTree.gen";
 
@@ -13,11 +14,12 @@ export function getRouter() {
 		defaultPreload: "intent",
 		defaultPreloadStaleTime: 30000,
 		defaultPendingComponent: () => (
-			<div className="min-h-screen bg-[#1e1f22] text-white flex flex-col items-center justify-center space-y-4">
-				<div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-[#5865f2]"></div>
-				<p className="text-sm text-gray-400 animate-breath">加載中...</p>
+			<div className="flex min-h-screen flex-col items-center justify-center space-y-4 bg-[#1e1f22] text-white">
+				<div className="h-12 w-12 animate-spin rounded-full border-[#5865f2] border-t-2 border-b-2"></div>
+				<p className="animate-breath text-gray-400 text-sm">加載中...</p>
 			</div>
 		),
+		defaultErrorComponent: ({ error }) => <ErrorState error={error} />,
 	});
 
 	setupRouterSsrQueryIntegration({ router, queryClient: context.queryClient });

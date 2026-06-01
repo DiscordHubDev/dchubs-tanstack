@@ -4,14 +4,14 @@ import { FaDiscord } from "react-icons/fa6";
 export default function Footer({ className = "" }: { className?: string }) {
 	return (
 		<footer
-			className={`bg-[#2b2d31] py-8 border-t border-[#1e1f22] ${className}`}
+			className={`border-[#1e1f22] border-t bg-[#2b2d31] py-8 ${className}`}
 		>
-			<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+			<div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
 				{/* 四欄內容 */}
-				<div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-8">
+				<div className="grid grid-cols-1 gap-8 sm:grid-cols-2 md:grid-cols-4">
 					{/* Logo/簡介 */}
 					<div className="col-span-1">
-						<h3 className="text-lg font-semibold mb-4 text-white">
+						<h3 className="mb-4 font-semibold text-lg text-white">
 							DiscordHubs
 						</h3>
 						<p className="text-gray-400 text-sm">
@@ -22,8 +22,8 @@ export default function Footer({ className = "" }: { className?: string }) {
 
 					{/* 導覽連結 */}
 					<div>
-						<h4 className="font-medium mb-4 text-white">連結</h4>
-						<ul className="space-y-2 text-sm text-gray-400">
+						<h4 className="mb-4 font-medium text-white">連結</h4>
+						<ul className="space-y-2 text-gray-400 text-sm">
 							<li>
 								<Link to="/" className="hover:text-white">
 									伺服器列表
@@ -35,12 +35,12 @@ export default function Footer({ className = "" }: { className?: string }) {
 								</Link>
 							</li>
 							<li>
-								<Link to="/add-server" className="hover:text-white">
+								<Link to="/protected/add-server" className="hover:text-white">
 									新增伺服器
 								</Link>
 							</li>
 							<li>
-								<Link to="/add-bot" className="hover:text-white">
+								<Link to="/protected/add-bot" className="hover:text-white">
 									新增機器人
 								</Link>
 							</li>
@@ -49,8 +49,8 @@ export default function Footer({ className = "" }: { className?: string }) {
 
 					{/* 資源連結 */}
 					<div>
-						<h4 className="font-medium mb-4 text-white">資源</h4>
-						<ul className="space-y-2 text-sm text-gray-400">
+						<h4 className="mb-4 font-medium text-white">資源</h4>
+						<ul className="space-y-2 text-gray-400 text-sm">
 							<li>
 								<a href="/help" className="hover:text-white">
 									常見問題
@@ -79,8 +79,8 @@ export default function Footer({ className = "" }: { className?: string }) {
 
 					{/* 規則 */}
 					<div>
-						<h4 className="font-medium mb-4 text-white">規範</h4>
-						<ul className="space-y-2 text-sm text-gray-400">
+						<h4 className="mb-4 font-medium text-white">規範</h4>
+						<ul className="space-y-2 text-gray-400 text-sm">
 							<li>
 								<a href="/terms" className="hover:text-white">
 									服務條款
@@ -106,11 +106,11 @@ export default function Footer({ className = "" }: { className?: string }) {
 				</div>
 
 				{/* 底部資訊 */}
-				<div className="mt-8 pt-8 border-t border-[#1e1f22] flex flex-col md:flex-row justify-between items-center">
-					<p className="text-gray-400 text-sm text-center md:text-left">
+				<div className="mt-8 flex flex-col items-center justify-between border-[#1e1f22] border-t pt-8 md:flex-row">
+					<p className="text-center text-gray-400 text-sm md:text-left">
 						© 2025 DiscordHubs. 保留所有權利。
 					</p>
-					<div className="flex space-x-4 mt-4 md:mt-0">
+					<div className="mt-4 flex space-x-4 md:mt-0">
 						{/* Icons */}
 						<SocialIcon href="https://discord.gg/puQ9DPdG3M" title="Discord">
 							<FaDiscord />

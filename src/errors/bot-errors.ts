@@ -1,0 +1,27 @@
+import { Data } from "effect";
+
+export class InvalidInviteUrl extends Data.TaggedError("InvalidInviteUrl")<{
+	url: string;
+}> {}
+
+export class BotAlreadyExists extends Data.TaggedError("BotAlreadyExists")<{
+	id: string;
+}> {}
+
+export class DiscordRpcFailed extends Data.TaggedError("DiscordRpcFailed")<{
+	status: number;
+}> {}
+
+export class SubmitBotFailed extends Data.TaggedError("SubmitBotFailed")<{
+	message: string;
+}> {}
+
+type EmptyPayload = Record<string, never>;
+
+export class NotificationFailed extends Data.TaggedError(
+	"NotificationFailed",
+)<EmptyPayload> {}
+
+export class ImageUploadFailed extends Data.TaggedError("ImageUploadFailed")<{
+	filename: string;
+}> {}

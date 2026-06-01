@@ -14,13 +14,13 @@ export default function HomeAddServerCta({
 
 	return (
 		<div className="rounded-lg bg-[#2b2d31] p-5">
-			<h3 className="mb-4 text-lg font-semibold">新增你的伺服器</h3>
-			<p className="mb-4 text-sm text-gray-300">
+			<h3 className="mb-4 font-semibold text-lg">新增你的伺服器</h3>
+			<p className="mb-4 text-gray-300 text-sm">
 				想要推廣你的 Discord 伺服器嗎？立即加入平台，讓更多人看見你的社群。
 			</p>
 
 			{isSignedIn || mobile ? (
-				<Link to="/add-server">
+				<Link to="/protected/add-server">
 					<Button className="w-full bg-[#5865f2] text-white hover:bg-[#4752c4]">
 						新增伺服器
 					</Button>

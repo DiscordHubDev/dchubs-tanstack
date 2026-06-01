@@ -19,66 +19,66 @@ export default function ListSkeleton({ count = 10 }: ListSkeletonProps) {
 
 function CardSkeleton() {
 	return (
-		<div className="rounded-lg overflow-hidden bg-[#2b2d31] border border-[#1e1f22] animate-pulse">
+		<div className="animate-pulse overflow-hidden rounded-lg border border-[#1e1f22] bg-[#2b2d31]">
 			<div className="flex flex-col md:flex-row">
 				{/* Mobile Banner Skeleton */}
-				<div className="w-full h-32 md:hidden bg-[#36393f]"></div>
+				<div className="h-32 w-full bg-[#36393f] md:hidden"></div>
 
 				<div className="grow p-4 md:p-5">
-					<div className="flex flex-col md:flex-row gap-4">
+					<div className="flex flex-col gap-4 md:flex-row">
 						{/* Desktop Icon Skeleton */}
-						<div className="hidden md:block shrink-0">
-							<div className="w-16 h-16 rounded-full bg-[#36393f]"></div>
+						<div className="hidden shrink-0 md:block">
+							<div className="h-16 w-16 rounded-full bg-[#36393f]"></div>
 						</div>
 
 						{/* Mobile Header Skeleton */}
-						<div className="flex items-center md:hidden mb-3">
-							<div className="w-10 h-10 rounded-full bg-[#36393f] mr-3"></div>
+						<div className="mb-3 flex items-center md:hidden">
+							<div className="mr-3 h-10 w-10 rounded-full bg-[#36393f]"></div>
 							<div className="flex flex-col space-y-2">
-								<div className="h-5 bg-[#36393f] rounded w-32"></div>
-								<div className="h-4 bg-[#36393f] rounded w-24"></div>
+								<div className="h-5 w-32 rounded bg-[#36393f]"></div>
+								<div className="h-4 w-24 rounded bg-[#36393f]"></div>
 							</div>
 						</div>
 
 						<div className="grow">
 							{/* Desktop Header Skeleton */}
-							<div className="hidden md:flex md:flex-row md:items-center justify-between mb-2">
+							<div className="mb-2 hidden justify-between md:flex md:flex-row md:items-center">
 								<div className="flex flex-row space-x-3">
-									<div className="h-6 bg-[#36393f] rounded w-40"></div>
-									<div className="h-6 bg-[#36393f] rounded w-20"></div>
+									<div className="h-6 w-40 rounded bg-[#36393f]"></div>
+									<div className="h-6 w-20 rounded bg-[#36393f]"></div>
 								</div>
-								<div className="h-8 bg-[#36393f] rounded w-24"></div>
+								<div className="h-8 w-24 rounded bg-[#36393f]"></div>
 							</div>
 
 							{/* Description Skeleton */}
-							<div className="space-y-2 mb-4">
-								<div className="h-4 bg-[#36393f] rounded w-full"></div>
-								<div className="h-4 bg-[#36393f] rounded w-3/4"></div>
+							<div className="mb-4 space-y-2">
+								<div className="h-4 w-full rounded bg-[#36393f]"></div>
+								<div className="h-4 w-3/4 rounded bg-[#36393f]"></div>
 							</div>
 
 							{/* Tags Skeleton */}
-							<div className="flex flex-wrap gap-2 mb-4">
+							<div className="mb-4 flex flex-wrap gap-2">
 								{[1, 2, 3, 4].map((i) => (
 									<div
 										key={i}
-										className="h-6 bg-[#36393f] rounded-full w-16"
+										className="h-6 w-16 rounded-full bg-[#36393f]"
 									></div>
 								))}
 							</div>
 
 							{/* Stats Skeleton */}
-							<div className="flex flex-wrap items-center gap-x-4 gap-y-2 mb-4 md:mb-0">
+							<div className="mb-4 flex flex-wrap items-center gap-x-4 gap-y-2 md:mb-0">
 								{[1, 2, 3, 4].map((i) => (
 									<div key={i} className="flex items-center">
-										<div className="w-4 h-4 bg-[#36393f] rounded mr-1"></div>
-										<div className="h-4 bg-[#36393f] rounded w-16"></div>
+										<div className="mr-1 h-4 w-4 rounded bg-[#36393f]"></div>
+										<div className="h-4 w-16 rounded bg-[#36393f]"></div>
 									</div>
 								))}
 							</div>
 
 							{/* Mobile Button Skeleton */}
 							<div className="mt-4 md:hidden">
-								<div className="h-8 bg-[#36393f] rounded w-full"></div>
+								<div className="h-8 w-full rounded bg-[#36393f]"></div>
 							</div>
 						</div>
 					</div>

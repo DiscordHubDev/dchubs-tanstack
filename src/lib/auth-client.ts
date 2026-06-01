@@ -2,18 +2,18 @@ import { createAuthClient } from "better-auth/react";
 
 const authClient = createAuthClient();
 
-type LegacyDiscordProfile = {
+export type LegacyDiscordProfile = {
 	id: string;
-	username?: string;
-	global_name?: string;
-	image_url?: string;
-	avatar?: string;
-	banner_url?: string | null;
-	banner_color?: string | null;
+	username: string;
+	global_name: string;
+	image_url: string;
+	avatar: string;
+	banner_url: string | null;
+	banner_color: string | null;
 };
 
 export type LegacySessionData = {
-	discordProfile?: LegacyDiscordProfile;
+	discordProfile?: Partial<LegacyDiscordProfile>;
 	error?: string | null;
 	user?: {
 		id?: string;
@@ -27,15 +27,26 @@ export type LegacySessionData = {
 	};
 };
 
+export type NormalizedLegacySession = NonNullable<LegacySessionData> & {
+	discordProfile?: LegacyDiscordProfile;
+};
+
+function withDiscordProfile(session: null): null;
+function withDiscordProfile(
+	session: NonNullable<LegacySessionData>,
+): NormalizedLegacySession;
 function withDiscordProfile(
 	session: LegacySessionData | null,
-): LegacySessionData | null {
-	if (!session) return session;
-	if (session.discordProfile?.id) return session;
+): NormalizedLegacySession | null;
+function withDiscordProfile(
+	session: LegacySessionData | null,
+): NormalizedLegacySession | null {
+	if (!session) return null;
+	if (session.discordProfile?.id) return session as NormalizedLegacySession;
 
 	const user = session.user;
 	const id = user?.discordId || user?.id;
-	if (!id) return session;
+	if (!id) return session as NormalizedLegacySession;
 
 	return {
 		...session,
@@ -54,6 +65,7 @@ function withDiscordProfile(
 
 export function useSession() {
 	const { data, isPending, error, refetch } = authClient.useSession();
+
 	const normalizedData = withDiscordProfile(
 		(data as LegacySessionData | null) ?? null,
 	);
@@ -74,6 +86,7 @@ export function useSession() {
 export function signIn(callbackURL?: string) {
 	return authClient.signIn.social({
 		provider: "discord",
+
 		...(callbackURL ? { callbackURL } : {}),
 	});
 }

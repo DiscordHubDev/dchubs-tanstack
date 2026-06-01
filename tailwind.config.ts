@@ -1,13 +1,11 @@
-import type { Config } from 'tailwindcss'
-
+/** @type {import('tailwindcss').Config} */
 export default {
-  // This is where the "purging" magic happens
   content: [
     "./index.html",
-    "./src/**/*.{js,ts,jsx,tsx}", // Scans all files in src with these extensions
+    "./src/**/*.{js,ts,jsx,tsx}",
   ],
   theme: {
     extend: {},
   },
   plugins: [],
-} satisfies Config
+}

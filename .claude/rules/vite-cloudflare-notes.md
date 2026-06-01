@@ -1,0 +1,3 @@
+- Dev startup error `viteDevServer.environments[environmentName].initRunner is not a function` occurred when using both `@cloudflare/vite-plugin` and `nitro/vite` plugin together in `vite.config.ts`.
+- In this repo, removing the `nitro(...)` Vite plugin resolved `pnpm run dev` startup; Cloudflare + TanStack Start works without that plugin.
+- This issue reproduced on Vite 7.3.2 and also 7.1.12, so it is plugin conflict rather than Vite patch version regression.

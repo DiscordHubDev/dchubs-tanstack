@@ -3,7 +3,7 @@ import { and, eq } from "drizzle-orm";
 import { Effect } from "effect";
 import { db } from "#/drizzle/db";
 import { authAccount, server } from "#/drizzle/schema";
-import { getSession } from "#/lib/auth.functions";
+import { getSessionUserIdEffect } from "#/lib/edge-context";
 import { runEffect, tryEffectPromise } from "#/lib/effect-utils";
 import { fetchDiscordGuilds } from "./add-server.api";
 import type { DiscordGuild } from "./add-server.types";
@@ -17,35 +17,6 @@ import type {
 
 const GUILD_ADMINISTRATOR_PERMISSION = 1n << 3n;
 const GUILD_MANAGE_PERMISSION = 1n << 5n;
-
-function getSessionUserIdEffect(): Effect.Effect<string, Error> {
-	return Effect.gen(function* () {
-		const session = yield* tryEffectPromise("Failed to fetch session", () =>
-			getSession(),
-		);
-
-		const typedSession = session as {
-			discordProfile?: {
-				id?: string;
-			};
-			user?: {
-				discordId?: string;
-				id?: string;
-			};
-		} | null;
-
-		const userId =
-			typedSession?.discordProfile?.id ??
-			typedSession?.user?.discordId ??
-			typedSession?.user?.id;
-
-		if (!userId) {
-			return yield* Effect.fail(new Error("請先登入 Discord 帳號"));
-		}
-
-		return userId;
-	});
-}
 
 function getDiscordAccessTokenEffect(
 	userId: string,

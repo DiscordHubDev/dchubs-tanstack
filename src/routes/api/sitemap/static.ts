@@ -22,8 +22,8 @@ export const Route = createFileRoute("/api/sitemap/static")({
 					"/sign-in",
 					"/terms",
 					"/privacy",
-					"/add-bot",
-					"/add-server",
+					"/protected/add-bot",
+					"/protected/add-server",
 				];
 
 				const fields: SitemapField[] = routes.map((route) => ({

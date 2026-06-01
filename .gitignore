@@ -11,3 +11,10 @@ dist-ssr
 .vinxi
 __unconfig*
 todos.json
+
+dist/
+.cache/
+*.log
+
+*.db
+*.db-journal

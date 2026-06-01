@@ -1,11 +1,5 @@
 import { db } from "#/drizzle/db";
-import {
-	authAccount,
-	authSession,
-	authUser,
-	authVerification,
-	user as Users,
-} from "../drizzle/schema";
+import * as schema from "#/drizzle/schema";
 
 type DiscordProfileLike = {
 	id: string;
@@ -32,19 +26,11 @@ function buildDiscordBanner(profile: DiscordProfileLike): string | null {
 	return `https://cdn.discordapp.com/banners/${profile.id}/${profile.banner}.png?size=4096`;
 }
 
-async function syncDomainUser(user: {
-	discordId?: string | null;
-	name?: string | null;
-	image?: string | null;
-	username?: string | null;
-	avatar?: string | null;
-	banner?: string | null;
-	bannerColor?: string | null;
-}) {
+async function syncDomainUser(user: any) {
 	if (!user.discordId) return;
 
 	await db
-		.insert(Users)
+		.insert(schema.user)
 		.values({
 			id: user.discordId,
 			username: user.username || user.name || "未知使用者",
@@ -53,7 +39,7 @@ async function syncDomainUser(user: {
 			bannerColor: user.bannerColor || null,
 		})
 		.onConflictDoUpdate({
-			target: Users.id,
+			target: schema.user.id,
 			set: {
 				username: user.username || user.name || "未知使用者",
 				avatar: user.avatar || user.image || "",
@@ -64,25 +50,19 @@ async function syncDomainUser(user: {
 }
 
 export async function createAuth() {
-	const [{ betterAuth }, { drizzleAdapter }] = await Promise.all([
+	const [{ betterAuth }, { drizzleAdapter }, { jwt }] = await Promise.all([
 		import("better-auth"),
 		import("better-auth/adapters/drizzle"),
+		import("better-auth/plugins"),
 	]);
 
 	const fallbackBaseUrl =
 		process.env.BETTER_AUTH_URL ||
 		process.env.SITE_URL ||
 		process.env.VITE_SITE_URL ||
-		process.env.NEXT_PUBLIC_SITE_URL ||
 		"http://localhost:3000";
 
 	const isProd = process.env.NODE_ENV === "production";
-	const authSchema = {
-		authAccount,
-		authSession,
-		authUser,
-		authVerification,
-	};
 
 	return betterAuth({
 		secret: process.env.BETTER_AUTH_SECRET,
@@ -93,6 +73,17 @@ export async function createAuth() {
 			"https://docs.dchubs.org",
 			"http://localhost:3000",
 			"http://127.0.0.1:12000",
+			"https://beta.dchubs.org",
+		],
+
+		trustProxy: true,
+
+		plugins: [
+			jwt({
+				jwt: {
+					expirationTime: "1h", // 這個 plugin 的 JWT 是給第三方 API 用的，保留沒問題
+				},
+			}),
 		],
 
 		advanced: {
@@ -103,44 +94,25 @@ export async function createAuth() {
 
 		database: drizzleAdapter(db, {
 			provider: "pg",
-			schema: authSchema,
+			schema: schema,
 		}),
 
 		user: {
 			modelName: "authUser",
 			additionalFields: {
-				discordId: {
-					type: "string",
-					required: false,
-				},
-				username: {
-					type: "string",
-					required: false,
-				},
-				avatar: {
-					type: "string",
-					required: false,
-				},
-				banner: {
-					type: "string",
-					required: false,
-				},
-				bannerColor: {
-					type: "string",
-					required: false,
-				},
+				discordId: { type: "string", required: false },
+				username: { type: "string", required: false },
+				avatar: { type: "string", required: false },
+				banner: { type: "string", required: false },
+				bannerColor: { type: "string", required: false },
 			},
 		},
-		session: {
-			modelName: "authSession",
-		},
-		account: {
-			modelName: "authAccount",
-			updateAccountOnSignIn: true,
-		},
-		verification: {
-			modelName: "authVerification",
-		},
+
+		// ✅ 新增：讓 session cookie 本身成為 JWT，Worker 才能在邊緣驗證
+
+		session: { modelName: "authSession" }, // ← 注意：modelName 要用 merge 形式
+		account: { modelName: "authAccount", updateAccountOnSignIn: true },
+		verification: { modelName: "authVerification" },
 
 		socialProviders: {
 			discord: {
@@ -165,14 +137,10 @@ export async function createAuth() {
 		databaseHooks: {
 			user: {
 				create: {
-					after: async (user) => {
-						await syncDomainUser(user as Parameters<typeof syncDomainUser>[0]);
-					},
+					after: async (user) => await syncDomainUser(user),
 				},
 				update: {
-					after: async (user) => {
-						await syncDomainUser(user as Parameters<typeof syncDomainUser>[0]);
-					},
+					after: async (user) => await syncDomainUser(user),
 				},
 			},
 		},

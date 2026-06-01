@@ -35,9 +35,8 @@ const keywords = [
 ];
 
 const siteUrl =
-	(typeof process !== "undefined"
-		? process.env.NEXT_PUBLIC_SITE_URL
-		: undefined) || "https://dchubs.org";
+	(typeof process !== "undefined" ? process.env.BETTER_AUTH_URL : undefined) ||
+	"https://dchubs.org";
 
 const pageTitle = "熱門伺服器 | Discord伺服器列表 - DiscordHubs";
 const pageDescription =
@@ -127,6 +126,10 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
 			{
 				name: "twitter:image",
 				content: ogImage,
+			},
+			{
+				name: "twitter:url",
+				content: siteUrl,
 			},
 		],
 		links: [
@@ -234,14 +237,14 @@ function RootDocument({ children }: { children: ReactNode }) {
 				/>
 				<HeadContent />
 			</head>
-			<body className="font-sans antialiased min-h-screen flex flex-col wrap-anywhere selection:bg-[rgba(79,184,178,0.24)]">
+			<body className="wrap-anywhere flex min-h-screen flex-col font-sans antialiased selection:bg-[rgba(79,184,178,0.24)]">
 				<SidebarProvider className="flex-col">
 					<Header />
 					<div className="flex-1">
 						<TooltipProvider>
 							<main className="page-wrap flex items-start">
 								<AppSidebar className="w-64 shrink-0" />
-								<SidebarInset className="grow flex flex-col overflow-x-hidden">
+								<SidebarInset className="flex grow flex-col overflow-x-hidden">
 									{children}
 									<ToastContainer />
 								</SidebarInset>

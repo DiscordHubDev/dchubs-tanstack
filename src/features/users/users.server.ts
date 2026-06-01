@@ -11,7 +11,11 @@ import {
 	userFavoriteBots,
 	userFavoriteServers,
 } from "#/drizzle/schema";
-import { getSession } from "#/lib/auth.functions";
+import {
+	getDomainUser,
+	getEdgeContext,
+	getSessionUserIdEffect,
+} from "#/lib/edge-context";
 import { runEffect, tryEffectPromise } from "#/lib/effect-utils";
 import type {
 	ApiTokenPair,
@@ -310,26 +314,6 @@ function dbEffect<A>(
 	return tryEffectPromise(label, run);
 }
 
-function getSessionDataEffect(): Effect.Effect<LegacyCompatibleSession, Error> {
-	return tryEffectPromise("Failed to read session", async () => {
-		const session = await getSession();
-		return (session as LegacyCompatibleSession) ?? null;
-	});
-}
-
-function getSessionUserIdEffect(): Effect.Effect<string | null, Error> {
-	return getSessionDataEffect().pipe(
-		Effect.map((session) => {
-			return (
-				session?.discordProfile?.id ??
-				session?.user?.discordId ??
-				session?.user?.id ??
-				null
-			);
-		}),
-	);
-}
-
 function getUserByIdEffect(
 	id: string,
 ): Effect.Effect<UserDetail | null, Error> {
@@ -543,19 +527,15 @@ function upsertUserFromSessionEffect(
 
 function getCurrentUserEffect(): Effect.Effect<UserDetail | null, Error> {
 	return Effect.gen(function* () {
-		const session = yield* getSessionDataEffect();
-
-		if (session?.discordProfile?.id) {
-			const syncedUser = yield* upsertUserFromSessionEffect(
-				session.discordProfile,
-			);
-			if (syncedUser) return syncedUser;
-		}
-
-		const userId = session?.user?.discordId ?? session?.user?.id ?? null;
+		const { userId } = getEdgeContext();
 		if (!userId) return null;
 
-		return yield* getUserByIdEffect(userId);
+		const domainUser = yield* dbEffect("Failed to resolve domain user", () =>
+			getDomainUser(userId),
+		);
+
+		if (!domainUser?.discordId) return null;
+		return yield* getUserByIdEffect(domainUser.discordId);
 	});
 }
 

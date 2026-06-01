@@ -1,0 +1,3 @@
+- TanStack Query key factory lives at src/shared/lib/query-keys.ts.
+- Hooks should import queryKeys from @/shared/lib/query-keys instead of defining ad-hoc keys.
+- Prefer namespaced keys (users, inbox) with root tuple + helper functions for stable typed keys.

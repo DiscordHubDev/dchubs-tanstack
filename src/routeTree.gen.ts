@@ -11,21 +11,20 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
 import { Route as AboutRouteImport } from './routes/about'
-import { Route as ProtectedRouteImport } from './routes/_protected'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as BotsIndexRouteImport } from './routes/bots/index'
-import { Route as AddBotIndexRouteImport } from './routes/add-bot/index'
 import { Route as UsersUserIdRouteImport } from './routes/users/$userId'
 import { Route as ServersServerIdRouteImport } from './routes/servers/$serverId'
+import { Route as ProtectedProfileRouteImport } from './routes/protected/profile'
+import { Route as ProtectedAddServerRouteImport } from './routes/protected/add-server'
+import { Route as ProtectedAddBotRouteImport } from './routes/protected/add-bot'
 import { Route as BotsBotIdRouteImport } from './routes/bots/$botId'
-import { Route as ProtectedProfileRouteImport } from './routes/_protected/profile'
-import { Route as ProtectedAdminRouteImport } from './routes/_protected/admin'
-import { Route as ProtectedAddServerRouteImport } from './routes/_protected/add-server'
 import { Route as ServersServerIdPublishRouteImport } from './routes/servers/$serverId.publish'
 import { Route as ApiSitemapStaticRouteImport } from './routes/api/sitemap/static'
 import { Route as ApiSitemapServersRouteImport } from './routes/api/sitemap/servers'
 import { Route as ApiSitemapBotsRouteImport } from './routes/api/sitemap/bots'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
+import { Route as ProtectedBotsBotIdEditRouteImport } from './routes/protected/bots/$botId.edit'
 
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
@@ -35,10 +34,6 @@ const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
 const AboutRoute = AboutRouteImport.update({
   id: '/about',
   path: '/about',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const ProtectedRoute = ProtectedRouteImport.update({
-  id: '/_protected',
   getParentRoute: () => rootRouteImport,
 } as any)
 const IndexRoute = IndexRouteImport.update({
@@ -51,11 +46,6 @@ const BotsIndexRoute = BotsIndexRouteImport.update({
   path: '/bots/',
   getParentRoute: () => rootRouteImport,
 } as any)
-const AddBotIndexRoute = AddBotIndexRouteImport.update({
-  id: '/add-bot/',
-  path: '/add-bot/',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const UsersUserIdRoute = UsersUserIdRouteImport.update({
   id: '/users/$userId',
   path: '/users/$userId',
@@ -66,25 +56,25 @@ const ServersServerIdRoute = ServersServerIdRouteImport.update({
   path: '/servers/$serverId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProtectedProfileRoute = ProtectedProfileRouteImport.update({
+  id: '/protected/profile',
+  path: '/protected/profile',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProtectedAddServerRoute = ProtectedAddServerRouteImport.update({
+  id: '/protected/add-server',
+  path: '/protected/add-server',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProtectedAddBotRoute = ProtectedAddBotRouteImport.update({
+  id: '/protected/add-bot',
+  path: '/protected/add-bot',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const BotsBotIdRoute = BotsBotIdRouteImport.update({
   id: '/bots/$botId',
   path: '/bots/$botId',
   getParentRoute: () => rootRouteImport,
-} as any)
-const ProtectedProfileRoute = ProtectedProfileRouteImport.update({
-  id: '/profile',
-  path: '/profile',
-  getParentRoute: () => ProtectedRoute,
-} as any)
-const ProtectedAdminRoute = ProtectedAdminRouteImport.update({
-  id: '/admin',
-  path: '/admin',
-  getParentRoute: () => ProtectedRoute,
-} as any)
-const ProtectedAddServerRoute = ProtectedAddServerRouteImport.update({
-  id: '/add-server',
-  path: '/add-server',
-  getParentRoute: () => ProtectedRoute,
 } as any)
 const ServersServerIdPublishRoute = ServersServerIdPublishRouteImport.update({
   id: '/publish',
@@ -111,62 +101,66 @@ const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   path: '/api/auth/$',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ProtectedBotsBotIdEditRoute = ProtectedBotsBotIdEditRouteImport.update({
+  id: '/protected/bots/$botId/edit',
+  path: '/protected/bots/$botId/edit',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
-  '/add-server': typeof ProtectedAddServerRoute
-  '/admin': typeof ProtectedAdminRoute
-  '/profile': typeof ProtectedProfileRoute
   '/bots/$botId': typeof BotsBotIdRoute
+  '/protected/add-bot': typeof ProtectedAddBotRoute
+  '/protected/add-server': typeof ProtectedAddServerRoute
+  '/protected/profile': typeof ProtectedProfileRoute
   '/servers/$serverId': typeof ServersServerIdRouteWithChildren
   '/users/$userId': typeof UsersUserIdRoute
-  '/add-bot/': typeof AddBotIndexRoute
   '/bots/': typeof BotsIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/sitemap/bots': typeof ApiSitemapBotsRoute
   '/api/sitemap/servers': typeof ApiSitemapServersRoute
   '/api/sitemap/static': typeof ApiSitemapStaticRoute
   '/servers/$serverId/publish': typeof ServersServerIdPublishRoute
+  '/protected/bots/$botId/edit': typeof ProtectedBotsBotIdEditRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
-  '/add-server': typeof ProtectedAddServerRoute
-  '/admin': typeof ProtectedAdminRoute
-  '/profile': typeof ProtectedProfileRoute
   '/bots/$botId': typeof BotsBotIdRoute
+  '/protected/add-bot': typeof ProtectedAddBotRoute
+  '/protected/add-server': typeof ProtectedAddServerRoute
+  '/protected/profile': typeof ProtectedProfileRoute
   '/servers/$serverId': typeof ServersServerIdRouteWithChildren
   '/users/$userId': typeof UsersUserIdRoute
-  '/add-bot': typeof AddBotIndexRoute
   '/bots': typeof BotsIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/sitemap/bots': typeof ApiSitemapBotsRoute
   '/api/sitemap/servers': typeof ApiSitemapServersRoute
   '/api/sitemap/static': typeof ApiSitemapStaticRoute
   '/servers/$serverId/publish': typeof ServersServerIdPublishRoute
+  '/protected/bots/$botId/edit': typeof ProtectedBotsBotIdEditRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
-  '/_protected': typeof ProtectedRouteWithChildren
   '/about': typeof AboutRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
-  '/_protected/add-server': typeof ProtectedAddServerRoute
-  '/_protected/admin': typeof ProtectedAdminRoute
-  '/_protected/profile': typeof ProtectedProfileRoute
   '/bots/$botId': typeof BotsBotIdRoute
+  '/protected/add-bot': typeof ProtectedAddBotRoute
+  '/protected/add-server': typeof ProtectedAddServerRoute
+  '/protected/profile': typeof ProtectedProfileRoute
   '/servers/$serverId': typeof ServersServerIdRouteWithChildren
   '/users/$userId': typeof UsersUserIdRoute
-  '/add-bot/': typeof AddBotIndexRoute
   '/bots/': typeof BotsIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
   '/api/sitemap/bots': typeof ApiSitemapBotsRoute
   '/api/sitemap/servers': typeof ApiSitemapServersRoute
   '/api/sitemap/static': typeof ApiSitemapStaticRoute
   '/servers/$serverId/publish': typeof ServersServerIdPublishRoute
+  '/protected/bots/$botId/edit': typeof ProtectedBotsBotIdEditRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -174,72 +168,73 @@ export interface FileRouteTypes {
     | '/'
     | '/about'
     | '/sitemap.xml'
-    | '/add-server'
-    | '/admin'
-    | '/profile'
     | '/bots/$botId'
+    | '/protected/add-bot'
+    | '/protected/add-server'
+    | '/protected/profile'
     | '/servers/$serverId'
     | '/users/$userId'
-    | '/add-bot/'
     | '/bots/'
     | '/api/auth/$'
     | '/api/sitemap/bots'
     | '/api/sitemap/servers'
     | '/api/sitemap/static'
     | '/servers/$serverId/publish'
+    | '/protected/bots/$botId/edit'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/about'
     | '/sitemap.xml'
-    | '/add-server'
-    | '/admin'
-    | '/profile'
     | '/bots/$botId'
+    | '/protected/add-bot'
+    | '/protected/add-server'
+    | '/protected/profile'
     | '/servers/$serverId'
     | '/users/$userId'
-    | '/add-bot'
     | '/bots'
     | '/api/auth/$'
     | '/api/sitemap/bots'
     | '/api/sitemap/servers'
     | '/api/sitemap/static'
     | '/servers/$serverId/publish'
+    | '/protected/bots/$botId/edit'
   id:
     | '__root__'
     | '/'
-    | '/_protected'
     | '/about'
     | '/sitemap.xml'
-    | '/_protected/add-server'
-    | '/_protected/admin'
-    | '/_protected/profile'
     | '/bots/$botId'
+    | '/protected/add-bot'
+    | '/protected/add-server'
+    | '/protected/profile'
     | '/servers/$serverId'
     | '/users/$userId'
-    | '/add-bot/'
     | '/bots/'
     | '/api/auth/$'
     | '/api/sitemap/bots'
     | '/api/sitemap/servers'
     | '/api/sitemap/static'
     | '/servers/$serverId/publish'
+    | '/protected/bots/$botId/edit'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
-  ProtectedRoute: typeof ProtectedRouteWithChildren
   AboutRoute: typeof AboutRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
   BotsBotIdRoute: typeof BotsBotIdRoute
+  ProtectedAddBotRoute: typeof ProtectedAddBotRoute
+  ProtectedAddServerRoute: typeof ProtectedAddServerRoute
+  ProtectedProfileRoute: typeof ProtectedProfileRoute
   ServersServerIdRoute: typeof ServersServerIdRouteWithChildren
   UsersUserIdRoute: typeof UsersUserIdRoute
-  AddBotIndexRoute: typeof AddBotIndexRoute
   BotsIndexRoute: typeof BotsIndexRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
   ApiSitemapBotsRoute: typeof ApiSitemapBotsRoute
   ApiSitemapServersRoute: typeof ApiSitemapServersRoute
   ApiSitemapStaticRoute: typeof ApiSitemapStaticRoute
+  ProtectedBotsBotIdEditRoute: typeof ProtectedBotsBotIdEditRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -258,13 +253,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AboutRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_protected': {
-      id: '/_protected'
-      path: ''
-      fullPath: '/'
-      preLoaderRoute: typeof ProtectedRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/': {
       id: '/'
       path: '/'
@@ -277,13 +265,6 @@ declare module '@tanstack/react-router' {
       path: '/bots'
       fullPath: '/bots/'
       preLoaderRoute: typeof BotsIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/add-bot/': {
-      id: '/add-bot/'
-      path: '/add-bot'
-      fullPath: '/add-bot/'
-      preLoaderRoute: typeof AddBotIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/users/$userId': {
@@ -300,33 +281,33 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ServersServerIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/protected/profile': {
+      id: '/protected/profile'
+      path: '/protected/profile'
+      fullPath: '/protected/profile'
+      preLoaderRoute: typeof ProtectedProfileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/protected/add-server': {
+      id: '/protected/add-server'
+      path: '/protected/add-server'
+      fullPath: '/protected/add-server'
+      preLoaderRoute: typeof ProtectedAddServerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/protected/add-bot': {
+      id: '/protected/add-bot'
+      path: '/protected/add-bot'
+      fullPath: '/protected/add-bot'
+      preLoaderRoute: typeof ProtectedAddBotRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/bots/$botId': {
       id: '/bots/$botId'
       path: '/bots/$botId'
       fullPath: '/bots/$botId'
       preLoaderRoute: typeof BotsBotIdRouteImport
       parentRoute: typeof rootRouteImport
-    }
-    '/_protected/profile': {
-      id: '/_protected/profile'
-      path: '/profile'
-      fullPath: '/profile'
-      preLoaderRoute: typeof ProtectedProfileRouteImport
-      parentRoute: typeof ProtectedRoute
-    }
-    '/_protected/admin': {
-      id: '/_protected/admin'
-      path: '/admin'
-      fullPath: '/admin'
-      preLoaderRoute: typeof ProtectedAdminRouteImport
-      parentRoute: typeof ProtectedRoute
-    }
-    '/_protected/add-server': {
-      id: '/_protected/add-server'
-      path: '/add-server'
-      fullPath: '/add-server'
-      preLoaderRoute: typeof ProtectedAddServerRouteImport
-      parentRoute: typeof ProtectedRoute
     }
     '/servers/$serverId/publish': {
       id: '/servers/$serverId/publish'
@@ -363,24 +344,15 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAuthSplatRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/protected/bots/$botId/edit': {
+      id: '/protected/bots/$botId/edit'
+      path: '/protected/bots/$botId/edit'
+      fullPath: '/protected/bots/$botId/edit'
+      preLoaderRoute: typeof ProtectedBotsBotIdEditRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
-
-interface ProtectedRouteChildren {
-  ProtectedAddServerRoute: typeof ProtectedAddServerRoute
-  ProtectedAdminRoute: typeof ProtectedAdminRoute
-  ProtectedProfileRoute: typeof ProtectedProfileRoute
-}
-
-const ProtectedRouteChildren: ProtectedRouteChildren = {
-  ProtectedAddServerRoute: ProtectedAddServerRoute,
-  ProtectedAdminRoute: ProtectedAdminRoute,
-  ProtectedProfileRoute: ProtectedProfileRoute,
-}
-
-const ProtectedRouteWithChildren = ProtectedRoute._addFileChildren(
-  ProtectedRouteChildren,
-)
 
 interface ServersServerIdRouteChildren {
   ServersServerIdPublishRoute: typeof ServersServerIdPublishRoute
@@ -396,28 +368,31 @@ const ServersServerIdRouteWithChildren = ServersServerIdRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
-  ProtectedRoute: ProtectedRouteWithChildren,
   AboutRoute: AboutRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
   BotsBotIdRoute: BotsBotIdRoute,
+  ProtectedAddBotRoute: ProtectedAddBotRoute,
+  ProtectedAddServerRoute: ProtectedAddServerRoute,
+  ProtectedProfileRoute: ProtectedProfileRoute,
   ServersServerIdRoute: ServersServerIdRouteWithChildren,
   UsersUserIdRoute: UsersUserIdRoute,
-  AddBotIndexRoute: AddBotIndexRoute,
   BotsIndexRoute: BotsIndexRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
   ApiSitemapBotsRoute: ApiSitemapBotsRoute,
   ApiSitemapServersRoute: ApiSitemapServersRoute,
   ApiSitemapStaticRoute: ApiSitemapStaticRoute,
+  ProtectedBotsBotIdEditRoute: ProtectedBotsBotIdEditRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
 
 import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
+import type { startInstance } from './start.ts'
 declare module '@tanstack/react-start' {
   interface Register {
     ssr: true
     router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
   }
 }

@@ -1,8 +1,8 @@
 import { and, desc, eq, gte, sql } from "drizzle-orm";
 import { Effect } from "effect";
 import { db } from "#/drizzle/db";
-import { bot, userFavoriteBots } from "#/drizzle/schema";
-import { getSession } from "#/lib/auth.functions";
+import { bot, botDevelopers, userFavoriteBots } from "#/drizzle/schema";
+import { getSessionUserIdEffect } from "#/lib/edge-context";
 import { runEffect, tryEffectPromise } from "#/lib/effect-utils";
 import type { CategoryType } from "#/lib/types";
 import type {
@@ -71,31 +71,6 @@ function mapRowToPublicBot(
 		isFavorite: favoriteIds.has(row.id),
 		isAdmin: row.isAdmin,
 	};
-}
-
-function getSessionUserIdEffect(): Effect.Effect<string | null, Error> {
-	return Effect.gen(function* () {
-		const session = yield* tryEffectPromise("Failed to fetch session", () =>
-			getSession(),
-		);
-
-		const typedSession = session as {
-			discordProfile?: {
-				id?: string;
-			};
-			user?: {
-				discordId?: string;
-				id?: string;
-			};
-		} | null;
-
-		return (
-			typedSession?.discordProfile?.id ??
-			typedSession?.user?.discordId ??
-			typedSession?.user?.id ??
-			null
-		);
-	});
 }
 
 function getFavoriteIdsEffect(
@@ -284,4 +259,18 @@ export async function listBotsPage(
 
 export async function listBotFilterBundle(): Promise<BotFilterBundle> {
 	return runEffect(listBotFilterBundleEffect());
+}
+
+export function isDeveloperEffect(botId: string, discordId: string) {
+	return Effect.tryPromise({
+		try: async () => {
+			const record = await db
+				.select()
+				.from(botDevelopers)
+				.where(and(eq(botDevelopers.a, botId), eq(botDevelopers.b, discordId)))
+				.limit(1);
+			return record.length > 0;
+		},
+		catch: (error) => new Error(`資料庫查詢失敗: ${error}`),
+	});
 }

@@ -1,0 +1,4 @@
+- In TanStack Router beforeLoad/loader, do not use `throw signIn(...)` for auth gating.
+- Use `throw redirect({ to: "/", search: { redirect: location.href } })` from protected routes.
+- Trigger client-side sign-in on home route when `search.redirect` exists and session is unauthenticated.
+- Sanitize redirect target to same-origin path before passing as Better Auth callbackURL.

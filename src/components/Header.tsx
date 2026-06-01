@@ -9,22 +9,22 @@ import { signIn, signOut, useSession } from "#/lib/auth-client";
 import { SidebarTrigger } from "./ui/sidebar";
 
 type LinkItem = {
-	to: "/" | "/bots" | "/add-server" | "/add-bot";
+	to: "/" | "/bots" | "/protected/add-server" | "/protected/add-bot";
 	label: string;
 };
 
 const links: LinkItem[] = [
 	{ to: "/", label: "伺服器列表" },
 	{ to: "/bots", label: "機器人列表" },
-	{ to: "/add-server", label: "新增伺服器" },
-	{ to: "/add-bot", label: "新增機器人" },
+	{ to: "/protected/add-server", label: "新增伺服器" },
+	{ to: "/protected/add-bot", label: "新增機器人" },
 ];
 
 export default function Header() {
 	const [isOpen, setIsOpen] = useState(false);
 	const [isScrolled, setIsScrolled] = useState(false);
 	const { pathname } = useLocation();
-	const { data: session, isPending, error } = useSession();
+	const { data: session, error } = useSession();
 
 	useEffect(() => {
 		const handleScroll = () => {
@@ -42,7 +42,7 @@ export default function Header() {
 	const isSignedIn = Boolean(session?.user) && !error;
 
 	const handleDiscordSignIn = () => {
-		void signIn(pathname);
+		void signIn();
 	};
 
 	const handleSignOut = () => {
@@ -57,13 +57,13 @@ export default function Header() {
 					: "border-[#1e1f22] bg-[#2b2d31]"
 			}`}
 		>
-			<div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-				<div className="h-16 flex items-center justify-between gap-3">
-					<div className="flex items-center gap-2 md:gap-4 min-w-0">
+			<div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+				<div className="flex h-16 items-center justify-between gap-3">
+					<div className="flex min-w-0 items-center gap-2 md:gap-4">
 						<SidebarTrigger className="-mt-1 cursor-pointer md:hidden" />
 						<Link
 							to="/"
-							className="text-xl font-bold text-white flex items-center shrink-0"
+							className="flex shrink-0 items-center font-bold text-white text-xl"
 						>
 							<span className="mr-2">
 								<Image
@@ -77,12 +77,12 @@ export default function Header() {
 							DiscordHubs
 						</Link>
 
-						<div className="hidden md:flex items-center gap-2">
+						<div className="hidden items-center gap-2 md:flex">
 							{links.map(({ to, label }) => (
 								<Link key={to} to={to}>
 									<Button
 										variant="ghost"
-										className={`text-white cursor-pointer hover:bg-[#36393f] ${pathname === to ? "bg-white/10" : ""}`}
+										className={`cursor-pointer text-white hover:bg-[#36393f] ${pathname === to ? "bg-white/10" : ""}`}
 									>
 										{label}
 									</Button>
@@ -91,20 +91,20 @@ export default function Header() {
 						</div>
 					</div>
 
-					<div className="hidden md:flex items-center gap-2">
-						{isPending ? (
-							<Button disabled className="bg-[#5865f2] text-white">
-								讀取中...
-							</Button>
-						) : isSignedIn ? (
+					<div className="hidden items-center gap-2 md:flex">
+						{isSignedIn ? (
 							<>
-								<Link to="/profile" preload="intent" className="discord">
+								<Link
+									to="/protected/profile"
+									preload="intent"
+									className="discord"
+								>
 									<FaUser />
 									個人資料
 								</Link>
 								<Button
 									onClick={handleSignOut}
-									className="px-2 cursor-pointer bg-red-700 hover:bg-red-600 text-white"
+									className="cursor-pointer bg-red-700 px-2 text-white hover:bg-red-600"
 								>
 									<X />
 									登出
@@ -113,7 +113,7 @@ export default function Header() {
 						) : (
 							<Button
 								onClick={handleDiscordSignIn}
-								className="cursor-pointer bg-[#5865f2] hover:bg-[#4752c4] text-white"
+								className="cursor-pointer bg-[#5865f2] text-white hover:bg-[#4752c4]"
 							>
 								<FaDiscord />
 								登入 Discord
@@ -124,7 +124,7 @@ export default function Header() {
 					<button
 						type="button"
 						onClick={() => setIsOpen((prev) => !prev)}
-						className="md:hidden text-white"
+						className="text-white md:hidden"
 						aria-label="切換選單"
 					>
 						{isOpen ? <X className="size-5" /> : <Menu className="size-5" />}
@@ -132,33 +132,40 @@ export default function Header() {
 				</div>
 
 				{isOpen && (
-					<div className="md:hidden pb-4 flex flex-col gap-2">
+					<div className="flex flex-col gap-2 pb-4 md:hidden">
 						{links.map(({ to, label }) => (
 							<Link
 								key={to}
 								to={to}
 								onClick={() => setIsOpen(false)}
-								className={`text-white w-full px-3 py-2 rounded-md text-sm hover:bg-[#36393f] ${pathname === to ? "bg-white/10" : ""}`}
+								className={`w-full rounded-md px-3 py-2 text-sm text-white hover:bg-[#36393f] ${pathname === to ? "bg-white/10" : ""}`}
 							>
 								{label}
 							</Link>
 						))}
 
-						{isPending ? (
-							<Button disabled className="bg-[#5865f2] text-white mt-1">
-								讀取中...
-							</Button>
-						) : isSignedIn ? (
-							<Button
-								onClick={handleSignOut}
-								className="cursor-pointer bg-[#4f545c] hover:bg-[#3f434a] text-white mt-1"
-							>
-								登出
-							</Button>
+						{isSignedIn ? (
+							<>
+								<Link
+									to="/protected/profile"
+									preload="intent"
+									onClick={() => setIsOpen(false)}
+									className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-white hover:bg-[#36393f]"
+								>
+									<FaUser />
+									個人資料
+								</Link>
+								<Button
+									onClick={handleSignOut}
+									className="mt-1 cursor-pointer bg-[#4f545c] text-white hover:bg-[#3f434a]"
+								>
+									登出
+								</Button>
+							</>
 						) : (
 							<Button
 								onClick={handleDiscordSignIn}
-								className="cursor-pointer bg-[#5865f2] hover:bg-[#4752c4] text-white mt-1"
+								className="mt-1 cursor-pointer bg-[#5865f2] text-white hover:bg-[#4752c4]"
 							>
 								<FaDiscord />
 								登入 Discord

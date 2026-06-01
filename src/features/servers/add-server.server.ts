@@ -2,7 +2,7 @@ import { and, eq, inArray } from "drizzle-orm";
 import { Effect } from "effect";
 import { db } from "#/drizzle/db";
 import { authAccount, server } from "#/drizzle/schema";
-import { getSession } from "#/lib/auth.functions";
+import { getSessionUserIdEffect } from "#/lib/edge-context";
 import { runEffect, tryEffectPromise } from "#/lib/effect-utils";
 import { fetchDiscordGuilds } from "./add-server.api";
 import type { DiscordGuild, GuildMembershipBundle } from "./add-server.types";
@@ -16,31 +16,6 @@ function sortGuildsByName(guilds: DiscordGuild[]): DiscordGuild[] {
 	return [...guilds].sort((left, right) =>
 		left.name.localeCompare(right.name, "en", { sensitivity: "base" }),
 	);
-}
-
-function getSessionUserIdEffect(): Effect.Effect<string | null, Error> {
-	return Effect.gen(function* () {
-		const session = yield* tryEffectPromise("Failed to fetch session", () =>
-			getSession(),
-		);
-
-		const typedSession = session as {
-			discordProfile?: {
-				id?: string;
-			};
-			user?: {
-				discordId?: string;
-				id?: string;
-			};
-		} | null;
-
-		return (
-			typedSession?.discordProfile?.id ??
-			typedSession?.user?.discordId ??
-			typedSession?.user?.id ??
-			null
-		);
-	});
 }
 
 function getDiscordAccessTokenEffect(

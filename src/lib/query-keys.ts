@@ -30,6 +30,7 @@ export const queryKeys = {
 	bots: {
 		all: botsRoot,
 		detail: (botId: string) => [...botsRoot, "detail", botId] as const,
+		edit: (botId: string) => [...botsRoot, "edit", botId] as const,
 		list: (input: {
 			category: "popular" | "featured" | "new" | "verified" | "voted";
 			page: number;

@@ -77,8 +77,21 @@ function SidebarProvider({
 				_setOpen(openState);
 			}
 
-			// This sets the cookie to keep the sidebar state.
-			document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`;
+			if (typeof window !== "undefined" && "cookieStore" in window) {
+				// 將原本的 max-age（秒）轉換成未來的時間戳記（毫秒）
+				const expiresTimestamp = Date.now() + SIDEBAR_COOKIE_MAX_AGE * 1000;
+
+				window.cookieStore
+					.set({
+						name: SIDEBAR_COOKIE_NAME,
+						value: String(openState),
+						path: "/",
+						expires: expiresTimestamp, // 使用符合 CookieInit 型別的屬性
+					})
+					.catch((err) => console.error("Failed to set cookie:", err));
+			} else {
+				document.cookie = `${SIDEBAR_COOKIE_NAME}=${openState}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`;
+			}
 		},
 		[setOpenProp, open],
 	);

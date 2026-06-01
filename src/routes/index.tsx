@@ -431,10 +431,10 @@ function HomePage() {
 				</div>
 
 				<div className="relative mx-auto max-w-7xl px-4 text-center sm:px-6 lg:px-8">
-					<h1 className="mb-4 text-4xl font-bold text-white md:text-5xl">
+					<h1 className="mb-4 font-bold text-4xl text-white md:text-5xl">
 						發現最棒的 Discord 社群
 					</h1>
-					<p className="mx-auto mb-8 max-w-3xl text-xl text-white/80">
+					<p className="mx-auto mb-8 max-w-3xl text-white/80 text-xl">
 						加入數千個有趣的伺服器，找到你的興趣社群，與志同道合的朋友交流。
 					</p>
 
@@ -451,12 +451,12 @@ function HomePage() {
 							}}
 						/>
 						<Search
-							className="absolute left-3 top-1/2 -translate-y-1/2 text-white/60"
+							className="absolute top-1/2 left-3 -translate-y-1/2 text-white/60"
 							size={20}
 						/>
 						{(isSearching || isPending) && (
-							<div className="absolute right-3 top-1/2 -translate-y-1/2">
-								<div className="h-5 w-5 animate-spin rounded-full border-b-2 border-white" />
+							<div className="absolute top-1/2 right-3 -translate-y-1/2">
+								<div className="h-5 w-5 animate-spin rounded-full border-white border-b-2" />
 							</div>
 						)}
 					</div>
@@ -501,9 +501,9 @@ function HomePage() {
 				</div>
 
 				<div className="grid grid-cols-1 gap-8 lg:grid-cols-4">
-					<div className="order-2 lg:col-span-3 lg:order-1">
+					<div className="order-2 lg:order-1 lg:col-span-3">
 						{useClientSideFiltering && (
-							<div className="mb-4 rounded-lg bg-[#2b2d31] p-3 text-sm text-gray-300">
+							<div className="mb-4 rounded-lg bg-[#2b2d31] p-3 text-gray-300 text-sm">
 								{searchQuery && <span>搜尋「{searchQuery}」</span>}
 								{selectedCategoryIds.length > 0 && (
 									<span>
@@ -520,7 +520,7 @@ function HomePage() {
 							value={activeTab}
 							onValueChange={handleTabChange}
 						>
-							<TabsList className="h-full w-full overflow-auto border-b border-[#1e1f22] bg-[#2b2d31]">
+							<TabsList className="h-full w-full overflow-hidden border-[#1e1f22] border-b bg-[#2b2d31]">
 								<TabsTrigger
 									value="popular"
 									className="data-[state=active]:bg-[#36393f]"
@@ -554,14 +554,14 @@ function HomePage() {
 							{(["featured", "popular", "new", "voted"] as const).map((tab) => (
 								<TabsContent key={tab} value={tab} className="mt-6">
 									<div className="mb-4 flex items-center justify-between">
-										<h2 className="text-2xl font-bold">
+										<h2 className="font-bold text-2xl">
 											{tab === "featured" && "精選伺服器"}
 											{tab === "popular" && "熱門伺服器"}
 											{tab === "new" && "最新伺服器"}
 											{tab === "voted" && "票選伺服器"}
 										</h2>
 										{!shouldShowSkeleton && displayData.total > 0 && (
-											<div className="text-sm text-gray-400">
+											<div className="text-gray-400 text-sm">
 												第 {displayData.page} 頁，共 {displayData.totalPages} 頁
 											</div>
 										)}
@@ -587,9 +587,9 @@ function HomePage() {
 						</Tabs>
 					</div>
 
-					<div className="order-1 hidden lg:col-span-1 lg:order-2 lg:block">
+					<div className="order-1 hidden lg:order-2 lg:col-span-1 lg:block">
 						<div className="mb-6 rounded-lg bg-[#2b2d31] p-5">
-							<h3 className="mb-4 text-lg font-semibold">分類</h3>
+							<h3 className="mb-4 font-semibold text-lg">分類</h3>
 							<Suspense
 								fallback={<div className="h-10 rounded-md bg-[#1f2125]" />}
 							>
@@ -603,7 +603,7 @@ function HomePage() {
 						</div>
 
 						<div className="mb-6 rounded-lg bg-[#2b2d31] p-5">
-							<h3 className="mb-4 text-lg font-semibold">伺服器統計</h3>
+							<h3 className="mb-4 font-semibold text-lg">伺服器統計</h3>
 							<div className="space-y-3">
 								<div className="flex items-center justify-between">
 									<span className="text-gray-300">總伺服器數</span>
