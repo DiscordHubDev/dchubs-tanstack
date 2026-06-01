@@ -329,15 +329,20 @@ function voteBotEffect(botId: string): Effect.Effect<BotVoteResult, Error> {
 		}
 
 		yield* dbEffect("Failed to cast vote", async () => {
-			await db.execute(sql`
-				with inserted_vote as (
-					insert into "Vote" ("id", "userId", "itemId", "itemType")
-					values (${crypto.randomUUID()}, ${userId}, ${botId}, 'bot')
-				)
-				update "Bot"
-				set "upvotes" = "upvotes" + 1
-				where "id" = ${botId}
-			`);
+			await db.transaction(async (tx) => {
+				await tx.insert(vote).values({
+					id: crypto.randomUUID(),
+					userId: userId,
+					itemId: botId,
+					itemType: "bot",
+					createdAt: new Date().toISOString(),
+				});
+
+				await tx
+					.update(bot)
+					.set({ upvotes: sql`${bot.upvotes} + 1` })
+					.where(eq(bot.id, botId));
+			});
 		});
 
 		const updatedRows = yield* dbEffect(

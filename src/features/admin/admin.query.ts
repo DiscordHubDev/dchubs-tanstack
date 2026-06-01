@@ -34,7 +34,6 @@ export const getReportsQuery = () =>
 			with: {
 				reportedBy: true,
 				handledBy: true,
-				attachments: true,
 			},
 			orderBy: [desc(report.reportedAt)],
 		}),

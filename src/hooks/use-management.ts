@@ -2,7 +2,7 @@
 // hooks/use-management.ts
 // ============================================================
 import { useCallback, useMemo, useState } from "react";
-import { deleteBot, deleteServer } from "#/routes/api/admin";
+import { deleteBot, deleteServer } from "#/features/admin/admin.functions";
 import type { Bot, DiscordServer, ManagedItem } from "#/types/admin";
 
 interface UseManagementOptions {

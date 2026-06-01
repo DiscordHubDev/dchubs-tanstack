@@ -5,13 +5,13 @@ import { db } from "#/drizzle/db";
 import { bot, botCommand, botDevelopers, user } from "#/drizzle/schema";
 import {
 	BotAlreadyExists,
-	DiscordRpcFailed,
+	type DiscordRpcFailed,
 	ImageUploadFailed,
 	InvalidInviteUrl,
 	NotificationFailed,
 	SubmitBotFailed,
 } from "#/errors/bot-errors";
-import { toErrorMessage } from "#/lib/effect-utils";
+import { fetchJsonEffect, toErrorMessage } from "#/lib/effect-utils";
 import type { BotInfo, DiscordBotRPCInfo } from "#/lib/types";
 import { sendNotificationEffect } from "../notifications/notifications.server";
 import type {
@@ -150,32 +150,21 @@ function parseClientId(inviteUrl: string) {
 
 function fetchBotRpcEffect(
 	botId: string,
-): Effect.Effect<DiscordBotRPCInfo, DiscordRpcFailed | SubmitBotFailed> {
+): Effect.Effect<DiscordBotRPCInfo, SubmitBotFailed> {
 	return Effect.gen(function* () {
-		const response = yield* Effect.tryPromise({
-			try: () =>
-				fetch(`https://dgsbotapi.vercel.app/v181cm/application/${botId}`),
-			catch: (error) =>
-				new SubmitBotFailed({
-					message: `Discord RPC 連線失敗：${toErrorMessage(error)}`,
-				}),
-		});
+		// 直接 yield* fetchJsonEffect，它已經處理好狀態碼檢查與 JSON 解析
+		const payload = yield* fetchJsonEffect(
+			`https://dgsbotapi.vercel.app/v181cm/application/${botId}`,
+		).pipe(
+			Effect.mapError(
+				(error) =>
+					new SubmitBotFailed({
+						message: `Discord RPC 請求或解析失敗：${toErrorMessage(error)}`,
+					}),
+			),
+		);
 
-		if (!response.ok) {
-			return yield* Effect.fail(
-				new DiscordRpcFailed({ status: response.status }),
-			);
-		}
-
-		const payload = yield* Effect.tryPromise({
-			try: () => response.json() as Promise<DiscordBotRPCInfo>,
-			catch: (error) =>
-				new SubmitBotFailed({
-					message: `Discord RPC 回應解析失敗：${toErrorMessage(error)}`,
-				}),
-		});
-
-		return payload;
+		return payload as DiscordBotRPCInfo;
 	});
 }
 
@@ -215,41 +204,27 @@ function buildBannerUrl(user: DiscordUserResponse): string | null {
 
 function fetchDiscordUserEffect(
 	botId: string,
-): Effect.Effect<BotInfo, DiscordRpcFailed | SubmitBotFailed> {
+): Effect.Effect<BotInfo, SubmitBotFailed> {
 	return Effect.gen(function* () {
 		const token = yield* getBotTokenEffect();
 
-		const response = yield* Effect.tryPromise(() =>
-			fetch(`https://discord.com/api/v10/users/${botId}`, {
+		// 1. 直接執行 Effect，取得解析完的 JSON 資料
+		// 2. 發生任何錯誤 (連線失敗、狀態碼非 2xx、JSON 解析失敗) 都會轉譯為 SubmitBotFailed
+		const payload = (yield* fetchJsonEffect(
+			`https://discord.com/api/v10/users/${botId}`,
+			{
 				headers: {
 					Authorization: `Bot ${token}`,
 				},
-			}),
+			},
 		).pipe(
 			Effect.mapError(
 				(error) =>
 					new SubmitBotFailed({
-						message: `Discord API 連線失敗：${toErrorMessage(error)}`,
+						message: `Discord API 請求或解析失敗：${toErrorMessage(error)}`,
 					}),
 			),
-		);
-
-		if (!response.ok) {
-			return yield* Effect.fail(
-				new DiscordRpcFailed({ status: response.status }),
-			);
-		}
-
-		const payload: DiscordUserResponse = yield* Effect.tryPromise(
-			() => response.json() as Promise<DiscordUserResponse>,
-		).pipe(
-			Effect.mapError(
-				(error) =>
-					new SubmitBotFailed({
-						message: `Discord API 回應解析失敗：${toErrorMessage(error)}`,
-					}),
-			),
-		);
+		)) as DiscordUserResponse;
 
 		return {
 			username: payload.username ?? "",
@@ -432,7 +407,7 @@ function getPendingWebhookUrl(): string | null {
 
 function sendPendingWebhookEffect(
 	input: SendPendingWebhookInput,
-): Effect.Effect<void, NotificationFailed | SubmitBotFailed> {
+): Effect.Effect<void, NotificationFailed> {
 	if (input.mode === "edit") {
 		return Effect.succeed(undefined);
 	}
@@ -454,21 +429,16 @@ function sendPendingWebhookEffect(
 		],
 	};
 
-	return Effect.tryPromise({
-		try: () =>
-			fetch(webhookUrl, {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify(payload),
-			}),
-		catch: () => new NotificationFailed({}),
+	// 直接回傳 fetchJsonEffect 的結果，並處理成功與失敗的型別轉換
+	return fetchJsonEffect(webhookUrl, {
+		method: "POST",
+		headers: { "Content-Type": "application/json" },
+		body: JSON.stringify(payload),
 	}).pipe(
-		Effect.flatMap((response) => {
-			if (!response.ok) {
-				return Effect.fail(new NotificationFailed({}));
-			}
-			return Effect.succeed(undefined);
-		}),
+		// 如果失敗，統一拋出 NotificationFailed
+		Effect.mapError(() => new NotificationFailed({})),
+		// 如果成功，忽略原本的 JSON 回傳值，轉換為 void (undefined)
+		Effect.map(() => undefined),
 	);
 }
 

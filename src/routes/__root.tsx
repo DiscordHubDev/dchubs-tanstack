@@ -5,7 +5,6 @@ import {
 	Scripts,
 } from "@tanstack/react-router";
 import type { ReactNode } from "react";
-import { useEffect, useState } from "react";
 import { ToastContainer } from "react-toastify";
 import { AppSidebar } from "#/components/layout/app-sidebar";
 import NotFound from "#/components/notFound";
@@ -15,6 +14,7 @@ import Footer from "../components/Footer";
 import Header from "../components/Header";
 import appCss from "../styles.css?url";
 import "react-toastify/dist/ReactToastify.css";
+import React, { Suspense } from "react";
 import { ErrorState } from "#/components/ErrorState";
 
 interface MyRouterContext {
@@ -34,9 +34,7 @@ const keywords = [
 	"DiscordHubs 熱門伺服器",
 ];
 
-const siteUrl =
-	(typeof process !== "undefined" ? process.env.BETTER_AUTH_URL : undefined) ||
-	"https://dchubs.org";
+const siteUrl = "https://dchubs.org";
 
 const pageTitle = "熱門伺服器 | Discord伺服器列表 - DiscordHubs";
 const pageDescription =
@@ -159,64 +157,9 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
 	notFoundComponent: NotFound,
 });
 
-type DevtoolsModules = {
-	TanStackDevtools: typeof import("@tanstack/react-devtools")["TanStackDevtools"];
-	TanStackRouterDevtoolsPanel: typeof import("@tanstack/react-router-devtools")["TanStackRouterDevtoolsPanel"];
-	TanStackQueryDevtools: typeof import("../integrations/tanstack-query/devtools")["default"];
-};
-
-function DevtoolsOverlay() {
-	const [modules, setModules] = useState<DevtoolsModules | null>(null);
-
-	useEffect(() => {
-		if (!import.meta.env.DEV) return;
-
-		let cancelled = false;
-		void Promise.all([
-			import("@tanstack/react-devtools"),
-			import("@tanstack/react-router-devtools"),
-			import("../integrations/tanstack-query/devtools"),
-		]).then(([devtoolsModule, routerDevtoolsModule, queryDevtoolsModule]) => {
-			if (cancelled) return;
-
-			setModules({
-				TanStackDevtools: devtoolsModule.TanStackDevtools,
-				TanStackRouterDevtoolsPanel:
-					routerDevtoolsModule.TanStackRouterDevtoolsPanel,
-				TanStackQueryDevtools: queryDevtoolsModule.default,
-			});
-		});
-
-		return () => {
-			cancelled = true;
-		};
-	}, []);
-
-	if (!import.meta.env.DEV || !modules) {
-		return null;
-	}
-
-	const {
-		TanStackDevtools,
-		TanStackRouterDevtoolsPanel,
-		TanStackQueryDevtools,
-	} = modules;
-
-	return (
-		<TanStackDevtools
-			config={{
-				position: "bottom-right",
-			}}
-			plugins={[
-				{
-					name: "Tanstack Router",
-					render: <TanStackRouterDevtoolsPanel />,
-				},
-				TanStackQueryDevtools,
-			]}
-		/>
-	);
-}
+const Devtools = import.meta.env.DEV
+	? React.lazy(() => import("#/components/devtools"))
+	: () => null;
 
 function RootDocument({ children }: { children: ReactNode }) {
 	return (
@@ -232,12 +175,13 @@ function RootDocument({ children }: { children: ReactNode }) {
 				<script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
 				<script
 					type="application/ld+json"
+					suppressHydrationWarning
 					// biome-ignore lint/security/noDangerouslySetInnerHtml: This is necessary for embedding JSON-LD structured data in the head.
 					dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
 				/>
 				<HeadContent />
 			</head>
-			<body className="wrap-anywhere flex min-h-screen flex-col font-sans antialiased selection:bg-[rgba(79,184,178,0.24)]">
+			<body className="wrap-anywhere flex min-h-screen flex-col font-sans antialiased selection:bg-[rgba(79,184,178,0.24)] bg-[#2b2d31]">
 				<SidebarProvider className="flex-col">
 					<Header />
 					<div className="flex-1">
@@ -253,7 +197,9 @@ function RootDocument({ children }: { children: ReactNode }) {
 					</div>
 					<Footer />
 				</SidebarProvider>
-				<DevtoolsOverlay />
+				<Suspense fallback={null}>
+					<Devtools />
+				</Suspense>
 				<Scripts />
 			</body>
 		</html>

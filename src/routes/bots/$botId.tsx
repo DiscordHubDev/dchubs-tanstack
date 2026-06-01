@@ -3,7 +3,7 @@ import {
 	useQueryClient,
 	useSuspenseQuery,
 } from "@tanstack/react-query";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, notFound } from "@tanstack/react-router";
 import {
 	AlertTriangle,
 	ArrowUp,
@@ -19,6 +19,7 @@ import { memo, useCallback, useMemo, useState } from "react";
 import { FaCheck, FaDiscord } from "react-icons/fa6";
 import { toast } from "react-toastify";
 import MarkdownRenderer from "#/components/MarkdownRenderer";
+import NotFound from "#/components/notFound";
 import { Badge } from "#/components/ui/badge";
 import { Button } from "#/components/ui/button";
 import { Input } from "#/components/ui/input";
@@ -197,21 +198,7 @@ export const Route = createFileRoute("/bots/$botId")({
 	},
 	component: BotDetailPage,
 	pendingComponent: BotLoading,
-	notFoundComponent: () => (
-		<div className="min-h-screen bg-[#1e1f22] px-4 py-10 pb-16 text-white">
-			<div className="mx-auto max-w-4xl rounded-xl border border-white/10 bg-[#2b2d31] p-6 text-center">
-				<h1 className="text-2xl font-bold">找不到機器人</h1>
-				<p className="mt-2 text-gray-300">
-					此機器人可能不存在，或尚未通過審核。
-				</p>
-				<div className="mt-6">
-					<Link to="/bots" className="text-[#5865f2] hover:underline">
-						返回機器人列表
-					</Link>
-				</div>
-			</div>
-		</div>
-	),
+	notFoundComponent: () => NotFound(),
 });
 
 function formatRelativeTime(dateValue: string | null): string {
@@ -356,6 +343,10 @@ function BotDetailPage() {
 	const { data: session } = useSession();
 
 	const { data: detailData } = useSuspenseQuery(botDetailQueryOptions(botId));
+
+	if (!detailData) {
+		throw notFound();
+	}
 
 	const detail = detailData!;
 

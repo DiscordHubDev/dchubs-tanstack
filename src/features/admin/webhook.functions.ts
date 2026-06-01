@@ -1,5 +1,9 @@
 import { createServerFn } from "@tanstack/react-start";
-import { effectInputValidator } from "#/lib/effect-utils";
+import {
+	effectInputValidator,
+	fetchJsonEffect,
+	runEffect,
+} from "#/lib/effect-utils";
 import { WebhookPayloadSchema } from "./webhook.schema";
 
 const DISCORD_AVATAR =
@@ -100,29 +104,24 @@ export const sendDiscordWebhook = createServerFn({ method: "POST" })
 		}
 
 		try {
-			const response = await fetch(webhookUrl, {
-				method: "POST",
-				headers: { "Content-Type": "application/json" },
-				body: JSON.stringify(webhookData),
-			});
-
-			if (!response.ok) {
-				const errorText = await response.text();
-				console.error(
-					`Webhook 發送失敗 (${payload._tag}):`,
-					response.statusText,
-					errorText,
-				);
-				return {
-					success: false,
-					error: `Discord API error: ${response.statusText}`,
-				};
-			}
+			// 使用 runEffect 執行，若發生非 2xx 狀態碼會自動拋出錯誤進入 catch
+			await runEffect(
+				fetchJsonEffect(webhookUrl, {
+					method: "POST",
+					headers: { "Content-Type": "application/json" },
+					body: JSON.stringify(webhookData),
+				}),
+			);
 
 			console.log(`Webhook 發送成功 (${payload._tag})`);
 			return { success: true };
 		} catch (error) {
 			console.error(`發送 Webhook 時出錯 (${payload._tag}):`, error);
-			return { success: false, error: "Internal Server Error" };
+			const errorMessage =
+				error instanceof Error ? error.message : String(error);
+			return {
+				success: false,
+				error: `Webhook 發送失敗: ${errorMessage}`,
+			};
 		}
 	});

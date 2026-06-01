@@ -1,0 +1,34 @@
+# Security Scanner Ignore File
+# Similar to .gitignore, patterns here will be ignored during scanning
+
+# Dependencies
+node_modules/**
+package-lock.json
+yarn.lock
+
+# Build outputs
+dist/**
+build/**
+out/**
+.next/**
+.nuxt/**
+
+# Generated files
+*.min.js
+*.min.css
+*.bundle.js
+
+# Test coverage
+coverage/**
+
+# IDE
+.vscode/**
+.idea/**
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Public assets
+public/**
+static/**

@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { Button } from "#/components/ui/button";
-import { useSession } from "#/lib/auth-client";
+import { signIn, useSession } from "#/lib/auth-client";
 
 type HomeAddServerCtaProps = {
 	mobile?: boolean;
@@ -26,15 +26,14 @@ export default function HomeAddServerCta({
 					</Button>
 				</Link>
 			) : (
-				<a
-					href="https://discord.gg/puQ9DPdG3M"
-					target="_blank"
-					rel="noopener noreferrer"
+				<Button
+					onClick={() => {
+						signIn("/protected/add-server");
+					}}
+					className="w-full bg-[#5865f2] text-white hover:bg-[#4752c4]"
 				>
-					<Button className="w-full bg-[#5865f2] text-white hover:bg-[#4752c4]">
-						加入官方群後提交
-					</Button>
-				</a>
+					登入後新增
+				</Button>
 			)}
 		</div>
 	);

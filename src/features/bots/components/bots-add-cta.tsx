@@ -37,7 +37,7 @@ export default function BotsAddCta({ mobile = false }: BotsAddCtaProps) {
 			<Button
 				type="button"
 				onClick={() => {
-					void signIn("/add-bot");
+					signIn("/protected/add-bot");
 				}}
 				className="w-full bg-[#5865f2] text-white hover:bg-[#4752c4]"
 			>

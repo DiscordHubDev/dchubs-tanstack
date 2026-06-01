@@ -46,6 +46,28 @@ export function fetchJsonEffect(
 	input: RequestInfo | URL,
 	init?: RequestInit,
 ): Effect.Effect<unknown, Error> {
+	// 1. 提取 URL 字串 (處理 string, URL 或 Request 物件)
+	const urlString =
+		typeof input === "string"
+			? input
+			: input instanceof URL
+				? input.href
+				: input.url;
+
+	// 2. 驗證 URL 協定是否為安全的 HTTPS
+	try {
+		const parsedUrl = new URL(urlString);
+		if (parsedUrl.protocol !== "https:") {
+			return Effect.fail(
+				new Error("Insecure fetch usage: Only HTTPS requests are allowed"),
+			);
+		}
+	} catch (error) {
+		// 攔截無效的 URL 格式 (例如缺少協定的相對路徑等)
+		return Effect.fail(toError(error, "Invalid URL format"));
+	}
+
+	// 3. 執行原本的 fetch 流程
 	return tryEffectPromise("Request failed", () => fetch(input, init)).pipe(
 		Effect.flatMap((response) => {
 			if (!response.ok) {

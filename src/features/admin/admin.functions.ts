@@ -4,17 +4,21 @@ import { createServerFn } from "@tanstack/react-start";
 import { desc, eq } from "drizzle-orm";
 import { Effect, pipe } from "effect";
 import { db } from "#/drizzle/db";
-import { bot, report, server } from "#/drizzle/schema";
-import { requireDomainUser } from "#/lib/edge-context";
-import { effectInputValidator } from "#/lib/effect-utils";
-import type { ReportStatus } from "#/types/admin";
+import { bot, notification, report, server } from "#/drizzle/schema";
+import { getSessionUserIdEffect, requireDomainUser } from "#/lib/edge-context";
+import {
+	effectInputValidator,
+	fetchJsonEffect,
+	runEffect,
+} from "#/lib/effect-utils";
+import type { ActionResult, ReportStatus } from "#/types/admin";
 import {
 	BotIdSchema,
+	RejectBotSchema,
 	ReviewBotSchema,
 	ServerGuildIdSchema,
 	UpdateReportSchema,
 } from "./admin.schemas";
-import type { ActionResult } from "./admin.types";
 
 interface SendNotificationParams {
 	subject: string;
@@ -50,60 +54,65 @@ export const toResult = <A>(
 		Effect.runPromise,
 	);
 
-export async function resolveReport({
-	reportId,
-	status,
-	resolutionNote,
-}: {
-	reportId: string;
-	status: ReportStatus;
-	resolutionNote: string;
-}) {
-	const { context, user } = await requireDomainUser();
-	if (!context.isAdmin || !user.discordId) {
-		throw new Error("未登入或無管理權限");
-	}
+export const resolveReportServerFn = createServerFn({ method: "POST" })
+	// 2. 宣告前端傳進來的參數型別 (Validator)
+	.inputValidator(
+		(data: {
+			reportId: string;
+			status: ReportStatus;
+			resolutionNote: string;
+		}) => data,
+	)
+	// 3. 原本的邏輯搬進 handler
+	.handler(async ({ data }) => {
+		const { reportId, status, resolutionNote } = data;
 
-	// 核心修正：使用 db.update()
-	const [updated] = await db
-		.update(report)
-		.set({
-			status: status,
-			resolutionNote: resolutionNote,
-			handledById: user.discordId,
-			handledAt: new Date().toISOString(),
-		})
-		.where(eq(report.id, reportId))
-		.returning();
+		const { context, user } = await requireDomainUser();
+		if (!context.isAdmin || !user.discordId) {
+			throw new Error("未登入或無管理權限");
+		}
 
-	return updated;
-}
+		// 核心修正：使用 db.update()
+		const [updated] = await db
+			.update(report)
+			.set({
+				status: status,
+				resolutionNote: resolutionNote,
+				handledById: user.discordId,
+				handledAt: new Date().toISOString(),
+			})
+			.where(eq(report.id, reportId))
+			.returning();
+
+		return {
+			...updated,
+			attachments: updated.attachments as string[],
+		};
+	});
 
 /**
  * 步驟一：透過 User ID 獲取或建立 DM Channel ID
  */
 async function getDmChannelId(userId: string): Promise<string> {
-	const response = await fetch(
-		"https://discord.com/api/v10/users/@me/channels",
-		{
-			method: "POST",
-			headers: {
-				Authorization: `Bot ${DISCORD_BOT_TOKEN}`,
-				"Content-Type": "application/json",
-			},
-			body: JSON.stringify({ recipient_id: userId }),
-		},
-	);
+	try {
+		// 直接取得 JSON 格式並轉型
+		const data = (await runEffect(
+			fetchJsonEffect("https://discord.com/api/v10/users/@me/channels", {
+				method: "POST",
+				headers: {
+					Authorization: `Bot ${DISCORD_BOT_TOKEN}`,
+					"Content-Type": "application/json",
+				},
+				body: JSON.stringify({ recipient_id: userId }),
+			}),
+		)) as { id: string };
 
-	if (!response.ok) {
-		const errorText = await response.text();
-		throw new Error(
-			`無法為用戶 ${userId} 建立私訊通道: ${response.status} - ${errorText}`,
-		);
+		return data.id;
+	} catch (error) {
+		// 捕捉 fetchJsonEffect 拋出的錯誤並加上上下文
+		const errorMessage = error instanceof Error ? error.message : String(error);
+		throw new Error(`無法為用戶 ${userId} 建立私訊通道: ${errorMessage}`);
 	}
-
-	const data = (await response.json()) as { id: string };
-	return data.id;
 }
 
 /**
@@ -145,29 +154,32 @@ export async function sendNotification({
 
 	const tasks = userIds.map(async (userId) => {
 		const dmChannelId = await getDmChannelId(userId);
-		const response = await fetch(
-			`https://discord.com/api/v10/channels/${dmChannelId}/messages`,
-			{
-				method: "POST",
-				headers: {
-					Authorization: `Bot ${DISCORD_BOT_TOKEN}`,
-					"Content-Type": "application/json",
-				},
-				body: JSON.stringify(payload),
-			},
-		);
 
-		if (!response.ok) {
-			const errorText = await response.text();
-			throw new Error(
-				`無法發送私訊給用戶 ${userId}: ${response.status} - ${errorText}`,
+		try {
+			await runEffect(
+				fetchJsonEffect(
+					`https://discord.com/api/v10/channels/${dmChannelId}/messages`,
+					{
+						method: "POST",
+						headers: {
+							Authorization: `Bot ${DISCORD_BOT_TOKEN}`,
+							"Content-Type": "application/json",
+						},
+						body: JSON.stringify(payload),
+					},
+				),
 			);
-		}
 
-		return userId;
+			// 如果成功發送，回傳 userId
+			return userId;
+		} catch (error) {
+			const errorMessage =
+				error instanceof Error ? error.message : String(error);
+			throw new Error(`無法發送私訊給用戶 ${userId}: ${errorMessage}`);
+		}
 	});
 
-	// 使用 allSettled 確保個別用戶發送失敗（例如關閉私訊功能）時，不影響其他人
+	// 使用 allSettled 確保個別用戶發送失敗時，不影響其他人
 	const results = await Promise.allSettled(tasks);
 
 	// 整理結果
@@ -176,7 +188,7 @@ export async function sendNotification({
 	) as PromiseRejectedResult[];
 
 	if (failures.length > 0) {
-		// biome-ignore lint/suspicious/useIterableCallbackReturn: 只需要 log 失敗的用戶 ID 和錯誤訊息，並不需要回傳給前端
+		// biome-ignore lint/suspicious/useIterableCallbackReturn: 只需要 log 失敗
 		failures.forEach((f) => console.error("Discord DM Error:", f.reason));
 		if (failures.length === userIds.length) {
 			throw new Error("All Discord DM notification requests failed.");
@@ -190,71 +202,87 @@ export async function sendNotification({
 	};
 }
 
-export async function updateBotServerCountBackground(botId: string) {
-	"use server";
+export const updateBotServerCountBackgroundFn = createServerFn({
+	method: "POST",
+})
+	.inputValidator((data: { botId: string }) => data)
+	.handler(async ({ data }) => {
+		const { botId } = data;
 
-	const fetchTask = async () => {
-		try {
-			const response = await fetch(
-				"https://getbotserver.dawngs.top/get_bot_server_count",
-				{
-					method: "POST",
-					headers: { "Content-Type": "application/json" },
-					body: JSON.stringify({ bot_id: botId }),
-					// 確保 Playwright 有足夠時間重試 (3 分鐘)
-					signal: AbortSignal.timeout(180000),
-				},
-			);
-
-			if (!response.ok) {
-				console.warn(
-					`⚠️ 獲取伺服器數量失敗 (Bot: ${botId}): HTTP ${response.status} - ${response.statusText}`,
+		const fetchTask = async () => {
+			try {
+				// 1. 使用 runEffect 執行，resultData 直接就是 JSON 物件
+				const resultData = await runEffect(
+					fetchJsonEffect(
+						"https://getbotserver.dawngs.top/get_bot_server_count",
+						{
+							method: "POST",
+							headers: { "Content-Type": "application/json" },
+							body: JSON.stringify({ bot_id: botId }),
+							// 確保 Playwright 有足夠時間重試 (3 分鐘)
+							signal: AbortSignal.timeout(180000),
+						},
+					),
 				);
-				return;
+
+				let serverCount: number | null = null;
+
+				// 2. 直接對 resultData 進行操作
+				if (Array.isArray(resultData)) {
+					const found = resultData.find(
+						(item) => typeof item?.server_count === "number",
+					);
+					if (found) serverCount = found.server_count;
+				} else if (typeof (resultData as any)?.server_count === "number") {
+					serverCount = (resultData as any).server_count;
+				}
+
+				if (serverCount !== null) {
+					// ✨ 使用 Drizzle ORM 更新資料庫
+					await db
+						.update(bot)
+						.set({ servers: serverCount })
+						.where(eq(bot.id, botId));
+
+					console.log(`✅ 成功更新伺服器數量 (Bot: ${botId}): ${serverCount}`);
+				} else {
+					console.warn(`⚠️ 返回資料中找不到有效的 server_count (Bot: ${botId})`);
+				}
+			} catch (error: any) {
+				// fetchJsonEffect 失敗時會進到這裡
+				if (error.name === "TimeoutError") {
+					console.warn(`⏳ 請求超時 (Bot: ${botId}): 已超過 3 分鐘`);
+				} else {
+					console.warn(
+						`❌ 背景更新伺服器數量失敗 (Bot: ${botId}):`,
+						error.message,
+					);
+				}
 			}
+		};
 
-			const data = await response.json();
+		// ✅ 在 VPS (Node.js 原生環境) 中，直接呼叫且不 await 即可實現背景執行
+		fetchTask();
 
-			let serverCount: number | null = null;
-			if (Array.isArray(data)) {
-				const found = data.find(
-					(item) => typeof item?.server_count === "number",
-				);
-				if (found) serverCount = found.server_count;
-			} else if (typeof data?.server_count === "number") {
-				serverCount = data.server_count;
-			}
+		// 立即返回 API 回應，不阻塞前端
+		return { success: true, message: "已在背景處理" };
+	});
 
-			if (serverCount !== null) {
-				// ✨ 使用 Drizzle ORM 更新資料庫
-				await db
-					.update(bot)
-					.set({ servers: serverCount })
-					.where(eq(bot.id, botId));
-
-				console.log(`✅ 成功更新伺服器數量 (Bot: ${botId}): ${serverCount}`);
-			} else {
-				console.warn(`⚠️ 返回資料中找不到有效的 server_count (Bot: ${botId})`);
-			}
-		} catch (error: any) {
-			if (error.name === "TimeoutError") {
-				console.warn(`⏳ 請求超時 (Bot: ${botId}): 已超過 3 分鐘`);
-			} else {
-				console.warn(
-					`❌ 背景更新伺服器數量失敗 (Bot: ${botId}):`,
-					error.message,
-				);
-			}
-		}
-	};
-
-	// ✅ 在 VPS (Node.js 原生環境) 中，直接呼叫且不 await 即可實現背景執行
-	// 注意：如果是 Next.js 15，官方建議改用 `unstable_after(fetchTask)`
-	fetchTask();
-
-	// 立即返回 API 回應，不阻塞前端
-	return { success: true, message: "已在背景處理" };
-}
+export const getSessionUserIdServerFn = createServerFn({
+	method: "GET",
+}).handler(async () => {
+	try {
+		// 在後端「執行」這個 Effect，並等待結果
+		const userId = await Effect.runPromise(getSessionUserIdEffect());
+		return { success: true, userId };
+	} catch (error) {
+		// 將 Error 轉成字串傳給前端，因為 Error 物件無法透過網路序列化
+		return {
+			success: false,
+			error: error instanceof Error ? error.message : String(error),
+		};
+	}
+});
 
 export const adminGetAllBots = createServerFn({ method: "GET" }).handler(() =>
 	toResult(
@@ -288,7 +316,6 @@ export const getReports = createServerFn({ method: "GET" }).handler(() =>
 				with: {
 					reportedBy: true,
 					handledBy: true,
-					attachments: true,
 				},
 				orderBy: [desc(report.reportedAt)],
 			}),
@@ -334,6 +361,7 @@ export const deleteServer = createServerFn({ method: "POST" })
 			),
 	);
 
+/** Update a report */
 export const updateReport = createServerFn({ method: "POST" })
 	.inputValidator(effectInputValidator(UpdateReportSchema))
 	.handler(
@@ -383,3 +411,95 @@ export const adminGetDashboardCounts = createServerFn({
 			),
 		),
 );
+
+/**
+ * 拒絕機器人申請 (Server Function)
+ */
+export const rejectBotServerFn = createServerFn({ method: "POST" })
+	.inputValidator(effectInputValidator(RejectBotSchema))
+	.handler(async ({ data }) => {
+		const { botId, reason } = data;
+
+		// 1. Verify Admin Permissions
+		const { context, user } = await requireDomainUser();
+		if (!context.isAdmin || !user.discordId) {
+			throw new Error("未登入或無管理權限");
+		}
+
+		// 2. Execute Database Operations inside a Transaction
+		const result = await Effect.runPromise(
+			Effect.tryPromise({
+				try: async () =>
+					await db.transaction(async (tx) => {
+						// A. Fetch Bot and its associated developers (Secure source of truth)
+						const botRecord = await tx.query.bot.findFirst({
+							where: eq(bot.id, botId),
+							with: { developers: { with: { user: true } } },
+						});
+
+						if (!botRecord) {
+							throw new Error("BotNotFound");
+						}
+
+						// B. Update Bot Status
+						await tx
+							.update(bot)
+							.set({
+								status: "rejected",
+								rejectionReason: reason,
+								handledAt: new Date().toISOString(),
+								handledById: user.discordId,
+							})
+							.where(eq(bot.id, botId));
+
+						// C. Insert In-App Notification Logs
+						const devIds = botRecord.developers.map((d) => d.user.id);
+						if (devIds.length > 0) {
+							await tx.insert(notification).values(
+								devIds.map((devId) => ({
+									id: crypto.randomUUID(),
+									name: "機器人申請狀態更新",
+									userId: devId,
+									subject: "機器人申請已被拒絕",
+									teaser: `您的機器人 "${botRecord.name}" 申請已被拒絕。`,
+									content: `拒絕原因：${reason}`,
+									priority: "warning" as const,
+								})),
+							);
+						}
+						return {
+							botName: botRecord.name,
+							developerIds: devIds,
+						};
+					}),
+				catch: (error) => {
+					if (error instanceof Error && error.message === "BotNotFound") {
+						return new Error("BotNotFound");
+					}
+					return new Error("DatabaseError");
+				},
+			}).pipe(Effect.mapError((e) => e.message)),
+		);
+
+		if (result instanceof Error) {
+			throw new Error(result.message);
+		}
+
+		// 3. Trigger External Notifications (Non-blocking)
+		// Note: In a real environment, we'd use Effect.fork or a queue
+		const { botName, developerIds } = result as {
+			botName: string;
+			developerIds: string[];
+		};
+
+		// We don't await this to prevent blocking the response
+		sendNotification({
+			subject: `機器人申請已被拒絕: ${botName}`,
+			teaser: `您的機器人 "${botName}" 申請已被拒絕。`,
+			content: `拒絕原因：${reason}`,
+			priority: "warning",
+			userIds: developerIds,
+		}).catch((e) => console.error("Failed to send rejection DMs:", e));
+
+		return { success: true };
+	});

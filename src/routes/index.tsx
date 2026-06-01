@@ -1,6 +1,7 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { Image } from "@unpic/react";
+import { motion } from "framer-motion";
 import { Search } from "lucide-react";
 import {
 	lazy,
@@ -520,34 +521,87 @@ function HomePage() {
 							value={activeTab}
 							onValueChange={handleTabChange}
 						>
-							<TabsList className="h-full w-full overflow-hidden border-[#1e1f22] border-b bg-[#2b2d31]">
+							<TabsList className="h-full w-full overflow-hidden border-[#1e1f22] border-b bg-[#2b2d31] p-1">
+								{/* ----- 熱門伺服器 ----- */}
 								<TabsTrigger
 									value="popular"
-									className="data-[state=active]:bg-[#36393f]"
 									disabled={isPending}
+									// 2. 移除原來的 data-[state=active]:bg-[#36393f]
+									className="relative z-10 bg-transparent data-[state=active]:bg-transparent"
 								>
-									熱門伺服器
+									<span className="relative z-20">熱門伺服器</span>
+									{/* 3. 直接用你現有的 activeTab 做比對 */}
+									{activeTab === "popular" && (
+										<motion.div
+											layoutId="active-indicator"
+											className="absolute inset-0 z-10 rounded-sm bg-[#36393f]"
+											transition={{
+												type: "spring",
+												stiffness: 380,
+												damping: 30,
+											}}
+										/>
+									)}
 								</TabsTrigger>
+
+								{/* ----- 精選伺服器 ----- */}
 								<TabsTrigger
 									value="featured"
-									className="data-[state=active]:bg-[#36393f]"
 									disabled={isPending}
+									className="relative z-10 bg-transparent data-[state=active]:bg-transparent"
 								>
-									精選伺服器
+									<span className="relative z-20">精選伺服器</span>
+									{activeTab === "featured" && (
+										<motion.div
+											layoutId="active-indicator"
+											className="absolute inset-0 z-10 rounded-sm bg-[#36393f]"
+											transition={{
+												type: "spring",
+												stiffness: 380,
+												damping: 30,
+											}}
+										/>
+									)}
 								</TabsTrigger>
+
+								{/* ----- 最新伺服器 ----- */}
 								<TabsTrigger
 									value="new"
-									className="data-[state=active]:bg-[#36393f]"
 									disabled={isPending}
+									className="relative z-10 bg-transparent data-[state=active]:bg-transparent"
 								>
-									最新伺服器
+									<span className="relative z-20">最新伺服器</span>
+									{activeTab === "new" && (
+										<motion.div
+											layoutId="active-indicator"
+											className="absolute inset-0 z-10 rounded-sm bg-[#36393f]"
+											transition={{
+												type: "spring",
+												stiffness: 380,
+												damping: 30,
+											}}
+										/>
+									)}
 								</TabsTrigger>
+
+								{/* ----- 票選伺服器 ----- */}
 								<TabsTrigger
 									value="voted"
-									className="data-[state=active]:bg-[#36393f]"
 									disabled={isPending}
+									className="relative z-10 bg-transparent data-[state=active]:bg-transparent"
 								>
-									票選伺服器
+									<span className="relative z-20">票選伺服器</span>
+									{activeTab === "voted" && (
+										<motion.div
+											layoutId="active-indicator"
+											className="absolute inset-0 z-10 rounded-sm bg-[#36393f]"
+											transition={{
+												type: "spring",
+												stiffness: 380,
+												damping: 30,
+											}}
+										/>
+									)}
 								</TabsTrigger>
 							</TabsList>
 

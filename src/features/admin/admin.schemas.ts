@@ -30,3 +30,8 @@ export const UpdateReportSchema = Schema.Struct({
 		Schema.Literal("untagged", "low", "moderate", "severe"),
 	),
 });
+
+export const RejectBotSchema = Schema.Struct({
+	botId: Schema.String,
+	reason: Schema.String.pipe(Schema.minLength(1)),
+});

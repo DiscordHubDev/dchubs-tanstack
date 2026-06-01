@@ -9,19 +9,14 @@ import { defineConfig } from "vite";
 const config = defineConfig({
 	resolve: { tsconfigPaths: true },
 	optimizeDeps: {
-		include: [
-			"react",
-			"react-dom",
-			"@tanstack/react-router",
-			"@tanstack/react-start",
-		],
+		include: ["react", "react-dom", "@tanstack/react-router"],
 		exclude: ["bun"],
 	},
 	plugins: [
 		devtools(),
-		nitro({ rollupConfig: { external: [/^@sentry\//] } }),
 		tailwindcss(),
 		tanstackStart(),
+		nitro({ preset: "bun" }),
 		viteReact(),
 		babel({ presets: [reactCompilerPreset()] }),
 	],

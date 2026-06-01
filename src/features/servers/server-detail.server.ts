@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, sql } from "drizzle-orm";
+import { and, desc, eq, gte, ne, sql } from "drizzle-orm";
 import { Effect } from "effect";
 import { db } from "#/drizzle/db";
 import {
@@ -217,7 +217,7 @@ function getServerDetailEffect(
 							pinExpiry: server.pinExpiry,
 						})
 						.from(server)
-						.where(sql`${server.id} <> ${serverId}`)
+						.where(ne(server.id, serverId))
 						.orderBy(desc(server.upvotes))
 						.limit(40),
 				),
@@ -317,15 +317,21 @@ function voteServerEffect(
 		}
 
 		yield* dbEffect("Failed to cast server vote", async () => {
-			await db.execute(sql`
-				with inserted_vote as (
-					insert into "Vote" ("id", "userId", "itemId", "itemType")
-					values (${crypto.randomUUID()}, ${userId}, ${serverId}, 'server')
-				)
-				update "Server"
-				set "upvotes" = "upvotes" + 1
-				where "id" = ${serverId}
-			`);
+			await db.transaction(async (tx) => {
+				// 1. 新增投票紀錄
+				await tx.insert(vote).values({
+					id: crypto.randomUUID(),
+					userId: userId,
+					itemId: serverId,
+					itemType: "server",
+				});
+
+				// 2. 更新伺服器得票數 (此處保留 sql 作為原子的數值遞增操作，這是 ORM 推薦且安全的標準寫法)
+				await tx
+					.update(server)
+					.set({ upvotes: sql`${server.upvotes} + 1` })
+					.where(eq(server.id, serverId));
+			});
 		});
 
 		const updatedRows = yield* dbEffect(

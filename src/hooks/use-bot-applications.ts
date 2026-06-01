@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
+import { reviewBot } from "#/features/admin/admin.functions";
 import type { Bot, BotStatus } from "#/types/admin";
-import { reviewBot } from "@/routes/api/admin";
 
 interface UseBotApplicationsOptions {
 	initial: readonly Bot[];

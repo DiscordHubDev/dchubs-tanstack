@@ -1,6 +1,6 @@
 import { useCallback, useMemo, useState } from "react";
+import { updateReport } from "#/features/admin/admin.functions";
 import type { Report, ReportSeverity, ReportStatus } from "#/types/admin";
-import { updateReport } from "@/routes/api/admin";
 
 interface UseReportInboxOptions {
 	initial: readonly Report[];

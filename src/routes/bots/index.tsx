@@ -31,6 +31,7 @@ import {
 
 const BotList = lazy(() => import("#/features/bots/components/bot-list"));
 
+import { motion } from "framer-motion";
 import type { CategoryType } from "#/lib/types";
 
 const DEFAULT_CATEGORY: BotCategory = "popular";
@@ -459,41 +460,105 @@ function BotsPage() {
 							value={activeTab}
 							onValueChange={handleTabChange}
 						>
-							<TabsList className="h-full w-full overflow-hidden border-[#1e1f22] border-b bg-[#2b2d31]">
+							<TabsList className="relative h-full w-full border-b border-[#1e1f22] bg-[#2b2d31] p-1">
+								{/* ----- 熱門機器人 ----- */}
 								<TabsTrigger
 									value="popular"
-									className="data-[state=active]:bg-[#36393f]"
 									disabled={isPending}
+									className="relative z-10 bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-white"
 								>
-									熱門機器人
+									<span className="relative z-20">熱門機器人</span>
+									{activeTab === "popular" && (
+										<motion.div
+											layoutId="robot-tabs-indicator" // 注意：如果同一頁有兩個 Tabs，layoutId 名字要跟伺服器的分開
+											className="absolute inset-0 z-10 rounded-md bg-[#36393f]"
+											transition={{
+												type: "spring",
+												stiffness: 380,
+												damping: 30,
+											}}
+										/>
+									)}
 								</TabsTrigger>
+
+								{/* ----- 精選機器人 ----- */}
 								<TabsTrigger
 									value="featured"
-									className="data-[state=active]:bg-[#36393f]"
 									disabled={isPending}
+									className="relative z-10 bg-transparent transition-none data-[state=active]:bg-transparent data-[state=active]:text-white"
 								>
-									精選機器人
+									<span className="relative z-20">精選機器人</span>
+									{activeTab === "featured" && (
+										<motion.div
+											layoutId="robot-tabs-indicator"
+											className="absolute inset-0 z-10 rounded-md bg-[#36393f]"
+											transition={{
+												type: "spring",
+												stiffness: 380,
+												damping: 30,
+											}}
+										/>
+									)}
 								</TabsTrigger>
+
+								{/* ----- 最新機器人 ----- */}
 								<TabsTrigger
 									value="new"
-									className="data-[state=active]:bg-[#36393f]"
 									disabled={isPending}
+									className="relative z-10 bg-transparent transition-none data-[state=active]:bg-transparent data-[state=active]:text-white"
 								>
-									最新機器人
+									<span className="relative z-20">最新機器人</span>
+									{activeTab === "new" && (
+										<motion.div
+											layoutId="robot-tabs-indicator"
+											className="absolute inset-0 z-10 rounded-md bg-[#36393f]"
+											transition={{
+												type: "spring",
+												stiffness: 380,
+												damping: 30,
+											}}
+										/>
+									)}
 								</TabsTrigger>
+
+								{/* ----- 已驗證機器人 ----- */}
 								<TabsTrigger
 									value="verified"
-									className="data-[state=active]:bg-[#36393f]"
 									disabled={isPending}
+									className="relative z-10 bg-transparent transition-none data-[state=active]:bg-transparent data-[state=active]:text-white"
 								>
-									已驗證機器人
+									<span className="relative z-20">已驗證機器人</span>
+									{activeTab === "verified" && (
+										<motion.div
+											layoutId="robot-tabs-indicator"
+											className="absolute inset-0 z-10 rounded-md bg-[#36393f]"
+											transition={{
+												type: "spring",
+												stiffness: 380,
+												damping: 30,
+											}}
+										/>
+									)}
 								</TabsTrigger>
+
+								{/* ----- 票選機器人 ----- */}
 								<TabsTrigger
 									value="voted"
-									className="data-[state=active]:bg-[#36393f]"
 									disabled={isPending}
+									className="relative z-10 bg-transparent transition-none data-[state=active]:bg-transparent data-[state=active]:text-white"
 								>
-									票選機器人
+									<span className="relative z-20">票選機器人</span>
+									{activeTab === "voted" && (
+										<motion.div
+											layoutId="robot-tabs-indicator"
+											className="absolute inset-0 z-10 rounded-md bg-[#36393f]"
+											transition={{
+												type: "spring",
+												stiffness: 380,
+												damping: 30,
+											}}
+										/>
+									)}
 								</TabsTrigger>
 							</TabsList>
 

@@ -29,17 +29,30 @@ import { showErrorAlert } from "#/lib/error-alert";
 import type { Bot as BotType } from "@/types/admin";
 import {
 	sendNotification,
-	updateBotServerCountBackground,
+	updateBotServerCountBackgroundFn,
 } from "../admin.functions";
 import { sendDiscordWebhook } from "../webhook.functions";
 import RejectBotDialog from "./reject-bot-dialog";
 
 // ── Constants ──────────────────────────────────────────────
 
+// [修改] 為 Badge 加上漸層色彩與文字陰影，提升現代感與對比度
 const STATUS_CONFIG = {
-	pending: { label: "待處理", className: "bg-[#FEE75C] text-black" },
-	approved: { label: "已批准", className: "bg-[#57F287]" },
-	rejected: { label: "已拒絕", className: "bg-red-700" },
+	pending: {
+		label: "待處理",
+		className:
+			"bg-gradient-to-r from-[#FEE75C] to-[#e6d045] text-black shadow-sm font-semibold",
+	},
+	approved: {
+		label: "已批准",
+		className:
+			"bg-gradient-to-r from-[#57F287] to-[#45d16f] text-black shadow-sm font-semibold",
+	},
+	rejected: {
+		label: "已拒絕",
+		className:
+			"bg-gradient-to-r from-red-600 to-red-800 text-white shadow-sm font-semibold",
+	},
 } as const satisfies Record<
 	BotType["status"],
 	{ label: string; className: string }
@@ -60,7 +73,10 @@ const formatDate = (d: Date | string | null) =>
 const StatusBadge = memo(({ status }: { status: BotType["status"] }) => {
 	const cfg = STATUS_CONFIG[status];
 	return (
-		<Badge className={`${cfg.className} whitespace-nowrap text-xs sm:text-sm`}>
+		// [修改] 加入 border-none 避免預設邊框干擾漸層
+		<Badge
+			className={`${cfg.className} whitespace-nowrap border-none text-xs sm:text-sm transition-all duration-200`}
+		>
 			{cfg.label}
 		</Badge>
 	);
@@ -69,18 +85,22 @@ StatusBadge.displayName = "StatusBadge";
 
 const TagList = memo(
 	({ tags, max = 5 }: { tags: readonly string[]; max?: number }) => (
-		<div className="flex flex-wrap gap-1 overflow-hidden">
+		<div className="flex flex-wrap gap-1.5 overflow-hidden">
 			{tags.slice(0, max).map((tag) => (
 				<Badge
 					key={tag}
 					variant="outline"
-					className="whitespace-nowrap border-none bg-[#4E5058] text-xs"
+					// [修改] 增加半透明背景、hover狀態、過渡動畫，讓標籤更生動
+					className="whitespace-nowrap border-none bg-[#4E5058]/80 text-gray-200 text-xs transition-colors hover:bg-[#4E5058] hover:text-white"
 				>
 					{tag}
 				</Badge>
 			))}
 			{tags.length > max && (
-				<Badge variant="outline" className="border-none bg-[#4E5058] text-xs">
+				<Badge
+					variant="outline"
+					className="border-none bg-[#4E5058]/60 text-gray-300 text-xs transition-colors hover:bg-[#4E5058]/80"
+				>
 					+{tags.length - max}
 				</Badge>
 			)}
@@ -114,47 +134,59 @@ const ApplicationCard = memo(
 			}}
 			role="button"
 			tabIndex={0}
-			className="flex h-full cursor-pointer flex-col justify-between gap-3 overflow-hidden rounded-md border border-[#202225] bg-[#36393F] p-3 transition-all duration-200 hover:border-[#5865F2] hover:shadow-lg sm:p-4"
+			// [修改] 加入 group、圓角加大(rounded-xl)、Z軸浮動(hover:-translate-y-1)、陰影強化(hover:shadow-2xl)、點擊反饋(active:scale-[0.98])、鍵盤聚焦狀態(focus-visible)
+			className="group flex h-full cursor-pointer flex-col justify-between gap-4 overflow-hidden rounded-xl border border-[#202225] bg-[#36393F] p-4 transition-all duration-300 hover:-translate-y-1 hover:border-[#5865F2]/50 hover:shadow-2xl hover:shadow-[#5865F2]/10 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5865F2] sm:p-5"
 		>
-			<div className="space-y-2">
-				<div className="flex flex-wrap items-center gap-2">
-					<h3 className="line-clamp-1 flex-1 break-words font-semibold text-sm sm:text-base">
+			<div className="space-y-3">
+				<div className="flex flex-wrap items-center justify-between gap-2">
+					{/* [修改] 卡片懸浮時，標題帶有品牌色的漸層變化 */}
+					<h3 className="line-clamp-1 flex-1 break-words font-bold text-gray-100 text-base transition-colors duration-300 group-hover:bg-gradient-to-r group-hover:from-white group-hover:to-[#5865F2] group-hover:bg-clip-text group-hover:text-transparent sm:text-lg">
 						{app.name}
 					</h3>
 					<StatusBadge status={app.status} />
 				</div>
 
-				<div className="space-y-1 break-words text-gray-400 text-xs sm:text-sm">
-					<p>
-						<span className="font-medium text-white">提交者：</span>
-						{app.developers.map((d) => d.username).join(", ")}
+				{/* [修改] 調整文字層級，讓提交者與時間有更好的明暗區分 */}
+				<div className="space-y-1.5 break-words text-xs sm:text-sm">
+					<p className="text-gray-300">
+						<span className="font-medium text-gray-400">提交者：</span>
+						<span className="font-medium text-white">
+							{app.developers.map((d) => d.username).join(", ")}
+						</span>
 					</p>
-					<p className="text-xs">{formatDate(app.createdAt)}</p>
+					<p className="text-gray-500 text-xs font-medium">
+						{formatDate(app.createdAt)}
+					</p>
 				</div>
 
-				<p className="line-clamp-2 break-words text-gray-300 text-xs sm:text-sm">
+				<p className="line-clamp-2 break-words text-gray-400 text-sm leading-relaxed sm:text-sm">
 					{app.description}
 				</p>
 
-				{app.tags && <TagList tags={app.tags} />}
+				{app.tags && (
+					<div className="pt-1">
+						<TagList tags={app.tags} />
+					</div>
+				)}
 			</div>
 
 			{app.status === "pending" && (
-				<div className="mt-2 flex w-full flex-wrap gap-2">
+				// [修改] 將按鈕區塊加入 border-t 分隔，並設定按鈕的漸層、hover 發亮、active 點擊縮放效果
+				<div className="mt-2 flex w-full flex-wrap gap-2 pt-3 border-t border-[#202225]">
 					<Button
 						size="sm"
-						className="min-w-[80px] flex-1 cursor-pointer bg-[#57F287] text-black hover:bg-[#57F287]/90"
+						className="min-w-[80px] flex-1 cursor-pointer border-none bg-gradient-to-r from-[#57F287] to-[#45d16f] text-black shadow-sm transition-all duration-200 hover:shadow-md hover:brightness-110 active:scale-95"
 						onClick={(e) => {
 							e.stopPropagation();
 							onApprove();
 						}}
 					>
-						<Check className="mr-1 h-4 w-4" /> 批准
+						<Check className="mr-1.5 h-4 w-4" /> 批准
 					</Button>
 					<Button
 						asChild
 						size="sm"
-						className="min-w-[80px] flex-1"
+						className="min-w-[80px] flex-1 cursor-pointer border-none bg-gradient-to-r from-discord to-[#4752C4] text-white shadow-sm transition-all duration-200 hover:shadow-md hover:brightness-110 active:scale-95"
 						onClick={(e) => e.stopPropagation()}
 					>
 						<Link
@@ -162,18 +194,18 @@ const ApplicationCard = memo(
 							target="_blank"
 							rel="noopener noreferrer"
 						>
-							<Link2 className="mr-1 h-4 w-4" /> 邀請
+							<Link2 className="mr-1.5 h-4 w-4" /> 邀請
 						</Link>
 					</Button>
 					<Button
 						size="sm"
-						className="min-w-20 flex-1 cursor-pointer bg-red-700/80 hover:bg-red-700"
+						className="min-w-20 flex-1 cursor-pointer border-none bg-gradient-to-r from-red-600 to-red-800 text-white shadow-sm transition-all duration-200 hover:shadow-md hover:brightness-110 active:scale-95"
 						onClick={(e) => {
 							e.stopPropagation();
 							onReject();
 						}}
 					>
-						<X className="mr-1 h-4 w-4" /> 拒絕
+						<X className="mr-1.5 h-4 w-4" /> 拒絕
 					</Button>
 				</div>
 			)}
@@ -201,69 +233,84 @@ const ApplicationDetailDialog = memo(
 		if (!app) return null;
 		return (
 			<Dialog open={isOpen} onOpenChange={onClose}>
-				<DialogContent className="max-h-[90vh] max-w-3xl overflow-auto border-[#202225] bg-[#36393F] text-white">
+				{/* [修改] 替換成 rounded-xl 並增加 shadow，背景維持原有深色 */}
+				<DialogContent className="max-h-[90vh] max-w-3xl overflow-auto rounded-xl border border-[#202225] bg-[#36393F] text-white shadow-2xl">
 					<DialogHeader>
-						<DialogTitle className="flex items-center gap-2 text-lg sm:text-xl">
-							<Bot className="h-5 w-5 flex-shrink-0 text-[#5865F2]" />
-							<span className="break-words">{app.name}</span>
+						<DialogTitle className="flex items-center gap-2 font-bold text-xl sm:text-2xl">
+							<Bot className="h-6 w-6 flex-shrink-0 text-[#5865F2]" />
+							<span className="break-words bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
+								{app.name}
+							</span>
 						</DialogTitle>
 						<DialogDescription className="text-gray-400">
 							機器人應用詳情
 						</DialogDescription>
 					</DialogHeader>
 
-					<div className="grid gap-4 py-4">
-						<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-							<div>
-								<h4 className="mb-1 font-medium text-gray-400 text-sm">
+					<div className="grid gap-6 py-4">
+						<div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+							<div className="space-y-1.5">
+								<h4 className="font-semibold text-[#5865F2] text-sm uppercase tracking-wider">
 									開發者
 								</h4>
-								<ul className="ml-4 list-disc text-sm">
+								<ul className="ml-4 list-disc text-gray-200 text-sm marker:text-[#5865F2]">
 									{app.developers.map((d) => (
-										<li key={d.id} className="break-words">
+										<li key={d.id} className="break-words font-medium">
 											{d.username}
 										</li>
 									))}
 								</ul>
 							</div>
-							<div>
-								<h4 className="mb-1 font-medium text-gray-400 text-sm">
+							<div className="space-y-1.5">
+								<h4 className="font-semibold text-[#5865F2] text-sm uppercase tracking-wider">
 									提交時間
 								</h4>
-								<p className="text-sm">{formatDate(app.createdAt)}</p>
+								<p className="text-gray-200 text-sm font-medium">
+									{formatDate(app.createdAt)}
+								</p>
 							</div>
 						</div>
 
 						{app.longDescription && (
-							<div>
-								<h4 className="mb-1 font-medium text-gray-400 text-sm">
+							<div className="space-y-1.5">
+								<h4 className="font-semibold text-[#5865F2] text-sm uppercase tracking-wider">
 									詳細描述
 								</h4>
-								<div className="max-h-64 overflow-y-auto rounded-md bg-[#2F3136] p-3 text-sm">
+								{/* [修改] 增加內陰影(shadow-inner)與極簡外框 */}
+								<div className="max-h-64 overflow-y-auto rounded-lg border border-[#202225] bg-[#2F3136] p-4 text-gray-200 text-sm shadow-inner">
 									<MarkdownRenderer content={app.longDescription} />
 								</div>
 							</div>
 						)}
 
 						{app.tags && app.tags.length > 0 && (
-							<div>
-								<h4 className="mb-2 font-medium text-gray-400 text-sm">標籤</h4>
+							<div className="space-y-2">
+								<h4 className="font-semibold text-[#5865F2] text-sm uppercase tracking-wider">
+									標籤
+								</h4>
 								<TagList tags={app.tags} max={20} />
 							</div>
 						)}
 
 						{app.screenshots && app.screenshots.length > 0 && (
-							<div>
-								<h4 className="mb-2 font-medium text-gray-400 text-sm">截圖</h4>
-								<div className="grid grid-cols-2 gap-2">
+							<div className="space-y-2">
+								<h4 className="font-semibold text-[#5865F2] text-sm uppercase tracking-wider">
+									截圖
+								</h4>
+								<div className="grid grid-cols-2 gap-3 sm:gap-4">
 									{app.screenshots.map((url) => (
-										<img
+										// [修改] 為圖片增加 group 與 hover 放大的轉場效果
+										<div
 											key={url}
-											src={url}
-											alt="截圖"
-											className="w-full rounded-md object-cover"
-											loading="lazy"
-										/>
+											className="group overflow-hidden rounded-lg border border-[#202225] bg-black/50"
+										>
+											<img
+												src={url}
+												alt="截圖"
+												className="w-full object-cover transition-transform duration-500 group-hover:scale-105"
+												loading="lazy"
+											/>
+										</div>
 									))}
 								</div>
 							</div>
@@ -271,27 +318,31 @@ const ApplicationDetailDialog = memo(
 					</div>
 
 					{app.status === "pending" && (
-						<div className="flex flex-col justify-end gap-2 sm:flex-row">
+						// [修改] Dialog 內的按鈕同樣套用漸層、交互動畫
+						<div className="flex flex-col justify-end gap-3 border-t border-[#202225] pt-4 sm:flex-row">
 							<Button
-								className="bg-[#57F287] text-black hover:bg-[#57F287]/90"
+								className="border-none bg-gradient-to-r from-[#57F287] to-[#45d16f] text-black shadow-sm transition-all duration-200 hover:shadow-md hover:brightness-110 active:scale-95"
 								onClick={onApprove}
 							>
-								<Check className="mr-1 h-4 w-4" /> 批准
+								<Check className="mr-1.5 h-4 w-4" /> 批准
 							</Button>
-							<Button asChild className="border-[#4E5058]">
+							<Button
+								asChild
+								className="border border-[#4E5058] bg-discord text-white shadow-sm transition-all duration-200 hover:bg-discord-hover active:scale-95"
+							>
 								<Link
 									to={app.inviteUrl ?? ""}
 									target="_blank"
 									rel="noopener noreferrer"
 								>
-									<Link2 className="mr-1 h-4 w-4" /> 邀請連結
+									<Link2 className="mr-1.5 h-4 w-4" /> 邀請連結
 								</Link>
 							</Button>
 							<Button
-								className="bg-red-700/80 hover:bg-red-700"
+								className="border-none bg-gradient-to-r from-red-600 to-red-800 text-white shadow-sm transition-all duration-200 hover:shadow-md hover:brightness-110 active:scale-95"
 								onClick={onReject}
 							>
-								<X className="mr-1 h-4 w-4" /> 拒絕
+								<X className="mr-1.5 h-4 w-4" /> 拒絕
 							</Button>
 						</div>
 					)}
@@ -351,9 +402,11 @@ export default function BotApplications({
 			}).catch((error) => {
 				console.error("[Webhook 背景發送失敗] approvedBot:", error);
 			});
-			void updateBotServerCountBackground(app.id).catch((error) => {
-				console.error("[背景更新伺服器數量失敗] approvedBot:", error);
-			});
+			void updateBotServerCountBackgroundFn({ data: { botId: app.id } }).catch(
+				(error) => {
+					console.error("[背景更新伺服器數量失敗] approvedBot:", error);
+				},
+			);
 		},
 		[review],
 	);
@@ -383,36 +436,43 @@ export default function BotApplications({
 
 	return (
 		<>
-			<Card className="border-[#202225] bg-[#2F3136] text-white">
-				<CardHeader className="space-y-2">
-					<CardTitle className="flex items-center gap-2 font-bold text-lg sm:text-xl">
-						<Bot className="h-5 w-5 flex-shrink-0 text-[#5865F2]" />
-						機器人應用
+			{/* [修改] 保持背景色，加大圓角與陰影呈現 */}
+			<Card className="rounded-xl border border-[#202225] bg-[#2F3136] text-white shadow-xl">
+				<CardHeader className="space-y-2 border-b border-[#202225] pb-6">
+					<CardTitle className="flex items-center gap-2 font-bold text-xl sm:text-2xl">
+						<Bot className="h-6 w-6 flex-shrink-0 text-[#5865F2]" />
+						<span className="bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
+							機器人應用
+						</span>
 					</CardTitle>
-					<CardDescription className="text-gray-400 text-sm">
+					<CardDescription className="text-gray-400 text-sm font-medium">
 						審核和管理待處理的機器人應用
 					</CardDescription>
 				</CardHeader>
 
-				<CardContent>
-					<div className="space-y-4">
-						<div className="relative">
-							<Search className="pointer-events-none absolute top-2.5 left-2.5 h-4 w-4 text-gray-400" />
+				<CardContent className="pt-6">
+					<div className="space-y-6">
+						{/* [修改] 搜尋框包裝層：加入 focus-within 發光效果 */}
+						<div className="group relative rounded-md transition-all duration-300 focus-within:shadow-[0_0_15px_rgba(88,101,242,0.2)]">
+							{/* [修改] icon 在獲得焦點時變色 */}
+							<Search className="pointer-events-none absolute top-3 left-3 h-4 w-4 text-gray-500 transition-colors duration-200 group-focus-within:text-[#5865F2]" />
 							<Input
 								placeholder="搜尋應用..."
-								className="border-[#1E1F22] bg-[#202225] pl-9 text-white placeholder:text-gray-400 focus-visible:ring-[#5865F2]"
+								className="h-10 border border-[#1E1F22] bg-[#202225] pl-10 text-white placeholder:text-gray-500 transition-all focus-visible:border-[#5865F2]/50 focus-visible:ring-1 focus-visible:ring-[#5865F2]"
 								value={search}
 								onChange={(e) => setSearch(e.target.value)}
 							/>
 						</div>
 
 						{filtered.length === 0 ? (
-							<div className="py-12 text-center text-gray-400">
-								<Bot className="mx-auto mb-3 h-12 w-12 opacity-50" />
-								<p>{search ? "沒有符合搜尋的應用" : "沒有待處理的應用"}</p>
+							<div className="flex flex-col items-center justify-center py-16 text-center text-gray-500">
+								<Bot className="mb-4 h-16 w-16 opacity-30 transition-opacity duration-300 hover:opacity-50" />
+								<p className="text-lg font-medium">
+									{search ? "沒有符合搜尋的應用" : "沒有待處理的應用"}
+								</p>
 							</div>
 						) : (
-							<div className="grid grid-cols-1 gap-3 sm:gap-4 lg:grid-cols-2 xl:grid-cols-3">
+							<div className="grid grid-cols-1 gap-4 sm:gap-6 lg:grid-cols-2 xl:grid-cols-3">
 								{filtered.map((app) => (
 									<ApplicationCard
 										key={app.id}

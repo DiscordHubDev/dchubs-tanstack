@@ -1,5 +1,6 @@
 import { and, eq, inArray } from "drizzle-orm";
 import { Effect } from "effect";
+import { SignJWT } from "jose";
 import { db } from "#/drizzle/db";
 import {
 	apiToken,
@@ -222,23 +223,11 @@ async function signJwtWithClaims(
 	claims: ApiJwtClaims,
 	secret: string,
 ): Promise<string> {
-	const header = {
-		alg: "HS256",
-		typ: "JWT",
-	};
-
-	const encodedHeader = encodeJsonBase64Url(header);
-	const encodedPayload = encodeJsonBase64Url(claims);
-	const signingInput = `${encodedHeader}.${encodedPayload}`;
-
-	const key = await importHmacKey(secret);
-	const signature = await crypto.subtle.sign(
-		"HMAC",
-		key,
-		new TextEncoder().encode(signingInput),
-	);
-
-	return `${signingInput}.${bytesToBase64Url(new Uint8Array(signature))}`;
+	const secretKey = new TextEncoder().encode(secret);
+	const jwt = await new SignJWT(claims as any)
+		.setProtectedHeader({ alg: "HS256", typ: "JWT" })
+		.sign(secretKey);
+	return jwt;
 }
 
 async function createJwtForUser(

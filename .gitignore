@@ -18,3 +18,4 @@ dist/
 
 *.db
 *.db-journal
+report.json

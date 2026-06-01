@@ -16,6 +16,7 @@ import { Route as BotsIndexRouteImport } from './routes/bots/index'
 import { Route as UsersUserIdRouteImport } from './routes/users/$userId'
 import { Route as ServersServerIdRouteImport } from './routes/servers/$serverId'
 import { Route as ProtectedProfileRouteImport } from './routes/protected/profile'
+import { Route as ProtectedAdminRouteImport } from './routes/protected/admin'
 import { Route as ProtectedAddServerRouteImport } from './routes/protected/add-server'
 import { Route as ProtectedAddBotRouteImport } from './routes/protected/add-bot'
 import { Route as BotsBotIdRouteImport } from './routes/bots/$botId'
@@ -59,6 +60,11 @@ const ServersServerIdRoute = ServersServerIdRouteImport.update({
 const ProtectedProfileRoute = ProtectedProfileRouteImport.update({
   id: '/protected/profile',
   path: '/protected/profile',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ProtectedAdminRoute = ProtectedAdminRouteImport.update({
+  id: '/protected/admin',
+  path: '/protected/admin',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ProtectedAddServerRoute = ProtectedAddServerRouteImport.update({
@@ -114,6 +120,7 @@ export interface FileRoutesByFullPath {
   '/bots/$botId': typeof BotsBotIdRoute
   '/protected/add-bot': typeof ProtectedAddBotRoute
   '/protected/add-server': typeof ProtectedAddServerRoute
+  '/protected/admin': typeof ProtectedAdminRoute
   '/protected/profile': typeof ProtectedProfileRoute
   '/servers/$serverId': typeof ServersServerIdRouteWithChildren
   '/users/$userId': typeof UsersUserIdRoute
@@ -132,6 +139,7 @@ export interface FileRoutesByTo {
   '/bots/$botId': typeof BotsBotIdRoute
   '/protected/add-bot': typeof ProtectedAddBotRoute
   '/protected/add-server': typeof ProtectedAddServerRoute
+  '/protected/admin': typeof ProtectedAdminRoute
   '/protected/profile': typeof ProtectedProfileRoute
   '/servers/$serverId': typeof ServersServerIdRouteWithChildren
   '/users/$userId': typeof UsersUserIdRoute
@@ -151,6 +159,7 @@ export interface FileRoutesById {
   '/bots/$botId': typeof BotsBotIdRoute
   '/protected/add-bot': typeof ProtectedAddBotRoute
   '/protected/add-server': typeof ProtectedAddServerRoute
+  '/protected/admin': typeof ProtectedAdminRoute
   '/protected/profile': typeof ProtectedProfileRoute
   '/servers/$serverId': typeof ServersServerIdRouteWithChildren
   '/users/$userId': typeof UsersUserIdRoute
@@ -171,6 +180,7 @@ export interface FileRouteTypes {
     | '/bots/$botId'
     | '/protected/add-bot'
     | '/protected/add-server'
+    | '/protected/admin'
     | '/protected/profile'
     | '/servers/$serverId'
     | '/users/$userId'
@@ -189,6 +199,7 @@ export interface FileRouteTypes {
     | '/bots/$botId'
     | '/protected/add-bot'
     | '/protected/add-server'
+    | '/protected/admin'
     | '/protected/profile'
     | '/servers/$serverId'
     | '/users/$userId'
@@ -207,6 +218,7 @@ export interface FileRouteTypes {
     | '/bots/$botId'
     | '/protected/add-bot'
     | '/protected/add-server'
+    | '/protected/admin'
     | '/protected/profile'
     | '/servers/$serverId'
     | '/users/$userId'
@@ -226,6 +238,7 @@ export interface RootRouteChildren {
   BotsBotIdRoute: typeof BotsBotIdRoute
   ProtectedAddBotRoute: typeof ProtectedAddBotRoute
   ProtectedAddServerRoute: typeof ProtectedAddServerRoute
+  ProtectedAdminRoute: typeof ProtectedAdminRoute
   ProtectedProfileRoute: typeof ProtectedProfileRoute
   ServersServerIdRoute: typeof ServersServerIdRouteWithChildren
   UsersUserIdRoute: typeof UsersUserIdRoute
@@ -286,6 +299,13 @@ declare module '@tanstack/react-router' {
       path: '/protected/profile'
       fullPath: '/protected/profile'
       preLoaderRoute: typeof ProtectedProfileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/protected/admin': {
+      id: '/protected/admin'
+      path: '/protected/admin'
+      fullPath: '/protected/admin'
+      preLoaderRoute: typeof ProtectedAdminRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/protected/add-server': {
@@ -373,6 +393,7 @@ const rootRouteChildren: RootRouteChildren = {
   BotsBotIdRoute: BotsBotIdRoute,
   ProtectedAddBotRoute: ProtectedAddBotRoute,
   ProtectedAddServerRoute: ProtectedAddServerRoute,
+  ProtectedAdminRoute: ProtectedAdminRoute,
   ProtectedProfileRoute: ProtectedProfileRoute,
   ServersServerIdRoute: ServersServerIdRouteWithChildren,
   UsersUserIdRoute: UsersUserIdRoute,

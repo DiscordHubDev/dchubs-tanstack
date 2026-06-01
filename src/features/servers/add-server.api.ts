@@ -1,5 +1,5 @@
 import { Schema } from "effect";
-import { toErrorMessage } from "#/lib/effect-utils";
+import { fetchJsonEffect, toErrorMessage } from "#/lib/effect-utils";
 import { RawDiscordGuildListSchema } from "./add-server.schemas";
 import type { DiscordGuild } from "./add-server.types";
 
@@ -96,6 +96,7 @@ export async function fetchDiscordGuilds({
 	}
 
 	for (let attempt = 0; attempt <= MAX_RATE_LIMIT_RETRIES; attempt += 1) {
+		// 🚨 這裡使用原生的 fetch，因為我們在失敗時 (429) 需要操作 raw Response
 		const response = await fetch(DISCORD_GUILDS_ENDPOINT, {
 			headers: {
 				Authorization: `${tokenType} ${token}`,
@@ -116,6 +117,7 @@ export async function fetchDiscordGuilds({
 			try {
 				rawGuilds = decodeRawGuildList(payload);
 			} catch (error) {
+				// 這裡可以繼續利用你寫好的 toErrorMessage 工具
 				throw new Error(
 					`Failed to parse Discord guild payload: ${toErrorMessage(error)}`,
 				);
@@ -124,13 +126,14 @@ export async function fetchDiscordGuilds({
 			return rawGuilds.map(mapRawGuildToDiscordGuild);
 		}
 
+		// 因為使用的是原生 fetch，所以失敗時可以順利取得 text 和 status
 		const bodyText = await response.text();
 		const isRateLimited = response.status === 429;
 
 		if (isRateLimited && attempt < MAX_RATE_LIMIT_RETRIES) {
 			const retryDelayMs = getRetryDelayMs(response, bodyText);
 			await sleep(retryDelayMs + 100);
-			continue;
+			continue; // 繼續下一次迴圈重試
 		}
 
 		if (isRateLimited) {

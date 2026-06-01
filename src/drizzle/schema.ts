@@ -444,7 +444,7 @@ export const report = pgTable(
 		itemId: text().notNull(),
 		itemName: text().notNull(),
 		reportedById: text().notNull(),
-		attachments: jsonb().notNull(),
+		attachments: jsonb("attachments").$type<string[]>().notNull(),
 		handledAt: timestamp({ precision: 3, mode: "string" }),
 		handledById: text(),
 		resolutionNote: text(),

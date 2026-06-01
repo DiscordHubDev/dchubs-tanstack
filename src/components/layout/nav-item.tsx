@@ -1,5 +1,4 @@
-import { useLocation, useRouter } from "@tanstack/react-router";
-import clsx from "clsx";
+import { Link, useLocation } from "@tanstack/react-router"; // 1. 改引入 Link
 import type { LucideIcon } from "lucide-react";
 import { SidebarMenu, SidebarMenuButton, SidebarMenuItem } from "../ui/sidebar";
 
@@ -9,14 +8,13 @@ export function NavItem({
 }: {
 	items: {
 		title: string;
-		url: string;
+		url: string; // 如果想享用 TanStack 的絕對型別安全，這裡通常會改用 FileRoutesByPath 的型別，但保持 string 最有彈性
 		icon: LucideIcon;
 		isActive?: boolean;
 		badge?: string;
 	}[];
 	onSelect?: (title: string) => void;
 }) {
-	const router = useRouter();
 	const { pathname } = useLocation();
 
 	return (
@@ -29,39 +27,53 @@ export function NavItem({
 						? "99+"
 						: item.badge;
 
-				const handleClick = async () => {
-					onSelect?.(item.title);
+				const isExternal = /^https?:\/\//.test(item.url);
 
+				// 處理點擊事件（主要給通知或 callback 使用）
+				const handleSelect = () => {
+					onSelect?.(item.title);
 					if (pathname === item.url) {
 						window.scrollTo({ top: 0, behavior: "smooth" });
-					} else {
-						await router.navigate({ to: item.url });
 					}
 				};
 
 				return (
-					<SidebarMenuItem className="text-nowrap" key={item.title}>
+					<SidebarMenuItem className="text-nowrap px-2" key={item.title}>
 						<SidebarMenuButton
+							asChild
 							isActive={item.isActive}
-							onClick={handleClick}
 							className="cursor-pointer"
 						>
-							<div className="flex items-center gap-2">
-								<span className="relative">
-									<item.icon size={16} />
-									{badgeDisplay && (
-										<span
-											className={clsx(
-												"absolute -top-1 -right-1",
-												"bg-red-500 text-white text-xs rounded-md min-w-4 text-center",
-											)}
-										>
-											{badgeDisplay}
-										</span>
-									)}
-								</span>
-								<span>{item.title}</span>
-							</div>
+							{isExternal ? (
+								<a
+									href={item.url}
+									target="_blank"
+									rel="noopener noreferrer"
+									onClick={handleSelect}
+								>
+									<span className="relative flex items-center justify-center shrink-0 bg-transparent">
+										<item.icon size={16} />
+										{badgeDisplay && (
+											<span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-md min-w-4 text-center px-1">
+												{badgeDisplay}
+											</span>
+										)}
+									</span>
+									<span className="bg-transparent">{item.title}</span>
+								</a>
+							) : (
+								<Link to={item.url} onClick={handleSelect}>
+									<span className="relative flex items-center justify-center shrink-0 bg-transparent">
+										<item.icon size={16} />
+										{badgeDisplay && (
+											<span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-md min-w-4 text-center px-1">
+												{badgeDisplay}
+											</span>
+										)}
+									</span>
+									<span className="bg-transparent">{item.title}</span>
+								</Link>
+							)}
 						</SidebarMenuButton>
 					</SidebarMenuItem>
 				);

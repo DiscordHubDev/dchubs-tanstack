@@ -1,6 +1,7 @@
 "use client";
 
 import {
+	ExternalLink,
 	FileText,
 	Image as ImageIcon,
 	type LucideIcon,
@@ -10,16 +11,10 @@ import { memo, useEffect, useState } from "react";
 import type { UploadedFile } from "#/lib/types";
 import type { ReportAttachment } from "#/types/admin";
 
-// ==========================================
-// 1. 型別定義 (Type Definitions)
-// ==========================================
 interface AttachmentPreviewProps {
 	attachment: UploadedFile | ReportAttachment;
 }
 
-// ==========================================
-// 2. Custom Hook: 專責處理 Raw 檔案獲取邏輯
-// ==========================================
 const useRawAttachment = (
 	url: string,
 	type: UploadedFile["type"] | ReportAttachment["type"],
@@ -29,17 +24,15 @@ const useRawAttachment = (
 	const [isLoading, setIsLoading] = useState<boolean>(false);
 
 	useEffect(() => {
-		// 只有在 type 為 'raw' 且有 url 時才執行
 		if (type !== "raw" || !url) return;
 
-		// 使用 AbortController 避免 Race Condition 與 Memory Leak
 		const controller = new AbortController();
 		setIsLoading(true);
 		setError(null);
 
 		const fetchRawData = async () => {
 			try {
-				const res = await fetch(url, { signal: controller.signal });
+				const res = await fetchJsonEffect(url, { signal: controller.signal });
 				if (!res.ok) throw new Error("伺服器回應錯誤");
 				const text = await res.text();
 				setContent(text);
@@ -54,27 +47,23 @@ const useRawAttachment = (
 
 		fetchRawData();
 
-		// Cleanup: 組件卸載或 url 改變時，取消未完成的請求
 		return () => controller.abort();
 	}, [url, type]);
 
 	return { content, error, isLoading };
 };
 
-// ==========================================
-// 3. UI 呈現組件 (使用 memo 防止不必要的 Rerender)
-// ==========================================
 const AttachmentPreview = memo(({ attachment }: AttachmentPreviewProps) => {
 	const type = attachment.type;
 	const url = attachment.url;
 
-	// 如果 attachment 裡有 original_filename 就用，沒有就試著找 filename/name，或者給個預設值
+	const [imgError, setImgError] = useState(false);
+
 	const fileName =
-		"original_filename" in attachment
-			? attachment.original_filename
-			: "name" in attachment
-				? (attachment as any).name
-				: "未命名檔案";
+		("original_filename" in attachment && attachment.original_filename) ||
+		("filename" in attachment && (attachment as any).filename) ||
+		("name" in attachment && (attachment as any).name) ||
+		"未命名檔案";
 
 	const isImage = type === "image";
 	const isVideo = type === "video";
@@ -83,33 +72,60 @@ const AttachmentPreview = memo(({ attachment }: AttachmentPreviewProps) => {
 	const { content, error, isLoading } = useRawAttachment(url, type);
 	const Icon: LucideIcon = isImage ? ImageIcon : isVideo ? Video : FileText;
 
+	// 將外層容器改為 semantic 標籤或 <a> 標籤
+	const Container = url ? "a" : "div";
+
 	return (
-		<div className="space-y-2 rounded-md bg-[#2F3136] p-3">
+		<Container
+			href={url || undefined}
+			target={url ? "_blank" : undefined}
+			rel={url ? "noopener noreferrer" : undefined}
+			className="block space-y-2 rounded-md bg-[#2F3136] p-3 text-white transition-all hover:bg-[#34373c] hover:shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+			style={{ textDecoration: "none" }}
+		>
 			{/* 標題與 Icon 區塊 */}
-			<div className="flex items-center gap-2 text-sm">
-				<Icon className="h-4 w-4 shrink-0 text-gray-400" aria-hidden="true" />
-				<span className="line-clamp-1 break-words" title={fileName}>
-					{fileName}
-				</span>
+			<div className="flex items-center justify-between text-sm">
+				<div className="flex items-center gap-2 min-w-0">
+					<Icon className="h-4 w-4 shrink-0 text-gray-400" aria-hidden="true" />
+					<span className="line-clamp-1 break-words" title={fileName}>
+						{fileName}
+					</span>
+				</div>
+				{url && (
+					<ExternalLink className="h-4 w-4 text-gray-400 opacity-60 shrink-0" />
+				)}
 			</div>
 
 			{/* 圖片預覽 */}
 			{isImage && (
-				<div className="w-full overflow-hidden rounded-md border border-[#202225]">
-					<img
-						src={url || "/placeholder.png"}
-						alt={`預覽圖：${fileName}`}
-						loading="lazy" // 效能優化：原生延遲載入
-						decoding="async"
-						className="h-auto max-h-[300px] w-full object-contain"
-					/>
+				<div className="w-full overflow-hidden rounded-md border border-[#202225] bg-[#202225]">
+					{!url || imgError ? (
+						<div className="flex h-[150px] w-full flex-col items-center justify-center gap-2 text-gray-400 text-xs">
+							<ImageIcon className="h-8 w-8 text-gray-500" />
+							<span>無法載入圖片或無效的連結</span>
+						</div>
+					) : (
+						<img
+							src={url}
+							alt={`預覽圖：${fileName}`}
+							loading="lazy"
+							decoding="async"
+							className="h-auto max-h-[300px] w-full object-contain transition-transform duration-200"
+							onError={() => setImgError(true)}
+						/>
+					)}
 				</div>
 			)}
 
 			{/* 影片預覽 */}
-			{isVideo && (
-				<div className="w-full overflow-hidden rounded-md border border-[#202225]">
-					{/* biome-ignore lint/a11y/useMediaCaption: 這是使用者任意上傳的影片預覽，系統無法提供或強制要求字幕檔 */}
+			{isVideo && url && (
+				<div
+					className="w-full overflow-hidden rounded-md border border-[#202225]"
+					role="document"
+					onClick={(e) => e.stopPropagation()}
+					onKeyDown={(e) => e.stopPropagation()}
+				>
+					{/** biome-ignore lint/a11y/useMediaCaption: yeah */}
 					<video
 						controls
 						preload="metadata"
@@ -131,11 +147,10 @@ const AttachmentPreview = memo(({ attachment }: AttachmentPreviewProps) => {
 					)}
 				</div>
 			)}
-		</div>
+		</Container>
 	);
 });
 
-// 為了在 DevTools 中有更好的顯示名稱
 AttachmentPreview.displayName = "AttachmentPreview";
 
 export default AttachmentPreview;
