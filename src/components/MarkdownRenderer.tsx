@@ -408,7 +408,7 @@ export default function MarkdownRenderer({ content }: Props) {
 						},
 						pre: ({ children, ...props }) => (
 							<pre
-								className="bg-gray-800 p-3 rounded-lg overflow-x-auto my-2 border border-gray-600"
+								className="bg-gray-800 p-3 rounded-lg overflow-hidden my-2 border border-gray-600"
 								{...props}
 							>
 								{children}
@@ -436,7 +436,7 @@ export default function MarkdownRenderer({ content }: Props) {
 							);
 						},
 						table: ({ children, ...props }) => (
-							<div className="overflow-x-auto my-2">
+							<div className="overflow-hidden my-2">
 								<table
 									className="min-w-full border border-gray-600 bg-gray-800"
 									{...props}

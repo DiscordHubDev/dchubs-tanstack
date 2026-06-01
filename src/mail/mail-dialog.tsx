@@ -153,14 +153,14 @@ export function EmailDialog({ email, open, onClose }: CustomEmailDialogProps) {
 											{children}
 										</code>
 									) : (
-										<pre className="bg-gray-100 dark:bg-gray-800 p-2 rounded text-sm overflow-x-auto my-2">
+										<pre className="bg-gray-100 dark:bg-gray-800 p-2 rounded text-sm overflow-hidden my-2">
 											<code {...props}>{children}</code>
 										</pre>
 									),
 
 								pre: ({ node, ...props }) => (
 									<pre
-										className="bg-gray-100 dark:bg-gray-800 p-2 rounded overflow-x-auto my-2"
+										className="bg-gray-100 dark:bg-gray-800 p-2 rounded overflow-hidden my-2"
 										{...props}
 									/>
 								),

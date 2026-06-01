@@ -693,7 +693,7 @@ export function ServerDetailPage() {
 							onValueChange={handleTabChange}
 							className="mb-8"
 						>
-							<TabsList className="h-full w-full overflow-x-auto border-b border-[#1e1f22] bg-[#2b2d31]">
+							<TabsList className="h-full w-full overflow-hidden border-b border-[#1e1f22] bg-[#2b2d31]">
 								<TabsTrigger
 									value="about"
 									className="data-[state=active]:bg-[#36393f]"

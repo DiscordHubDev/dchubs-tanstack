@@ -121,7 +121,7 @@ const AttachmentPreview = memo(({ attachment }: AttachmentPreviewProps) => {
 
 			{/* 純文字預覽 */}
 			{isRaw && (
-				<div className="max-h-75 overflow-x-auto overflow-y-auto whitespace-pre-wrap break-words rounded-md bg-[#202225] p-2 font-mono text-sm">
+				<div className="max-h-75 overflow-hidden overflow-y-auto whitespace-pre-wrap break-words rounded-md bg-[#202225] p-2 font-mono text-sm">
 					{error ? (
 						<span className="text-red-500">{error}</span>
 					) : isLoading ? (

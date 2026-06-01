@@ -15,7 +15,7 @@ import {
 	Terminal,
 	Users,
 } from "lucide-react";
-import { useMemo, useState } from "react";
+import { memo, useCallback, useMemo, useState } from "react";
 import { FaCheck, FaDiscord } from "react-icons/fa6";
 import { toast } from "react-toastify";
 import MarkdownRenderer from "#/components/MarkdownRenderer";
@@ -59,6 +59,8 @@ const siteUrl =
 	(typeof process !== "undefined" ? process.env.BETTER_AUTH_URL : undefined) ||
 	"https://dchubs.org";
 
+const STAR_RATINGS = [1, 2, 3, 4, 5] as const;
+
 function createBotMetaTitle(detail: BotDetail): string {
 	const tagLabel = detail.tags.slice(0, 2).join(" / ");
 	if (!tagLabel) {
@@ -69,6 +71,7 @@ function createBotMetaTitle(detail: BotDetail): string {
 }
 
 function createBotHead(detail: BotDetail | null, botId: string) {
+	// ... 原本的 meta 生成邏輯完全保留 ...
 	if (!detail) {
 		const fallbackTitle = "找不到機器人 | DiscordHubs";
 		const fallbackDescription =
@@ -176,7 +179,7 @@ function validateSearch(search: Record<string, unknown>): BotDetailSearch {
 			? (search.tab as BotDetailTab)
 			: undefined;
 
-	return (tab ? { tab } : {});
+	return tab ? { tab } : {};
 }
 
 export const Route = createFileRoute("/bots/$botId")({
@@ -190,11 +193,25 @@ export const Route = createFileRoute("/bots/$botId")({
 		const detail = await context.queryClient.ensureQueryData(
 			botDetailQueryOptions(params.botId),
 		);
-
 		return { detail };
 	},
 	component: BotDetailPage,
 	pendingComponent: BotLoading,
+	notFoundComponent: () => (
+		<div className="min-h-screen bg-[#1e1f22] px-4 py-10 pb-16 text-white">
+			<div className="mx-auto max-w-4xl rounded-xl border border-white/10 bg-[#2b2d31] p-6 text-center">
+				<h1 className="text-2xl font-bold">找不到機器人</h1>
+				<p className="mt-2 text-gray-300">
+					此機器人可能不存在，或尚未通過審核。
+				</p>
+				<div className="mt-6">
+					<Link to="/bots" className="text-[#5865f2] hover:underline">
+						返回機器人列表
+					</Link>
+				</div>
+			</div>
+		</div>
+	),
 });
 
 function formatRelativeTime(dateValue: string | null): string {
@@ -239,6 +256,98 @@ function setFeedbackMessage(message: string) {
 	toast.success(message);
 }
 
+// 將檢舉表單獨立抽離為 Memo 元件，避免在輸入打字時造成整個 BotDetailPage（包含 MarkdownRenderer）重新渲染
+const ReportBotForm = memo(
+	({
+		botId,
+		itemName,
+		isSignedIn,
+		onSignIn,
+		onCancel,
+	}: {
+		botId: string;
+		itemName: string;
+		isSignedIn: boolean;
+		onSignIn: () => void;
+		onCancel: () => void;
+	}) => {
+		const [subject, setSubject] = useState("");
+		const [content, setContent] = useState("");
+
+		const reportMutation = useMutation({
+			meta: { suppressErrorAlert: true },
+			mutationFn: (payload: { subject: string; content: string }) =>
+				runEffect(
+					tryEffectPromise("Failed to submit report", () =>
+						reportBotFn({
+							data: {
+								botId,
+								itemName,
+								subject: payload.subject,
+								content: payload.content,
+							},
+						}),
+					),
+				),
+			onError: (error) => {
+				showErrorAlert(error, "檢舉失敗");
+			},
+			onSuccess: (result) => {
+				setFeedbackMessage(result.message);
+				setSubject("");
+				setContent("");
+				onCancel();
+			},
+		});
+
+		const handleSubmit = (event: React.FormEvent<HTMLFormElement>) => {
+			event.preventDefault();
+			if (!isSignedIn) {
+				onSignIn();
+				return;
+			}
+			reportMutation.mutate({
+				subject: subject.trim(),
+				content: content.trim(),
+			});
+		};
+
+		return (
+			<form
+				onSubmit={handleSubmit}
+				className="mb-6 rounded-xl border border-white/10 bg-[#2b2d31] p-4"
+			>
+				<div className="mb-3 text-sm text-gray-300">提交機器人檢舉</div>
+				<div className="grid gap-3">
+					<Input
+						value={subject}
+						onChange={(event) => setSubject(event.target.value)}
+						placeholder="檢舉主旨"
+						required
+						maxLength={120}
+					/>
+					<Textarea
+						value={content}
+						onChange={(event) => setContent(event.target.value)}
+						placeholder="請描述檢舉內容"
+						required
+						maxLength={2000}
+						className="min-h-28"
+					/>
+					<div className="flex justify-end gap-2">
+						<Button type="button" variant="ghost" onClick={onCancel}>
+							取消
+						</Button>
+						<Button type="submit" disabled={reportMutation.isPending}>
+							送出檢舉
+						</Button>
+					</div>
+				</div>
+			</form>
+		);
+	},
+);
+
 function BotDetailPage() {
 	const { botId } = Route.useParams();
 	const search = Route.useSearch();
@@ -246,10 +355,10 @@ function BotDetailPage() {
 	const queryClient = useQueryClient();
 	const { data: session } = useSession();
 
-	const { data: detail } = useSuspenseQuery(botDetailQueryOptions(botId));
+	const { data: detailData } = useSuspenseQuery(botDetailQueryOptions(botId));
 
-	const [reportSubject, setReportSubject] = useState("");
-	const [reportContent, setReportContent] = useState("");
+	const detail = detailData!;
+
 	const [isReportOpen, setIsReportOpen] = useState(false);
 
 	const activeTab = (search.tab ?? "about") as BotDetailTab;
@@ -426,108 +535,57 @@ function BotDetailPage() {
 		},
 	});
 
-	const reportMutation = useMutation({
-		meta: { suppressErrorAlert: true },
-		mutationFn: (payload: { subject: string; content: string }) =>
-			runEffect(
-				tryEffectPromise("Failed to submit report", () =>
-					reportBotFn({
-						data: {
-							botId,
-							itemName: detail?.name ?? "Unknown Bot",
-							subject: payload.subject,
-							content: payload.content,
-						},
-					}),
-				),
-			),
-		onError: (error) => {
-			showErrorAlert(error, "檢舉失敗");
+	const handleTabChange = useCallback(
+		(value: string) => {
+			if (
+				value !== "about" &&
+				value !== "commands" &&
+				value !== "screenshots"
+			) {
+				return;
+			}
+
+			navigate({
+				search: (previous) => ({
+					...previous,
+					tab: value,
+				}),
+				replace: true,
+			});
 		},
-		onSuccess: (result) => {
-			setFeedbackMessage(result.message);
-			setReportSubject("");
-			setReportContent("");
-			setIsReportOpen(false);
-		},
-	});
+		[navigate],
+	);
 
-	if (!detail) {
-		return (
-			<div className="min-h-screen bg-[#1e1f22] px-4 py-10 pb-16 text-white">
-				<div className="mx-auto max-w-4xl rounded-xl border border-white/10 bg-[#2b2d31] p-6 text-center">
-					<h1 className="text-2xl font-bold">找不到機器人</h1>
-					<p className="mt-2 text-gray-300">
-						此機器人可能不存在，或尚未通過審核。
-					</p>
-					<div className="mt-6">
-						<Link to="/bots" className="text-[#5865f2] hover:underline">
-							返回機器人列表
-						</Link>
-					</div>
-				</div>
-			</div>
-		);
-	}
-
-	const handleTabChange = (value: string) => {
-		if (value !== "about" && value !== "commands" && value !== "screenshots") {
-			return;
-		}
-
-		navigate({
-			search: (previous) => ({
-				...previous,
-				tab: value,
-			}),
-			replace: true,
-		});
-	};
-
-	const handleSignIn = () => {
+	const handleSignIn = useCallback(() => {
 		void signIn(window.location.href);
-	};
+	}, []);
 
-	const handleFavoriteClick = () => {
+	const handleFavoriteClick = useCallback(() => {
 		if (!isSignedIn) {
 			handleSignIn();
 			return;
 		}
-
 		favoriteMutation.mutate();
-	};
+	}, [isSignedIn, handleSignIn, favoriteMutation]);
 
-	const handleVoteClick = () => {
+	const handleVoteClick = useCallback(() => {
 		if (!isSignedIn) {
 			handleSignIn();
 			return;
 		}
-
 		voteMutation.mutate();
-	};
+	}, [isSignedIn, handleSignIn, voteMutation]);
 
-	const handleRateClick = (rating: number) => {
-		if (!isSignedIn) {
-			handleSignIn();
-			return;
-		}
-
-		rateMutation.mutate(rating);
-	};
-
-	const handleReportSubmit = (event: React.FormEvent<HTMLFormElement>) => {
-		event.preventDefault();
-
-		if (!isSignedIn) {
-			handleSignIn();
-			return;
-		}
-
-		reportMutation.mutate({
-			subject: reportSubject.trim(),
-			content: reportContent.trim(),
-		});
-	};
+	const handleRateClick = useCallback(
+		(rating: number) => {
+			if (!isSignedIn) {
+				handleSignIn();
+				return;
+			}
+			rateMutation.mutate(rating);
+		},
+		[isSignedIn, handleSignIn, rateMutation],
+	);
 
 	return (
 		<div className="min-h-screen bg-[#1e1f22] pb-16 text-white">
@@ -538,6 +596,8 @@ function BotDetailPage() {
 							src={detail.banner}
 							alt={`${detail.name} banner`}
 							className="h-full w-full object-cover"
+							fetchPriority="high"
+							decoding="async"
 						/>
 						<div className="absolute inset-0 bg-linear-to-t from-[#1e1f22] to-transparent" />
 					</>
@@ -555,6 +615,8 @@ function BotDetailPage() {
 									src={detail.icon}
 									alt={detail.name}
 									className="h-full w-full object-cover"
+									fetchPriority="high"
+									decoding="async"
 								/>
 							) : (
 								<div className="flex h-full w-full items-center justify-center bg-[#5865f2] text-3xl font-bold">
@@ -653,12 +715,12 @@ function BotDetailPage() {
 						onClick={handleFavoriteClick}
 						disabled={favoriteMutation.isPending}
 						className={`flex items-center gap-2 px-6 py-5 rounded-md text-sm font-medium transition-all duration-150 transform hover:scale-105 cursor-pointer
-						${
-							detail.isFavorite
-								? "bg-rose-500 hover:bg-rose-600"
-								: "bg-indigo-500 hover:bg-indigo-600"
-						}
-						text-white disabled:cursor-not-allowed `}
+                        ${
+													detail.isFavorite
+														? "bg-rose-500 hover:bg-rose-600"
+														: "bg-indigo-500 hover:bg-indigo-600"
+												}
+                        text-white disabled:cursor-not-allowed `}
 					>
 						<Heart
 							size={18}
@@ -680,41 +742,13 @@ function BotDetailPage() {
 				</div>
 
 				{isReportOpen ? (
-					<form
-						onSubmit={handleReportSubmit}
-						className="mb-6 rounded-xl border border-white/10 bg-[#2b2d31] p-4"
-					>
-						<div className="mb-3 text-sm text-gray-300">提交機器人檢舉</div>
-						<div className="grid gap-3">
-							<Input
-								value={reportSubject}
-								onChange={(event) => setReportSubject(event.target.value)}
-								placeholder="檢舉主旨"
-								required
-								maxLength={120}
-							/>
-							<Textarea
-								value={reportContent}
-								onChange={(event) => setReportContent(event.target.value)}
-								placeholder="請描述檢舉內容"
-								required
-								maxLength={2000}
-								className="min-h-28"
-							/>
-							<div className="flex justify-end gap-2">
-								<Button
-									type="button"
-									variant="ghost"
-									onClick={() => setIsReportOpen(false)}
-								>
-									取消
-								</Button>
-								<Button type="submit" disabled={reportMutation.isPending}>
-									送出檢舉
-								</Button>
-							</div>
-						</div>
-					</form>
+					<ReportBotForm
+						botId={botId}
+						itemName={detail.name}
+						isSignedIn={isSignedIn}
+						onSignIn={handleSignIn}
+						onCancel={() => setIsReportOpen(false)}
+					/>
 				) : null}
 
 				<div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-4">
@@ -730,6 +764,7 @@ function BotDetailPage() {
 												<Link
 													to="/users/$userId"
 													params={{ userId: dev.id }}
+													preload="intent"
 													key={dev.id}
 													className="flex items-center gap-3 rounded-lg p-3 hover:bg-white/5 hover:cursor-pointer transition-colors"
 												>
@@ -737,6 +772,8 @@ function BotDetailPage() {
 														<img
 															src={dev.avatar}
 															alt={`${dev.username} avatar`}
+															loading="lazy"
+															decoding="async"
 															className="h-8 w-8 rounded-full object-cover"
 														/>
 													) : (
@@ -814,7 +851,7 @@ function BotDetailPage() {
 								</div>
 							</div>
 							<div className="flex justify-center gap-1">
-								{[1, 2, 3, 4, 5].map((value) => (
+								{STAR_RATINGS.map((value) => (
 									<button
 										key={value}
 										type="button"
@@ -872,6 +909,7 @@ function BotDetailPage() {
 											key={relatedBot.id}
 											to="/bots/$botId"
 											params={{ botId: relatedBot.id }}
+											preload="intent"
 											className="flex items-center rounded p-2 transition-colors hover:bg-[#36393f]"
 										>
 											<div className="mr-3 h-10 w-10 overflow-hidden rounded-full bg-[#36393f]">
@@ -881,6 +919,8 @@ function BotDetailPage() {
 														"https://cdn.discordapp.com/embed/avatars/0.png"
 													}
 													alt={relatedBot.name}
+													loading="lazy"
+													decoding="async"
 													className="h-full w-full object-cover"
 												/>
 											</div>
@@ -908,7 +948,7 @@ function BotDetailPage() {
 							onValueChange={handleTabChange}
 							className="mb-8"
 						>
-							<TabsList className="h-full w-full overflow-x-auto border-b border-[#1e1f22] bg-[#2b2d31]">
+							<TabsList className="h-full w-full overflow-hidden border-b border-[#1e1f22] bg-[#2b2d31]">
 								<TabsTrigger
 									value="about"
 									className="data-[state=active]:bg-[#36393f]"
@@ -962,7 +1002,7 @@ function BotDetailPage() {
 								<div className="rounded-lg bg-[#2b2d31] p-6">
 									<h2 className="mb-4 text-xl font-bold">指令列表</h2>
 									{detail.commands.length > 0 ? (
-										<div className="overflow-x-auto">
+										<div className="overflow-hidden">
 											<table className="w-full text-left">
 												<thead>
 													<tr className="border-b border-[#1e1f22]">
@@ -1025,6 +1065,8 @@ function BotDetailPage() {
 													<img
 														src={screenshot}
 														alt={`${detail.name} screenshot ${index + 1}`}
+														loading="lazy"
+														decoding="async"
 														className="h-auto w-full"
 													/>
 												</div>
