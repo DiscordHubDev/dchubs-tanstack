@@ -110,7 +110,14 @@ export async function createAuth() {
 
 		// ✅ 新增：讓 session cookie 本身成為 JWT，Worker 才能在邊緣驗證
 
-		session: { modelName: "authSession" }, // ← 注意：modelName 要用 merge 形式
+		session: {
+			modelName: "authSession",
+			cookieCache: {
+				enabled: true,
+				maxAge: 7 * 24 * 60 * 60,
+				strategy: "jwt",
+			},
+		},
 		account: { modelName: "authAccount", updateAccountOnSignIn: true },
 		verification: { modelName: "authVerification" },
 

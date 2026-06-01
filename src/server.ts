@@ -11,7 +11,7 @@ const isProd = process.env.NODE_ENV === "production";
 const handler = createStartHandler({
 	handler: defaultStreamHandler,
 	transformAssets: {
-		prefix: "",
+		prefix: isProd ? process.env.CDN_ORIGIN || "" : "",
 		crossOrigin: "anonymous",
 		cache: isProd,
 		warmup: true,

@@ -7,7 +7,6 @@ const securityHeadersMiddleware = createMiddleware().server(
 		if (result?.response) {
 			result.response.headers.set(
 				"Content-Security-Policy",
-				// 💡 關鍵在於加上了 frame-src https://discord.com;
 				"default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https://cdn.discordapp.com https://gallery.dawngs.top; frame-src https://discord.com;",
 			);
 
