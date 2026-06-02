@@ -1,3 +1,6 @@
+import { betterAuth } from "better-auth";
+import { drizzleAdapter } from "better-auth/adapters/drizzle";
+import { jwt } from "better-auth/plugins";
 import { db } from "#/drizzle/db";
 import * as schema from "#/drizzle/schema";
 
@@ -50,12 +53,6 @@ async function syncDomainUser(user: any) {
 }
 
 export async function createAuth() {
-	const [{ betterAuth }, { drizzleAdapter }, { jwt }] = await Promise.all([
-		import("better-auth"),
-		import("better-auth/adapters/drizzle"),
-		import("better-auth/plugins"),
-	]);
-
 	const fallbackBaseUrl =
 		process.env.BETTER_AUTH_URL ||
 		process.env.SITE_URL ||
