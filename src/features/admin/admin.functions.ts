@@ -12,6 +12,7 @@ import {
 	runEffect,
 } from "#/lib/effect-utils";
 import type { ActionResult, ReportStatus } from "#/types/admin";
+import { createSafeServerFn } from "#/utils/serverFn";
 import {
 	BotIdSchema,
 	RejectBotSchema,
@@ -284,19 +285,20 @@ export const getSessionUserIdServerFn = createServerFn({
 	}
 });
 
-export const adminGetAllBots = createServerFn({ method: "GET" }).handler(() =>
-	toResult(
-		fromDrizzle(() =>
-			db.query.bot.findMany({
-				with: { developers: { with: { user: true } } },
-				orderBy: [desc(bot.createdAt)],
-			}),
+export const adminGetAllBots = createSafeServerFn({ method: "GET" }).handler(
+	() =>
+		toResult(
+			fromDrizzle(() =>
+				db.query.bot.findMany({
+					with: { developers: { with: { user: true } } },
+					orderBy: [desc(bot.createdAt)],
+				}),
+			),
 		),
-	),
 );
 
 /** Fetch all servers */
-export const adminGetAllServers = createServerFn({ method: "GET" }).handler(
+export const adminGetAllServers = createSafeServerFn({ method: "GET" }).handler(
 	() =>
 		toResult(
 			fromDrizzle(() =>
@@ -309,7 +311,7 @@ export const adminGetAllServers = createServerFn({ method: "GET" }).handler(
 );
 
 /** Fetch all reports */
-export const getReports = createServerFn({ method: "GET" }).handler(() =>
+export const getReports = createSafeServerFn({ method: "GET" }).handler(() =>
 	toResult(
 		fromDrizzle(() =>
 			db.query.report.findMany({
@@ -384,7 +386,7 @@ export const updateReport = createServerFn({ method: "POST" })
 	);
 
 /** Fetch pending bots count + reports count — used for SSR badge hydration */
-export const adminGetDashboardCounts = createServerFn({
+export const adminGetDashboardCounts = createSafeServerFn({
 	method: "GET",
 }).handler(
 	async (): Promise<

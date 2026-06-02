@@ -1,7 +1,7 @@
-import { createServerFn } from "@tanstack/react-start";
+import { createSafeServerFn } from "#/utils/serverFn";
 import { getGuildMembershipBundle } from "./add-server.server";
 
-export const getGuildMembershipBundleFn = createServerFn({
+export const getGuildMembershipBundleFn = createSafeServerFn({
 	method: "GET",
 }).handler(async () => {
 	return getGuildMembershipBundle();

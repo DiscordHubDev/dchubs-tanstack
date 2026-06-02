@@ -1,5 +1,5 @@
 import { and, eq, inArray } from "drizzle-orm";
-import { Effect } from "effect";
+import { Effect, Either, Schema } from "effect";
 import { SignJWT } from "jose";
 import { db } from "#/drizzle/db";
 import {
@@ -18,6 +18,7 @@ import {
 	getSessionUserIdEffect,
 } from "#/lib/edge-context";
 import { runEffect, tryEffectPromise } from "#/lib/effect-utils";
+import { ApiJwtPayloadSchema } from "./users.schemas";
 import type {
 	ApiTokenPair,
 	JWTDiscordProfile,
@@ -33,15 +34,7 @@ import type {
 
 type ApiJwtTokenType = "access" | "refresh";
 
-type ApiJwtClaims = {
-	sub: string;
-	typ: ApiJwtTokenType;
-	iss: "dchubs";
-	aud: "dchubs-api";
-	iat: number;
-	exp: number;
-	jti: string;
-};
+type ApiJwtClaims = Schema.Schema.Type<typeof ApiJwtPayloadSchema>;
 
 const JWT_ISSUER = "dchubs" as const;
 const JWT_AUDIENCE = "dchubs-api" as const;
@@ -122,34 +115,6 @@ function getSecretForTokenType(type: ApiJwtTokenType): string {
 
 	return secret;
 }
-
-function bytesToBase64Url(bytes: Uint8Array): string {
-	let binary = "";
-	for (const byte of bytes) {
-		binary += String.fromCharCode(byte);
-	}
-
-	const rawBase64 =
-		typeof btoa === "function"
-			? btoa(binary)
-			: (
-					globalThis as {
-						Buffer?: {
-							from: (
-								s: string,
-								e?: string,
-							) => { toString: (e: string) => string };
-						};
-					}
-				).Buffer?.from(binary, "binary").toString("base64");
-
-	if (!rawBase64) {
-		throw new Error("Base64 encoding is unavailable in current runtime");
-	}
-
-	return rawBase64.replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/g, "");
-}
-
 function base64UrlToBytes(input: string): Uint8Array {
 	const padded = input
 		.replace(/-/g, "+")
@@ -180,11 +145,6 @@ function base64UrlToBytes(input: string): Uint8Array {
 	}
 
 	return bytes;
-}
-
-function encodeJsonBase64Url(value: unknown): string {
-	const encoded = new TextEncoder().encode(JSON.stringify(value));
-	return bytesToBase64Url(encoded);
 }
 
 function decodeJsonBase64Url<T>(value: string): T {
@@ -239,7 +199,7 @@ async function createJwtForUser(
 	return signJwtWithClaims(claims, secret);
 }
 
-async function verifyJwtAndDecodeClaims(
+export async function verifyJwtAndDecodeClaims(
 	token: string,
 	expectedType: ApiJwtTokenType,
 ): Promise<ApiJwtClaims> {
@@ -274,26 +234,35 @@ async function verifyJwtAndDecodeClaims(
 		throw new Error("Invalid JWT signature");
 	}
 
-	const claims = decodeJsonBase64Url<ApiJwtClaims>(encodedPayload);
+	const decodeApiJwtPayloadEither =
+		Schema.decodeUnknownEither(ApiJwtPayloadSchema);
+
+	const rawPayload = decodeJsonBase64Url<unknown>(encodedPayload);
+
+	const claimsResult = decodeApiJwtPayloadEither(rawPayload);
+
+	if (Either.isLeft(claimsResult)) {
+		throw new Error(
+			"Invalid JWT claims format, missing properties, or invalid issuer/audience",
+		);
+	}
+
+	const claims = claimsResult.right;
 	const now = Math.floor(Date.now() / 1000);
 
-	if (!claims.sub || claims.typ !== expectedType) {
-		throw new Error("Invalid JWT claims");
+	if (claims.typ !== expectedType) {
+		throw new Error("Invalid JWT type");
 	}
 
-	if (claims.iss !== JWT_ISSUER || claims.aud !== JWT_AUDIENCE) {
-		throw new Error("Invalid JWT issuer or audience");
-	}
-
-	if (!Number.isFinite(claims.exp) || claims.exp <= now) {
+	if (claims.exp <= now) {
 		throw new Error("JWT expired");
 	}
 
-	if (!Number.isFinite(claims.iat) || claims.iat > now + 30) {
+	if (claims.iat > now + 30) {
 		throw new Error("Invalid JWT issued-at");
 	}
 
-	return claims;
+	return claims as ApiJwtClaims;
 }
 
 function dbEffect<A>(

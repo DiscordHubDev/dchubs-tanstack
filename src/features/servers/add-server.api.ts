@@ -1,5 +1,5 @@
 import { Schema } from "effect";
-import { fetchJsonEffect, toErrorMessage } from "#/lib/effect-utils";
+import { toErrorMessage } from "#/lib/effect-utils";
 import { RawDiscordGuildListSchema } from "./add-server.schemas";
 import type { DiscordGuild } from "./add-server.types";
 
@@ -16,11 +16,19 @@ type FetchDiscordGuildsInput = {
 	tokenType: DiscordTokenType;
 };
 
-type DiscordRateLimitPayload = {
-	retry_after?: number;
-	global?: boolean;
-	message?: string;
-};
+const DiscordRateLimitPayloadSchema = Schema.Struct({
+	retry_after: Schema.optional(Schema.Number),
+	global: Schema.optional(Schema.Boolean),
+	message: Schema.optional(Schema.String),
+});
+
+type DiscordRateLimitPayload = Schema.Schema.Type<
+	typeof DiscordRateLimitPayloadSchema
+>;
+
+const decodeRateLimitPayload = Schema.decodeUnknownSync(
+	DiscordRateLimitPayloadSchema,
+);
 
 function sleep(ms: number): Promise<void> {
 	return new Promise((resolve) => {
@@ -44,8 +52,14 @@ function parseRateLimitPayload(
 	}
 
 	try {
-		return JSON.parse(bodyText) as DiscordRateLimitPayload;
+		// 1. 先將字串轉為 unknown 的 JSON 物件
+		const rawJson = JSON.parse(bodyText);
+
+		// 2. 透過 Effect Schema 安全地驗證與解析
+		// 如果 rawJson 不符合格式，這裡會拋出 Error 並進入 catch 區塊
+		return decodeRateLimitPayload(rawJson);
 	} catch {
+		// 無論是 JSON.parse 失敗，還是 Schema 校驗失敗，都安全地回傳 null
 		return null;
 	}
 }

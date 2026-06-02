@@ -4,103 +4,12 @@ import type { ImgHTMLAttributes } from "react";
 import * as React from "react";
 import { useState } from "react";
 import ReactMarkdown from "react-markdown";
+import rehypeRaw from "rehype-raw";
+import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import remarkGfm from "remark-gfm";
 
 type Props = {
 	content: string;
-};
-
-// ==========================================
-// 1. 字串與安全處理工具 (保留原本邏輯)
-// ==========================================
-
-const toWellFormedUtf16 = (input: string): string => {
-	if (typeof input.toWellFormed === "function") {
-		return input.toWellFormed();
-	}
-
-	let out = "";
-	for (let i = 0; i < input.length; i++) {
-		const code = input.charCodeAt(i);
-
-		if (code >= 0xd800 && code <= 0xdbff) {
-			const next = input.charCodeAt(i + 1);
-			if (i + 1 < input.length && next >= 0xdc00 && next <= 0xdfff) {
-				out += input.charAt(i) + input.charAt(i + 1);
-				i++;
-			} else {
-				out += "\uFFFD";
-			}
-			continue;
-		}
-
-		if (code >= 0xdc00 && code <= 0xdfff) {
-			out += "\uFFFD";
-			continue;
-		}
-
-		out += input.charAt(i);
-	}
-
-	return out;
-};
-
-const sanitizeSurrogateEntities = (input: string): string => {
-	return input
-		.replace(/&#(\d+);/g, (match, decimal) => {
-			const value = Number(decimal);
-			if (Number.isNaN(value)) return match;
-			return value >= 0xd800 && value <= 0xdfff ? "&#xfffd;" : match;
-		})
-		.replace(/&#x([0-9a-fA-F]+);/g, (match, hex) => {
-			const value = Number.parseInt(hex, 16);
-			if (Number.isNaN(value)) return match;
-			return value >= 0xd800 && value <= 0xdfff ? "&#xfffd;" : match;
-		});
-};
-
-const stripScriptTags = (input: string) =>
-	input.replace(/<\s*script[^>]*>[\s\S]*?<\s*\/\s*script\s*>/giu, "");
-
-const removeUnsafeBlocks = (content: string): string => {
-	let cleaned = content;
-	const dangerousPatterns = [
-		/<\s*script[\s\S]*?<\s*\/\s*script\s*>/giu,
-		/<[^>]*\s+on\w+\s*=\s*[^>]*>/giu,
-		/javascript\s*:[^\s\n]*/giu,
-		/vbscript\s*:[^\s\n]*/giu,
-		/livescript\s*:[^\s\n]*/giu,
-		/<\s*object[\s\S]*?<\s*\/\s*object\s*>/giu,
-		/<\s*embed[^>]*>/giu,
-		/<\s*form[\s\S]*?<\s*\/\s*form\s*>/giu,
-		/eval\s*\([^)]*\)/giu,
-		/expression\s*\([^)]*\)/giu,
-	];
-
-	dangerousPatterns.forEach((pattern) => {
-		cleaned = cleaned.replace(pattern, "");
-	});
-
-	return cleaned;
-};
-
-const sanitizeContent = (content: string): string => {
-	let s = content
-		.replace(/<\s*script[^>]*>[\s\S]*?<\s*\/\s*script\s*>/giu, "")
-		.replace(/<\s*style[^>]*>[\s\S]*?<\s*\/\s*style\s*>/giu, "")
-		.replace(/\s+on\w+\s*=\s*(?:"[^"]*"|'[^']*'|[^\s>]+)/giu, "")
-		.replace(/\s+srcdoc\s*=\s*(?:"[^"]*"|'[^']*')/giu, "")
-		.replace(
-			/((?:href|src)\s*=\s*["']?)\s*(?:javascript|vbscript|livescript)\s*:/giu,
-			"$1unsafe:",
-		)
-		.replace(
-			/((?:href|src)\s*=\s*["']?)\s*data\s*:\s*text\/html/giu,
-			"$1unsafe:text/html",
-		);
-
-	s = s.replace(/([^\n])\n(?!\n)/gu, "$1  \n");
-	return s;
 };
 
 // ==========================================
@@ -310,17 +219,45 @@ class MarkdownErrorBoundary extends React.Component<
 // ==========================================
 
 export default function MarkdownRenderer({ content }: Props) {
-	const normalizedContent = toWellFormedUtf16(content);
-	const entitySafeContent = sanitizeSurrogateEntities(normalizedContent);
-	const contentWithoutScript = stripScriptTags(entitySafeContent);
-	const cleanedContent = removeUnsafeBlocks(contentWithoutScript);
-	const formattedContent = sanitizeContent(cleanedContent);
+	const normalizedContent =
+		typeof content.toWellFormed === "function"
+			? content.toWellFormed()
+			: content;
 
 	return (
 		<div className="text-gray-300 whitespace-normal">
-			<MarkdownErrorBoundary content={formattedContent}>
+			<MarkdownErrorBoundary content={normalizedContent}>
 				<ReactMarkdown
 					remarkPlugins={[remarkGfm]}
+					rehypePlugins={[
+						rehypeRaw,
+						[
+							rehypeSanitize,
+							{
+								...defaultSchema,
+								tagNames: [...(defaultSchema.tagNames || []), "iframe"],
+								// 2. 設定各個標籤允許的屬性
+								attributes: {
+									...defaultSchema.attributes,
+									// 允許所有標籤帶有 className 和 id（供樣式與錨點使用）
+									"*": ["className", "id", "style"],
+									// 專門允許 iframe 擁有的安全屬性，這樣你的 SafeIframe 才能接到資料
+									iframe: [
+										"src",
+										"title",
+										"width",
+										"height",
+										"allow",
+										"allowfullscreen",
+										"loading",
+										"data-perms", // 你自訂的權限屬性
+									],
+									// 允許超連結開啟新分頁
+									a: [...(defaultSchema.attributes?.a || []), "target", "rel"],
+								},
+							},
+						],
+					]}
 					components={{
 						img: ({ node, ...props }) => (
 							<SafeImage {...(props as SafeImageProps)} />
@@ -468,7 +405,7 @@ export default function MarkdownRenderer({ content }: Props) {
 						),
 					}}
 				>
-					{formattedContent}
+					{normalizedContent}
 				</ReactMarkdown>
 			</MarkdownErrorBoundary>
 		</div>

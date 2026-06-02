@@ -1,6 +1,5 @@
 import { type AnyFieldApi, useForm, useStore } from "@tanstack/react-form";
 import { Effect, Schema } from "effect";
-import DOMPurify from "isomorphic-dompurify";
 import { Info, Plus, Trash2, Upload, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "react-toastify";
@@ -1047,7 +1046,7 @@ export default function BotForm({
 	};
 
 	const sanitizedMarkdown = useMemo(
-		() => DOMPurify.sanitize(longDescription || "詳細描述預覽 (支援Markdown)"),
+		() => longDescription || "詳細描述預覽 (支援Markdown)",
 		[longDescription],
 	);
 

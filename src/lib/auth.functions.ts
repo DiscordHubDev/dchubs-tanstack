@@ -1,5 +1,5 @@
-import { createServerFn } from "@tanstack/react-start";
 import { getRequestHeaders } from "@tanstack/react-start/server";
+import { createSafeServerFn } from "#/utils/serverFn";
 import { requireDomainUser } from "./edge-context";
 
 type SessionUserLike = {
@@ -62,7 +62,7 @@ function withDiscordProfile(session: SessionLike): NormalizedSession | null {
 	};
 }
 
-export const getSession = createServerFn({ method: "GET" }).handler(
+export const getSession = createSafeServerFn({ method: "GET" }).handler(
 	async () => {
 		const { getAuth } = await import("@/lib/auth");
 		const auth = await getAuth();
@@ -73,7 +73,7 @@ export const getSession = createServerFn({ method: "GET" }).handler(
 	},
 );
 
-export const ensureSession = createServerFn({ method: "GET" }).handler(
+export const ensureSession = createSafeServerFn({ method: "GET" }).handler(
 	async () => {
 		const { getAuth } = await import("@/lib/auth");
 		const auth = await getAuth();
@@ -89,7 +89,7 @@ export const ensureSession = createServerFn({ method: "GET" }).handler(
 	},
 );
 
-export const checkAuthServerFn = createServerFn({ method: "GET" }).handler(
+export const checkAuthServerFn = createSafeServerFn({ method: "GET" }).handler(
 	async () => {
 		try {
 			// 嘗試取得帶有真實 Discord ID 的 Domain User

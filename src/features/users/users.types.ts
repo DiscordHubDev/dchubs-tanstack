@@ -1,3 +1,6 @@
+import type { Schema } from "effect";
+import type { ApiJwtPayloadSchema } from "./users.schemas";
+
 export type JWTDiscordProfile = {
 	id: string;
 	global_name?: string;
@@ -77,3 +80,5 @@ export type ApiTokenPair = {
 	accessToken: string;
 	refreshToken: string;
 };
+
+export type ApiJwtPayload = Schema.Schema.Type<typeof ApiJwtPayloadSchema>;

@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { effectInputValidator } from "#/lib/effect-utils";
+import { createSafeServerFn } from "#/utils/serverFn";
 import {
 	toggleFavoriteInputEffectSchema,
 	updateUserSettingsInputEffectSchema,
@@ -45,7 +46,7 @@ export const toggleFavoriteFn = createServerFn({ method: "POST" })
 		return toggleFavoriteForCurrentUser(data);
 	});
 
-export const createOrRegenerateApiTokenFn = createServerFn({
+export const createOrRegenerateApiTokenFn = createSafeServerFn({
 	method: "POST",
 }).handler(async () => {
 	return createOrRegenerateApiTokenForCurrentUser();
