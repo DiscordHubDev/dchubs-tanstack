@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
+import { Schema } from "effect";
 import { effectInputValidator } from "#/lib/effect-utils";
-import { createSafeServerFn } from "#/utils/serverFn";
 import {
 	toggleFavoriteInputEffectSchema,
 	updateUserSettingsInputEffectSchema,
@@ -15,6 +15,12 @@ import {
 	updateUserSettingsForCurrentUser,
 	upsertUserFromSession,
 } from "./users.server";
+
+const emptySchema = Schema.Struct({});
+const strictValidator = (input: any) => {
+	Schema.decodeUnknownSync(emptySchema)(input || {});
+	return {};
+};
 
 export const getCurrentUserFn = createServerFn({ method: "GET" }).handler(
 	async () => {
@@ -46,11 +52,13 @@ export const toggleFavoriteFn = createServerFn({ method: "POST" })
 		return toggleFavoriteForCurrentUser(data);
 	});
 
-export const createOrRegenerateApiTokenFn = createSafeServerFn({
+export const createOrRegenerateApiTokenFn = createServerFn({
 	method: "POST",
-}).handler(async () => {
-	return createOrRegenerateApiTokenForCurrentUser();
-});
+})
+	.inputValidator(strictValidator)
+	.handler(async () => {
+		return createOrRegenerateApiTokenForCurrentUser();
+	});
 
 // Compatible aliases for legacy naming.
 export const getCachedUser = getUserByIdFn;

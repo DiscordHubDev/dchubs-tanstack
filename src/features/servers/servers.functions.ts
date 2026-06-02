@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { effectInputValidator } from "#/lib/effect-utils";
-import { createSafeServerFn } from "#/utils/serverFn";
+
 import { ServerListInputSchema } from "./servers.schemas";
 import { listServerFilterBundle, listServersPage } from "./servers.server";
 
@@ -12,7 +12,7 @@ export const getServersListFn = createServerFn({ method: "GET" })
 		return listServersPage(data);
 	});
 
-export const getServerFilterBundleFn = createSafeServerFn({
+export const getServerFilterBundleFn = createServerFn({
 	method: "GET",
 }).handler(async () => {
 	return listServerFilterBundle();

@@ -1,5 +1,6 @@
+import { createServerFn } from "@tanstack/react-start";
 import { getRequestHeaders } from "@tanstack/react-start/server";
-import { createSafeServerFn } from "#/utils/serverFn";
+import { Schema } from "effect";
 import { requireDomainUser } from "./edge-context";
 
 type SessionUserLike = {
@@ -33,6 +34,12 @@ export type NormalizedSession = NonNullable<SessionLike> & {
 	discordProfile?: NormalizedDiscordProfile;
 };
 
+const emptySchema = Schema.Struct({});
+const strictValidator = (input: any) => {
+	Schema.decodeUnknownSync(emptySchema)(input || {});
+	return {};
+};
+
 function withDiscordProfile(session: null): null;
 function withDiscordProfile(
 	session: NonNullable<SessionLike>,
@@ -62,19 +69,20 @@ function withDiscordProfile(session: SessionLike): NormalizedSession | null {
 	};
 }
 
-export const getSession = createSafeServerFn({ method: "GET" }).handler(
-	async () => {
+export const getSession = createServerFn({ method: "GET" })
+	.inputValidator(strictValidator)
+	.handler(async () => {
 		const { getAuth } = await import("@/lib/auth");
 		const auth = await getAuth();
 		const headers = getRequestHeaders();
 		const session = await auth.api.getSession({ headers });
 
 		return withDiscordProfile(session as SessionLike);
-	},
-);
+	});
 
-export const ensureSession = createSafeServerFn({ method: "GET" }).handler(
-	async () => {
+export const ensureSession = createServerFn({ method: "GET" })
+	.inputValidator(strictValidator)
+	.handler(async () => {
 		const { getAuth } = await import("@/lib/auth");
 		const auth = await getAuth();
 		const headers = getRequestHeaders();
@@ -86,11 +94,11 @@ export const ensureSession = createSafeServerFn({ method: "GET" }).handler(
 		}
 
 		return normalizedSession;
-	},
-);
+	});
 
-export const checkAuthServerFn = createSafeServerFn({ method: "GET" }).handler(
-	async () => {
+export const checkAuthServerFn = createServerFn({ method: "GET" })
+	.inputValidator(strictValidator)
+	.handler(async () => {
 		try {
 			// 嘗試取得帶有真實 Discord ID 的 Domain User
 			const { user } = await requireDomainUser();
@@ -103,5 +111,4 @@ export const checkAuthServerFn = createSafeServerFn({ method: "GET" }).handler(
 				error: error instanceof Error ? error.message : "Unknown error",
 			};
 		}
-	},
-);
+	});
