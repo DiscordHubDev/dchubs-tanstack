@@ -35,7 +35,7 @@ function hslToHex(h: number, s: number, l: number): string {
 
 // 封裝 Fetch User 的 Effect
 export function fetchUserEffect(userId: string) {
-	const botToken = process.env.BOT_TOKEN;
+	const botToken = process.env.DISCORD_BOT_TOKEN;
 
 	return fetchJsonEffect(`https://discord.com/api/v10/users/${userId}`, {
 		headers: {
