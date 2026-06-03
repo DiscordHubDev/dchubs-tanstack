@@ -23,6 +23,7 @@ import type {
 	ToggleFavoriteResult,
 	UpdateState,
 	UpdateUserSettingsInput,
+	UserBaseProfile,
 	UserDetail,
 	UserDeveloperSummary,
 	UserSummary,
@@ -266,6 +267,219 @@ function dbEffect<A>(
 	run: () => Promise<A>,
 ): Effect.Effect<A, Error> {
 	return tryEffectPromise(label, run);
+}
+
+export function getUserBaseProfileEffect(
+	id: string,
+): Effect.Effect<UserBaseProfile | null, Error> {
+	return Effect.gen(function* () {
+		if (!id) return null;
+
+		const currentUser = yield* dbEffect("Failed to load user profile", () =>
+			db.query.user.findFirst({
+				where: eq(user.id, id),
+				columns: {
+					id: true,
+					username: true,
+					avatar: true,
+					banner: true,
+					bannerColor: true,
+					bio: true,
+					social: true,
+					joinedAt: true,
+				},
+			}),
+		);
+
+		if (!currentUser) return null;
+
+		return {
+			...currentUser,
+			social: normalizeSocial(currentUser.social),
+		};
+	});
+}
+
+export function getUserServersEffect(id: string) {
+	return Effect.gen(function* () {
+		if (!id) return { owned: [], adminIn: [] };
+
+		const [ownedServersRaw, adminInRaw] = yield* Effect.all([
+			dbEffect("Failed to load owned servers", () =>
+				db
+					.select({
+						id: server.id,
+						name: server.name,
+						icon: server.icon,
+						description: server.description,
+						tags: server.tags,
+						members: server.members,
+						ownerId: server.ownerId,
+					})
+					.from(server)
+					.where(eq(server.ownerId, id)),
+			),
+			dbEffect("Failed to load admin servers", () =>
+				db
+					.select({
+						id: server.id,
+						name: server.name,
+						icon: server.icon,
+						description: server.description,
+						tags: server.tags,
+						members: server.members,
+						ownerId: server.ownerId,
+					})
+					.from(serverAdmins)
+					.innerJoin(server, eq(serverAdmins.a, server.id))
+					.where(eq(serverAdmins.b, id)),
+			),
+		]);
+
+		return {
+			owned: ownedServersRaw.map(toServerSummary),
+			adminIn: adminInRaw.map(toServerSummary),
+		};
+	});
+}
+
+export function getUserBotsEffect(id: string) {
+	return Effect.gen(function* () {
+		if (!id) return { developedBots: [] };
+
+		const developedBotsRaw = yield* dbEffect(
+			"Failed to load developed bots",
+			() =>
+				db
+					.select({
+						id: bot.id,
+						name: bot.name,
+						icon: bot.icon,
+						description: bot.description,
+						tags: bot.tags,
+						servers: bot.servers,
+						verified: bot.verified,
+						status: bot.status,
+					})
+					.from(botDevelopers)
+					.innerJoin(bot, eq(botDevelopers.a, bot.id))
+					.where(eq(botDevelopers.b, id)),
+		);
+
+		const developedBotIds = developedBotsRaw.map((item) => item.id);
+
+		const developerRows =
+			developedBotIds.length === 0
+				? []
+				: yield* dbEffect("Failed to load bot developers", () =>
+						db
+							.select({
+								botId: botDevelopers.a,
+								id: user.id,
+								username: user.username,
+								avatar: user.avatar,
+							})
+							.from(botDevelopers)
+							.innerJoin(user, eq(botDevelopers.b, user.id))
+							.where(inArray(botDevelopers.a, developedBotIds)),
+					);
+
+		const developersByBotId = new Map<string, UserDeveloperSummary[]>();
+		for (const developer of developerRows) {
+			const entries = developersByBotId.get(developer.botId) ?? [];
+			entries.push({
+				id: developer.id,
+				username: developer.username,
+				avatar: developer.avatar,
+			});
+			developersByBotId.set(developer.botId, entries);
+		}
+
+		return {
+			developedBots: developedBotsRaw.map((item) => ({
+				...toBotSummary(item),
+				developers: developersByBotId.get(item.id) ?? [],
+			})),
+		};
+	});
+}
+export function getUserFavoritesEffect(id: string) {
+	return Effect.gen(function* () {
+		if (!id) return { favoriteServers: [], favoriteBots: [] };
+
+		const [favoriteServersRaw, favoriteBotsRaw] = yield* Effect.all([
+			dbEffect("Failed to load favorite servers", () =>
+				db
+					.select({
+						id: server.id,
+						name: server.name,
+						icon: server.icon,
+						description: server.description,
+						tags: server.tags,
+						members: server.members,
+						ownerId: server.ownerId,
+					})
+					.from(userFavoriteServers)
+					.innerJoin(server, eq(userFavoriteServers.a, server.id))
+					.where(eq(userFavoriteServers.b, id)),
+			),
+			dbEffect("Failed to load favorite bots", () =>
+				db
+					.select({
+						id: bot.id,
+						name: bot.name,
+						icon: bot.icon,
+						description: bot.description,
+						tags: bot.tags,
+						servers: bot.servers,
+						verified: bot.verified,
+						status: bot.status,
+					})
+					.from(userFavoriteBots)
+					.innerJoin(bot, eq(userFavoriteBots.a, bot.id))
+					.where(eq(userFavoriteBots.b, id)),
+			),
+		]);
+
+		return {
+			favoriteServers: favoriteServersRaw.map(toServerSummary),
+			favoriteBots: favoriteBotsRaw.map(toBotSummary),
+		};
+	});
+}
+
+export function getUserSettingsEffect(id: string) {
+	return Effect.gen(function* () {
+		// 1. 如果連 id 都沒有，這通常是前端傳參錯誤，直接拋錯
+		if (!id) {
+			return yield* Effect.fail(new Error("User ID is required"));
+		}
+
+		const settingsData = yield* dbEffect("Failed to load user settings", () =>
+			db.query.user.findFirst({
+				where: eq(user.id, id),
+				columns: {
+					id: true,
+					username: true,
+					bio: true,
+					social: true,
+				},
+			}),
+		);
+
+		// 2. 如果資料庫找不到該使用者，也是直接拋錯
+		if (!settingsData) {
+			return yield* Effect.fail(
+				new Error(`User settings not found for ID: ${id}`),
+			);
+		}
+
+		// 這裡回傳的型態就絕對不會有 null 了！
+		return {
+			...settingsData,
+			social: normalizeSocial(settingsData.social),
+		};
+	});
 }
 
 function getUserByIdEffect(

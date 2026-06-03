@@ -562,22 +562,50 @@ function uploadServerBannerEffect(
 	});
 }
 
-const checkIsServerOwnerEffect = (serverId: string, userId: string) =>
-	Effect.tryPromise({
-		try: () =>
-			db.query.server.findFirst({
-				where: and(eq(server.id, serverId), eq(server.ownerId, userId)),
-				columns: {
-					id: true,
-				},
-			}),
-		catch: (error) => error,
-	}).pipe(
-		Effect.map((server) => !!server),
+// 假設這是你原本獲取 Discord/外部 API 的函式
+// 它應該要回傳一個 Effect，或者用 Effect.tryPromise 包裹
+const checkIsOwnerFromApiEffect = (serverId: string, userId: string) =>
+	Effect.gen(function* () {
+		yield* Effect.logInfo("➡️ 資料庫查無資料，改用 API 線上比對中...");
 
+		// 直接 yield* 其他 Effect，保留完整的執行鏈與錯誤追蹤
+		const userAccessToken = yield* getDiscordAccessTokenEffect(userId);
+
+		// 把原生的 Promise 呼叫包進 Effect.tryPromise
+		const guilds = yield* Effect.tryPromise({
+			try: () =>
+				fetchDiscordGuilds({
+					token: userAccessToken,
+					tokenType: "Bearer",
+				}),
+			catch: (error) => new Error(`API 獲取伺服器列表失敗: ${error}`),
+		});
+
+		const guild = guilds.find((g) => g.id === serverId);
+		return guild ? hasGuildManagePermission(guild) : false;
+	});
+
+const checkIsServerOwnerEffect = (serverId: string, userId: string) =>
+	Effect.gen(function* () {
+		// 1. 資料庫只單純查詢這個伺服器是否存在，並把真正的 ownerId 拿出來
+		const serverResult = yield* Effect.tryPromise({
+			try: () =>
+				db.query.server.findFirst({
+					where: eq(server.id, serverId), // 只比對 serverId
+					columns: { ownerId: true }, // 撈出 ownerId 來做比對
+				}),
+			catch: (error) => new Error(`資料庫查詢失敗: ${error}`),
+		});
+
+		if (serverResult) {
+			return serverResult.ownerId === userId;
+		}
+
+		return yield* checkIsOwnerFromApiEffect(serverId, userId);
+	}).pipe(
 		Effect.catchAll((error) =>
 			Effect.sync(() => {
-				console.error("檢查伺服器權限時發生錯誤:", error);
+				console.error("檢查權限時發生非預期錯誤:", error);
 				return false;
 			}),
 		),

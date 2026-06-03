@@ -1,7 +1,11 @@
 import { createServerFn } from "@tanstack/react-start";
 import { Schema } from "effect";
 import { authMiddleware, protectedMiddleware } from "#/lib/auth-middleware";
-import { effectInputValidator } from "#/lib/effect-utils";
+import {
+	effectInputValidator,
+	runEffect,
+	runEffectSafe,
+} from "#/lib/effect-utils";
 import {
 	toggleFavoriteInputEffectSchema,
 	updateUserSettingsInputEffectSchema,
@@ -11,7 +15,12 @@ import {
 import {
 	createOrRegenerateApiTokenForCurrentUser,
 	getCurrentUser,
+	getUserBaseProfileEffect,
+	getUserBotsEffect,
 	getUserById,
+	getUserFavoritesEffect,
+	getUserServersEffect,
+	getUserSettingsEffect,
 	toggleFavoriteForCurrentUser,
 	updateUserSettingsForCurrentUser,
 	upsertUserFromSession,
@@ -28,6 +37,41 @@ export const getCurrentUserFn = createServerFn({ method: "GET" })
 	.middleware([authMiddleware])
 	.handler(async ({ context }) => {
 		return getCurrentUser(context.user?.discordId);
+	});
+
+export const getUserSettingsFn = createServerFn({ method: "GET" })
+	.middleware([authMiddleware])
+	.inputValidator(effectInputValidator(userByIdInputEffectSchema))
+	.handler(async ({ data }) => {
+		return await runEffect(getUserSettingsEffect(data.id));
+	});
+
+export const getUserFavoritesFn = createServerFn({ method: "GET" })
+	.middleware([authMiddleware])
+	.inputValidator(effectInputValidator(userByIdInputEffectSchema))
+	.handler(async ({ data }) => {
+		return await runEffect(getUserFavoritesEffect(data.id));
+	});
+
+export const getUserBotsFn = createServerFn({ method: "GET" })
+	.middleware([authMiddleware])
+	.inputValidator(effectInputValidator(userByIdInputEffectSchema))
+	.handler(async ({ data }) => {
+		return await runEffect(getUserBotsEffect(data.id));
+	});
+
+export const getUserServersFn = createServerFn({ method: "GET" })
+	.middleware([authMiddleware])
+	.inputValidator(effectInputValidator(userByIdInputEffectSchema))
+	.handler(async ({ data }) => {
+		return await runEffect(getUserServersEffect(data.id));
+	});
+
+export const getUserBaseProfileFn = createServerFn({ method: "GET" })
+	.middleware([authMiddleware])
+	.inputValidator(effectInputValidator(userByIdInputEffectSchema))
+	.handler(async ({ data }) => {
+		return await runEffect(getUserBaseProfileEffect(data.id));
 	});
 
 // 2. 取得特定使用者：公開讀取

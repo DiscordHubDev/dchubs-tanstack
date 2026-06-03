@@ -62,6 +62,24 @@ export type UserDetail = {
 	adminIn: UserSummary[];
 };
 
+export type UserBaseProfile = {
+	id: string;
+	username: string;
+	avatar: string;
+	banner: string | null;
+	bannerColor: string | null;
+	bio: string | null;
+	social: Record<string, string>;
+	joinedAt: string;
+};
+
+export type UserSettings = {
+	id: string;
+	username: string;
+	bio: string | null;
+	social: Record<string, string>;
+};
+
 export type ToggleFavoriteParams = {
 	target: "server" | "bot";
 	id: string;

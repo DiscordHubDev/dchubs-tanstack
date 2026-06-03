@@ -3,6 +3,7 @@ import { db } from "#/drizzle/db";
 import { notification } from "#/drizzle/schema";
 import { NotificationFailed } from "#/errors/bot-errors";
 import { getDomainUser, getEdgeContext } from "#/lib/edge-context";
+import { sendNotification } from "../admin/admin.functions";
 import type { SendNotificationInput } from "./notifications.schemas";
 
 function resolveUserIdEffect(
@@ -43,20 +44,15 @@ export function sendNotificationEffect(
 		const content = input.content.trim();
 		const teaser = input.teaser?.trim() || content.slice(0, 140);
 		const priority = input.priority ?? "info";
-		const isSystem = input.isSystem ?? true;
 
 		yield* Effect.tryPromise({
 			try: () =>
-				db.insert(notification).values({
-					id: crypto.randomUUID(),
-					name: "DCHubs",
+				sendNotification({
 					subject,
-					teaser,
 					content,
-					userId,
+					teaser,
 					priority,
-					isSystem,
-					read: false,
+					userIds: [userId],
 				}),
 			catch: () => new NotificationFailed({}),
 		});

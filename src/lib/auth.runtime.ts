@@ -109,6 +109,7 @@ export async function createAuth() {
 		},
 
 		session: {
+			activePeriod: 0,
 			modelName: "authSession",
 			cookieCache: {
 				enabled: true,

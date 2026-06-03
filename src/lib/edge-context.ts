@@ -1,10 +1,20 @@
 import { getRequest } from "@tanstack/react-start/server";
 import { eq } from "drizzle-orm";
 import { Effect } from "effect";
+import { cache } from "react";
 import { db } from "#/drizzle/db";
 import * as schema from "#/drizzle/schema";
 
 const GATEWAY_SECRET = process.env.GATEWAY_SECRET;
+
+export type DomainUser = {
+	betterAuthId: string;
+	discordId: string;
+	username: string | null;
+	avatar: string | null;
+	banner: string | null;
+	bannerColor: string | null;
+};
 
 export function getEdgeContext() {
 	const req = getRequest();
@@ -26,73 +36,76 @@ export function getEdgeContext() {
 	};
 }
 
-export async function getDomainUser(edgeUserId: string) {
-	if (!edgeUserId) return null;
+// 2. 加上 : Promise<DomainUser | null> 型別註解
+export const getDomainUser = cache(
+	async (edgeUserId: string): Promise<DomainUser | null> => {
+		if (!edgeUserId) return null;
 
-	const isDiscordId = /^\d+$/.test(edgeUserId);
-	const queryCondition = isDiscordId
-		? eq(schema.authUser.discordId, edgeUserId)
-		: eq(schema.authUser.id, edgeUserId);
+		const isDiscordId = /^\d+$/.test(edgeUserId);
+		const queryCondition = isDiscordId
+			? eq(schema.authUser.discordId, edgeUserId)
+			: eq(schema.authUser.id, edgeUserId);
 
-	const result = await db
-		.select({
-			betterAuthId: schema.authUser.id,
-			discordId: schema.authUser.discordId,
+		const result = await db
+			.select({
+				betterAuthId: schema.authUser.id,
+				discordId: schema.authUser.discordId,
+				authUsername: schema.authUser.username,
+				authAvatar: schema.authUser.avatar,
+				authName: schema.authUser.name,
+				authImage: schema.authUser.image,
+				authBanner: schema.authUser.banner,
+				authBannerColor: schema.authUser.bannerColor,
+				legacyUsername: schema.user.username,
+				legacyAvatar: schema.user.avatar,
+				legacyBanner: schema.user.banner,
+				legacyBannerColor: schema.user.bannerColor,
+			})
+			.from(schema.authUser)
+			.leftJoin(schema.user, eq(schema.authUser.discordId, schema.user.id))
+			.where(queryCondition)
+			.limit(1);
 
-			// 🚀 讀取 Better Auth 表擴充的欄位（新用戶的來源）
-			authUsername: schema.authUser.username,
-			authAvatar: schema.authUser.avatar,
-			authName: schema.authUser.name, // Better Auth 預設的 Discord 名字快照
-			authImage: schema.authUser.image, // Better Auth 預設的 Discord 大頭貼快照
-			authBanner: schema.authUser.banner, // Better Auth 預設的 Discord 大頭貼快照
-			authBannerColor: schema.authUser.bannerColor, // Better Auth 預設的 Discord 大頭貼快照
+		const userRow = result[0] ?? null;
 
-			// 🚀 讀取舊 User 表的欄位（老用戶的來源）
-			legacyUsername: schema.user.username,
-			legacyAvatar: schema.user.avatar,
-			legacyBanner: schema.user.banner,
-			legacyBannerColor: schema.user.bannerColor,
-		})
-		.from(schema.authUser)
-		.leftJoin(schema.user, eq(schema.authUser.discordId, schema.user.id))
-		.where(queryCondition)
-		.limit(1);
+		if (!userRow) return null;
 
-	const userRow = result[0] ?? null;
+		if (!userRow.legacyUsername && userRow.discordId) {
+			console.log(
+				`💡 全新用戶 (Discord: ${userRow.discordId})，正在自動初始化舊 User 表...`,
+			);
 
-	if (!userRow) return null;
+			await db.insert(schema.user).values({
+				id: userRow.discordId,
+				username: userRow.authUsername ?? userRow.authName ?? "Unknown User",
+				avatar:
+					userRow.authAvatar ??
+					userRow.authImage ??
+					"https://cdn.discordapp.com/embed/avatars/0.png",
+				banner: userRow.authBanner,
+				bannerColor: userRow.authBannerColor,
+				joinedAt: new Date().toISOString(),
+			});
 
-	// ✨ 判定：如果舊 User 表完全沒有這個人的資料 -> 代表是全新用戶
-	if (!userRow.legacyUsername && userRow.discordId) {
-		console.log(
-			`💡 全新用戶 (Discord: ${userRow.discordId})，正在自動初始化舊 User 表...`,
-		);
+			// 加上型別註解後，這裡的遞迴呼叫就不會再報錯了
+			return getDomainUser(edgeUserId);
+		}
 
-		await db.insert(schema.user).values({
-			id: userRow.discordId,
-			username: userRow.authUsername ?? userRow.authName ?? "Unknown User",
+		return {
+			betterAuthId: userRow.betterAuthId,
+			discordId: userRow.discordId,
+			username:
+				userRow.legacyUsername ??
+				userRow.authUsername ??
+				userRow.authName ??
+				null,
 			avatar:
-				userRow.authAvatar ??
-				userRow.authImage ??
-				"https://cdn.discordapp.com/embed/avatars/0.png",
-			banner: userRow.authBanner,
-			bannerColor: userRow.authBannerColor,
-			joinedAt: new Date().toISOString(),
-		});
-
-		return getDomainUser(edgeUserId);
-	}
-
-	return {
-		betterAuthId: userRow.betterAuthId,
-		discordId: userRow.discordId,
-		username:
-			userRow.legacyUsername ?? userRow.authUsername ?? userRow.authName,
-		avatar: userRow.legacyAvatar ?? userRow.authAvatar ?? userRow.authImage,
-		banner: userRow.legacyBanner,
-		bannerColor: userRow.legacyBannerColor,
-	};
-}
+				userRow.legacyAvatar ?? userRow.authAvatar ?? userRow.authImage ?? null,
+			banner: userRow.legacyBanner ?? null,
+			bannerColor: userRow.legacyBannerColor ?? null,
+		};
+	},
+);
 
 export async function requireDomainUser() {
 	const context = getEdgeContext();

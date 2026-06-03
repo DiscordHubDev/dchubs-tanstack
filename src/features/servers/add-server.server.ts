@@ -10,8 +10,6 @@ import type { DiscordGuild, GuildMembershipBundle } from "./add-server.types";
 const FALLBACK_BOT_CLIENT_ID = "1324996138251583580";
 const DEFAULT_BOT_PERMISSIONS = "1126965059046400";
 
-const ADMIN_PERMISSION_BIT = 0x8n;
-
 function sortGuildsByName(guilds: DiscordGuild[]): DiscordGuild[] {
 	return [...guilds].sort((left, right) =>
 		left.name.localeCompare(right.name, "en", { sensitivity: "base" }),
@@ -65,18 +63,10 @@ function getBotInviteClientId(): string {
 	return process.env.DISCORD_CLIENT_ID || FALLBACK_BOT_CLIENT_ID;
 }
 
-function getGuildMembershipBundleEffect(): Effect.Effect<
-	GuildMembershipBundle,
-	Error
-> {
+function getGuildMembershipBundleEffect(
+	userId: string,
+): Effect.Effect<GuildMembershipBundle, Error> {
 	return Effect.gen(function* () {
-		const userId = yield* getSessionUserIdEffect();
-		if (!userId) {
-			return yield* Effect.fail(
-				new Error("You must sign in with Discord before adding a server."),
-			);
-		}
-
 		const [userAccessToken, botToken] = yield* Effect.all([
 			getDiscordAccessTokenEffect(userId),
 			getBotTokenEffect(),
@@ -147,6 +137,8 @@ function getGuildMembershipBundleEffect(): Effect.Effect<
 	});
 }
 
-export async function getGuildMembershipBundle(): Promise<GuildMembershipBundle> {
-	return runEffect(getGuildMembershipBundleEffect());
+export async function getGuildMembershipBundle(
+	userId: string,
+): Promise<GuildMembershipBundle> {
+	return runEffect(getGuildMembershipBundleEffect(userId));
 }

@@ -9,6 +9,13 @@ export const queryKeys = {
 		all: usersRoot,
 		current: () => [...usersRoot, "current"] as const,
 		detail: (userId: string) => [...usersRoot, "detail", userId] as const,
+
+		// --- 新增拆分後的 Query Keys ---
+		profile: (userId: string) => [...usersRoot, "profile", userId] as const,
+		servers: (userId: string) => [...usersRoot, "servers", userId] as const,
+		bots: (userId: string) => [...usersRoot, "bots", userId] as const,
+		favorites: (userId: string) => [...usersRoot, "favorites", userId] as const,
+		settings: (userId: string) => [...usersRoot, "settings", userId] as const,
 	},
 	inbox: {
 		all: inboxRoot,

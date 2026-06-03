@@ -24,7 +24,7 @@ export const getServerPublishBundleFn = createServerFn({ method: "GET" })
 	.middleware([protectedMiddleware])
 	.inputValidator(effectInputValidator(ServerPublishInputSchema))
 	.handler(async ({ data, context }) => {
-		await enforceServerOwner(data.serverId, context.user?.discordId ?? null);
+		await enforceServerOwner(data.serverId, context.user.discordId);
 		return getServerPublishBundleById(data.serverId);
 	});
 

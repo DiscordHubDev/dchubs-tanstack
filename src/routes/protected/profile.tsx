@@ -25,6 +25,10 @@ function parseNonEmptyString(value: unknown): string | undefined {
 	return typeof value === "string" && value.length > 0 ? value : undefined;
 }
 
+const siteUrl =
+	(typeof process !== "undefined" ? process.env.BETTER_AUTH_URL : undefined) ||
+	"https://dchubs.org";
+
 export const Route = createFileRoute("/protected/profile")({
 	ssr: false,
 	preloadStaleTime: 10 * 60 * 1000,
@@ -68,6 +72,16 @@ export const Route = createFileRoute("/protected/profile")({
 		return {
 			viewedUserId: targetUserId,
 			currentUserId,
+		};
+	},
+
+	head: ({ match }) => {
+		const publishTitle = "個人頁面 | DiscordHubs";
+		const publishCanonical = new URL(match.pathname, siteUrl).toString();
+
+		return {
+			meta: [{ title: publishTitle }],
+			links: [{ rel: "canonical", href: publishCanonical }],
 		};
 	},
 

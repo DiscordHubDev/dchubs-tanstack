@@ -4,7 +4,7 @@ export const PrioritySchema = Schema.Literal(
 	"success",
 	"info",
 	"warning",
-	"danger",
+	"error",
 );
 
 export const SendNotificationSchema = Schema.Struct({

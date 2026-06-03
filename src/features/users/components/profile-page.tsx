@@ -22,6 +22,7 @@ import {
 	type MouseEvent,
 	memo,
 	type ReactNode,
+	Suspense,
 	useCallback,
 	useEffect,
 	useMemo,
@@ -52,8 +53,19 @@ import {
 	createOrRegenerateApiTokenFn,
 	updateUserSettingsFn,
 } from "#/features/users/users.functions";
-import { userProfileQueryOptions } from "#/features/users/users.query";
-import type { UserDetail } from "#/features/users/users.types";
+// 假設你已經將 API 拆分為以下 Query Options 來支援懶載入
+import {
+	userBaseProfileQueryOptions,
+	userBotsQueryOptions,
+	userFavoritesQueryOptions,
+	userServersQueryOptions,
+	userSettingsQueryOptions,
+} from "#/features/users/users.query";
+import type {
+	UserBaseProfile,
+	UserDetail,
+	UserSettings,
+} from "#/features/users/users.types";
 import { runEffect, tryEffectPromise } from "#/lib/effect-utils";
 import { showErrorAlert } from "#/lib/error-alert";
 import { queryKeys } from "#/lib/query-keys";
@@ -93,6 +105,11 @@ function showErrorNotification(message: string) {
 	showErrorAlert(message, "操作失敗");
 }
 
+// 共用的載入骨架/提示
+const TabLoader = () => (
+	<div className="mt-8 text-center text-gray-400">載入中...</div>
+);
+
 export function UserProfilePage({
 	viewedUserId,
 	currentUserId,
@@ -100,32 +117,75 @@ export function UserProfilePage({
 	onTabChange,
 }: UserProfilePageProps) {
 	const navigate = useNavigate();
+
+	// 頂層只載入 Header 必須的基礎資料
 	const { data: viewedUser } = useSuspenseQuery(
-		userProfileQueryOptions(viewedUserId),
+		userBaseProfileQueryOptions(viewedUserId),
 	);
+	const queryClient = useQueryClient();
 	const isOwner = viewedUserId === currentUserId;
-
-	const managedServers = useMemo<ServerCardData[]>(() => {
-		if (!viewedUser) return [];
-
-		const serversMap = new Map<string, ServerCardData>();
-		for (const item of [...viewedUser.ownedServers, ...viewedUser.adminIn]) {
-			if (serversMap.has(item.id)) continue;
-			serversMap.set(item.id, {
-				id: item.id,
-				name: item.name,
-				icon: item.icon,
-				description: item.description ?? "",
-				tags: item.tags ?? [],
-				members: item.members ?? 0,
-				ownerId: item.ownerId ?? "",
-			});
-		}
-
-		return [...serversMap.values()];
-	}, [viewedUser]);
-
 	const navigationRef = useRef(false);
+
+	const prefetchTimeoutRef = useRef<number | null>(null);
+	const handlePrefetch = useCallback(
+		(tab: ProfileTab) => {
+			if (prefetchTimeoutRef.current) {
+				window.clearTimeout(prefetchTimeoutRef.current);
+			}
+
+			prefetchTimeoutRef.current = window.setTimeout(() => {
+				// 🛡️ 內部輔助函式：將重複的檢查與 prefetch 邏輯抽離，並保持泛型安全
+				const ensurePrefetch = <
+					TQueryFnData,
+					TError,
+					TData,
+					TQueryKey extends readonly unknown[],
+				>(
+					options: import("@tanstack/react-query").FetchQueryOptions<
+						TQueryFnData,
+						TError,
+						TData,
+						TQueryKey
+					>,
+				) => {
+					const queryState = queryClient.getQueryState(options.queryKey);
+					// 如果已經有資料且目前沒有在背景抓取，就跳過
+					if (queryState?.data && queryState.fetchStatus !== "fetching") {
+						return;
+					}
+					queryClient.prefetchQuery(options);
+				};
+
+				// 在各自的 case 裡直接執行，TypeScript 就能完美推斷，不會產生聯集衝突
+				switch (tab) {
+					case "servers":
+						ensurePrefetch(userServersQueryOptions(viewedUserId));
+						break;
+					case "bots":
+						ensurePrefetch(userBotsQueryOptions(viewedUserId));
+						break;
+					case "favorites":
+						ensurePrefetch(userFavoritesQueryOptions(viewedUserId));
+						break;
+					case "settings":
+						if (isOwner) {
+							ensurePrefetch(userSettingsQueryOptions(viewedUserId));
+						}
+						break;
+				}
+			}, 150);
+		},
+		[queryClient, viewedUserId, isOwner],
+	);
+
+	// 記得在元件卸載時清除 Timeout，避免 memory leak
+	useEffect(() => {
+		return () => {
+			if (prefetchTimeoutRef.current) {
+				window.clearTimeout(prefetchTimeoutRef.current);
+			}
+		};
+	}, []);
 
 	const handleManageServer = useCallback(
 		(serverId: string, e: MouseEvent) => {
@@ -193,6 +253,8 @@ export function UserProfilePage({
 						<TabsTrigger
 							value="servers"
 							className="data-[state=active]:bg-[#36393f]"
+							onMouseEnter={() => handlePrefetch("servers")} // 滑鼠移入時預載
+							onFocus={() => handlePrefetch("servers")}
 						>
 							<Users size={16} className="mr-2" />
 							{isOwner ? "我" : "他"}的伺服器
@@ -200,6 +262,8 @@ export function UserProfilePage({
 						<TabsTrigger
 							value="bots"
 							className="data-[state=active]:bg-[#36393f]"
+							onMouseEnter={() => handlePrefetch("bots")}
+							onFocus={() => handlePrefetch("bots")}
 						>
 							<Bot size={16} className="mr-2" />
 							{isOwner ? "我" : "他"}的機器人
@@ -207,58 +271,173 @@ export function UserProfilePage({
 						<TabsTrigger
 							value="favorites"
 							className="data-[state=active]:bg-[#36393f]"
+							onMouseEnter={() => handlePrefetch("favorites")}
+							onFocus={() => handlePrefetch("favorites")}
 						>
 							<Star size={16} className="mr-2" />
 							{isOwner ? "我" : "他"}的收藏
 						</TabsTrigger>
-						{isOwner ? (
+						{isOwner && (
 							<TabsTrigger
 								value="settings"
 								className="data-[state=active]:bg-[#36393f]"
+								onMouseEnter={() => handlePrefetch("settings")}
+								onFocus={() => handlePrefetch("settings")}
 							>
 								<Settings size={16} className="mr-2" />
 								帳號設置
 							</TabsTrigger>
-						) : null}
+						)}
 					</TabsList>
 
+					{/* 透過 activeTab 條件判斷與 Suspense 達成 Tab 切換時才請求 API */}
 					<TabsContent value="servers" className="mt-6">
-						<MemoizedServersTab
-							managedServers={managedServers}
-							isOwner={isOwner}
-							onManageServer={handleManageServer}
-						/>
+						{activeTab === "servers" && (
+							<Suspense fallback={<TabLoader />}>
+								<ServersTabContainer
+									userId={viewedUserId}
+									isOwner={isOwner}
+									onManageServer={handleManageServer}
+								/>
+							</Suspense>
+						)}
 					</TabsContent>
 
 					<TabsContent value="bots" className="mt-6">
-						<MemoizedBotsTab
-							bots={viewedUser.developedBots}
-							isOwner={isOwner}
-							onManageBot={handleManageBot}
-						/>
+						{activeTab === "bots" && (
+							<Suspense fallback={<TabLoader />}>
+								<BotsTabContainer
+									userId={viewedUserId}
+									isOwner={isOwner}
+									onManageBot={handleManageBot}
+								/>
+							</Suspense>
+						)}
 					</TabsContent>
 
 					<TabsContent value="favorites" className="mt-6">
-						<MemoizedFavoritesTab
-							favoriteServers={viewedUser.favoriteServers}
-							favoriteBots={viewedUser.favoriteBots}
-						/>
+						{activeTab === "favorites" && (
+							<Suspense fallback={<TabLoader />}>
+								<FavoritesTabContainer userId={viewedUserId} />
+							</Suspense>
+						)}
 					</TabsContent>
 
-					{isOwner ? (
+					{isOwner && (
 						<TabsContent value="settings" className="mt-6">
-							<MemoizedSettingsContent isOwner={isOwner} user={viewedUser} />
+							{activeTab === "settings" && (
+								<Suspense fallback={<TabLoader />}>
+									<SettingsTabContainer
+										userId={viewedUserId}
+										isOwner={isOwner}
+									/>
+								</Suspense>
+							)}
 						</TabsContent>
-					) : null}
+					)}
 				</Tabs>
 			</div>
 		</div>
 	);
 }
 
+/* -------------------------------------------------------------------------- */
+/* Containers: 負責該 Tab 專屬資料的抓取                                        */
+/* -------------------------------------------------------------------------- */
+
+function ServersTabContainer({
+	userId,
+	isOwner,
+	onManageServer,
+}: {
+	userId: string;
+	isOwner: boolean;
+	onManageServer: (id: string, e: MouseEvent) => void;
+}) {
+	const { data } = useSuspenseQuery(userServersQueryOptions(userId));
+
+	const managedServers = useMemo<ServerCardData[]>(() => {
+		const serversMap = new Map<string, ServerCardData>();
+		for (const item of [...data.owned, ...data.adminIn]) {
+			if (serversMap.has(item.id)) continue;
+			serversMap.set(item.id, {
+				id: item.id,
+				name: item.name,
+				icon: item.icon,
+				description: item.description ?? "",
+				tags: item.tags ?? [],
+				members: item.members ?? 0,
+				ownerId: item.ownerId ?? "",
+			});
+		}
+		return [...serversMap.values()];
+	}, [data]);
+
+	return (
+		<ServersTab
+			managedServers={managedServers}
+			isOwner={isOwner}
+			onManageServer={onManageServer}
+		/>
+	);
+}
+
+function BotsTabContainer({
+	userId,
+	isOwner,
+	onManageBot,
+}: {
+	userId: string;
+	isOwner: boolean;
+	onManageBot: (id: string, e: MouseEvent) => void;
+}) {
+	const { data } = useSuspenseQuery(userBotsQueryOptions(userId));
+	return (
+		<BotsTab
+			bots={data.developedBots}
+			isOwner={isOwner}
+			onManageBot={onManageBot}
+		/>
+	);
+}
+
+function FavoritesTabContainer({ userId }: { userId: string }) {
+	const { data } = useSuspenseQuery(userFavoritesQueryOptions(userId));
+	return (
+		<FavoritesTab
+			favoriteServers={data.favoriteServers}
+			favoriteBots={data.favoriteBots}
+		/>
+	);
+}
+
+function SettingsTabContainer({
+	userId,
+	isOwner,
+}: {
+	userId: string;
+	isOwner: boolean;
+}) {
+	const { data: user } = useSuspenseQuery(userSettingsQueryOptions(userId));
+	return (
+		<>
+			<SecureAPIKeyButton isOwner={isOwner} />
+			<div className="mt-6">
+				<div className="rounded-lg bg-[#2b2d31] p-6">
+					<h2 className="mb-6 font-bold text-xl">帳號設置</h2>
+					<UserSettingsForm user={user} />
+				</div>
+			</div>
+		</>
+	);
+}
+
+/* -------------------------------------------------------------------------- */
+/* UI Components                                                              */
+/* -------------------------------------------------------------------------- */
+
 const SecureAPIKeyButton = memo(({ isOwner }: { isOwner: boolean }) => {
 	if (!isOwner) return null;
-
 	return (
 		<div className="mt-6 items-center">
 			<div className="rounded-lg bg-[#2b2d31] p-6">
@@ -270,7 +449,6 @@ const SecureAPIKeyButton = memo(({ isOwner }: { isOwner: boolean }) => {
 		</div>
 	);
 });
-
 SecureAPIKeyButton.displayName = "SecureAPIKeyButton";
 
 function APIKeyManager() {
@@ -285,8 +463,9 @@ function APIKeyManager() {
 	const mutation = useMutation({
 		mutationFn: () =>
 			runEffect(
-				tryEffectPromise("Failed to create API key", () =>
-					createOrRegenerateApiTokenFn(),
+				tryEffectPromise(
+					"Failed to create API key",
+					createOrRegenerateApiTokenFn,
 				),
 			),
 	});
@@ -320,10 +499,9 @@ function APIKeyManager() {
 	return (
 		<div className="mt-4 flex w-full flex-col items-center space-y-6">
 			{apiKey ? <TokenDisplaySection tokens={apiKey} /> : null}
-
 			<Button
 				className="cursor-pointer bg-discord text-white hover:bg-discord-hover disabled:opacity-50"
-				onClick={handleCreateOrRegen}
+				onClick={() => void handleCreateOrRegen()}
 				disabled={isLoading || isRequestingRef.current}
 			>
 				{isLoading ? (
@@ -355,85 +533,85 @@ const TokenDisplaySection = memo(
 		</div>
 	),
 );
-
 TokenDisplaySection.displayName = "TokenDisplaySection";
 
-const SecureTokenDisplay = memo(
-	({ label, token }: { label: string; token: string }) => {
-		const [copied, setCopied] = useState(false);
-		const copyingRef = useRef(false);
+function SecureTokenDisplay({
+	label,
+	token,
+}: {
+	label: string;
+	token: string;
+}) {
+	const [copied, setCopied] = useState(false);
+	const copyingRef = useRef(false);
 
-		const handleCopy = useCallback(async () => {
-			if (copyingRef.current) return;
+	const handleCopy = useCallback(async () => {
+		if (copyingRef.current) return;
 
-			if (!navigator.clipboard || !window.isSecureContext) {
-				showErrorNotification("無法複製：不支援剪貼簿功能");
-				return;
-			}
+		if (!navigator.clipboard || !window.isSecureContext) {
+			showErrorNotification("無法複製：不支援剪貼簿功能");
+			return;
+		}
 
-			copyingRef.current = true;
+		copyingRef.current = true;
+		try {
+			await navigator.clipboard.writeText(token);
+			setCopied(true);
+			showSuccessNotification(`${label} 已複製成功！`);
 
-			try {
-				await navigator.clipboard.writeText(token);
-				setCopied(true);
-				showSuccessNotification(`${label} 已複製成功！`);
-
-				// 重置複製狀態
-				setTimeout(() => {
-					setCopied(false);
-					copyingRef.current = false;
-				}, 2000);
-			} catch (error) {
-				showErrorNotification(
-					`複製失敗：${error instanceof Error ? error.message : "未知錯誤"}`,
-				);
+			setTimeout(() => {
+				setCopied(false);
 				copyingRef.current = false;
-			}
-		}, [token, label]);
+			}, 2000);
+		} catch (error) {
+			showErrorNotification(
+				`複製失敗：${error instanceof Error ? error.message : "未知錯誤"}`,
+			);
+			copyingRef.current = false;
+		}
+	}, [token, label]);
 
-		return (
-			<div>
-				<p className="mb-2 text-gray-200">{label}：</p>
-				<button
-					type="button"
-					className={`cursor-pointer break-all rounded-md p-3 font-mono text-sm transition-colors ${
-						copied
-							? "bg-green-800 text-green-100"
-							: "bg-gray-800 text-gray-100 hover:bg-gray-700"
-					}`}
-					onClick={() => void handleCopy()}
-					title={`${label} 複製`}
-				>
-					{token}
-				</button>
-			</div>
-		);
-	},
-);
+	return (
+		<div>
+			<p className="mb-2 text-gray-200">{label}：</p>
+			<button
+				type="button"
+				className={`cursor-pointer break-all rounded-md p-3 font-mono text-sm transition-colors ${
+					copied
+						? "bg-green-800 text-green-100"
+						: "bg-gray-800 text-gray-100 hover:bg-gray-700"
+				}`}
+				onClick={() => void handleCopy()}
+				title={`${label} 複製`}
+			>
+				{token}
+			</button>
+		</div>
+	);
+}
 
-SecureTokenDisplay.displayName = "SecureTokenDisplay";
-
-const ServersTab = memo(
-	({
-		managedServers,
-		isOwner,
-		onManageServer,
-	}: {
-		managedServers: ServerCardData[];
-		isOwner: boolean;
-		onManageServer: (id: string, e: MouseEvent) => void;
-	}) => (
+// 移除了不必要的 memo，因為此元件完全依賴上層數據傳入，渲染開銷極小
+function ServersTab({
+	managedServers,
+	isOwner,
+	onManageServer,
+}: {
+	managedServers: ServerCardData[];
+	isOwner: boolean;
+	onManageServer: (id: string, e: MouseEvent) => void;
+}) {
+	return (
 		<div className="mt-6">
 			<div className="mb-4 flex items-center justify-between">
 				<h2 className="font-bold text-2xl">{isOwner ? "我" : "他"}的伺服器</h2>
-				{isOwner ? (
+				{isOwner && (
 					<Link to="/protected/add-server">
 						<Button className="bg-[#5865f2] text-white hover:bg-[#4752c4]">
 							<Plus size={16} />
 							新增伺服器
 						</Button>
 					</Link>
-				) : null}
+				)}
 			</div>
 
 			{managedServers.length > 0 ? (
@@ -463,10 +641,8 @@ const ServersTab = memo(
 				/>
 			)}
 		</div>
-	),
-);
-
-ServersTab.displayName = "ServersTab";
+	);
+}
 
 const ServerCard = memo(
 	({
@@ -537,7 +713,7 @@ const ServerCard = memo(
 					</CardContent>
 				</Link>
 
-				{isOwner ? (
+				{isOwner && (
 					<CardFooter className="mt-auto flex flex-col gap-3">
 						<Button
 							variant="outline"
@@ -549,77 +725,70 @@ const ServerCard = memo(
 						</Button>
 						<PinActionButton itemName={server.name} />
 					</CardFooter>
-				) : null}
+				)}
 			</Card>
 		);
 	},
 );
-
 ServerCard.displayName = "ServerCard";
 
-const BotsTab = memo(
-	({
-		bots,
-		isOwner,
-		onManageBot,
-	}: {
-		bots: UserDetail["developedBots"];
-		isOwner: boolean;
-		onManageBot: (id: string, e: MouseEvent) => void;
-	}) => {
-		const approvedBots = useMemo(
-			() => bots.filter((bot) => bot.status !== "rejected"),
-			[bots],
-		);
+function BotsTab({
+	bots,
+	isOwner,
+	onManageBot,
+}: {
+	bots: UserDetail["developedBots"];
+	isOwner: boolean;
+	onManageBot: (id: string, e: MouseEvent) => void;
+}) {
+	const approvedBots = useMemo(
+		() => bots.filter((bot) => bot.status !== "rejected"),
+		[bots],
+	);
 
-		return (
-			<div className="mt-6">
-				<div className="mb-4 flex items-center justify-between">
-					<h2 className="font-bold text-2xl">
-						{isOwner ? "我" : "他"}的機器人
-					</h2>
-					{isOwner ? (
-						<Link to="/protected/add-bot">
-							<Button className="bg-[#5865f2] text-white hover:bg-[#4752c4]">
-								<Plus size={16} />
-								新增機器人
-							</Button>
-						</Link>
-					) : null}
-				</div>
-
-				{approvedBots.length > 0 ? (
-					<div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-						{approvedBots.map((bot) => (
-							<BotCard
-								key={bot.id}
-								bot={bot}
-								isOwner={isOwner}
-								onManageBot={onManageBot}
-							/>
-						))}
-					</div>
-				) : (
-					<EmptyState
-						message={`${isOwner ? "你" : "他"}尚未建立任何機器人`}
-						actionButton={
-							isOwner ? (
-								<Link to="/protected/add-bot">
-									<Button className="bg-[#5865f2] text-white hover:bg-[#4752c4]">
-										<Plus size={16} />
-										新增機器人
-									</Button>
-								</Link>
-							) : null
-						}
-					/>
+	return (
+		<div className="mt-6">
+			<div className="mb-4 flex items-center justify-between">
+				<h2 className="font-bold text-2xl">{isOwner ? "我" : "他"}的機器人</h2>
+				{isOwner && (
+					<Link to="/protected/add-bot">
+						<Button className="bg-[#5865f2] text-white hover:bg-[#4752c4]">
+							<Plus size={16} />
+							新增機器人
+						</Button>
+					</Link>
 				)}
 			</div>
-		);
-	},
-);
 
-BotsTab.displayName = "BotsTab";
+			{approvedBots.length > 0 ? (
+				<div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+					{approvedBots.map((bot) => (
+						<BotCard
+							key={bot.id}
+							bot={bot}
+							isOwner={isOwner}
+							onManageBot={onManageBot}
+						/>
+					))}
+				</div>
+			) : (
+				<EmptyState
+					message={`${isOwner ? "你" : "他"}尚未建立任何機器人`}
+					actionButton={
+						isOwner ? (
+							<Link to="/protected/add-bot">
+								<Button className="bg-[#5865f2] text-white hover:bg-[#4752c4]">
+									<Plus size={16} />
+									新增機器人
+								</Button>
+							</Link>
+						) : null
+					}
+				/>
+			)}
+		</div>
+	);
+}
 
 const BotCard = memo(
 	({
@@ -701,7 +870,7 @@ const BotCard = memo(
 					</CardContent>
 				</Link>
 
-				{isOwner ? (
+				{isOwner && (
 					<CardFooter className="mt-auto flex flex-col gap-3">
 						<Button
 							variant="outline"
@@ -713,91 +882,69 @@ const BotCard = memo(
 						</Button>
 						<PinActionButton itemName={bot.name} />
 					</CardFooter>
-				) : null}
+				)}
 			</Card>
 		);
 	},
 );
-
 BotCard.displayName = "BotCard";
 
-const BotStatusIndicator = memo(({ status }: { status: string }) => {
-	switch (status) {
-		case "pending":
-			return (
-				<div className="mt-2 flex items-center text-sm text-yellow-500">
-					<Clock size={14} className="mr-1" />
-					<span>機器人仍在審核中</span>
-				</div>
-			);
-		case "approved":
-			return (
-				<div className="mt-2 flex items-center text-green-500 text-sm">
-					<CheckCircle size={14} className="mr-1" />
-					<span>機器人已通過審核</span>
-				</div>
-			);
-		default:
-			return null;
+function BotStatusIndicator({ status }: { status: string }) {
+	if (status === "pending") {
+		return (
+			<div className="mt-2 flex items-center text-sm text-yellow-500">
+				<Clock size={14} className="mr-1" />
+				<span>機器人仍在審核中</span>
+			</div>
+		);
 	}
-});
+	if (status === "approved") {
+		return (
+			<div className="mt-2 flex items-center text-green-500 text-sm">
+				<CheckCircle size={14} className="mr-1" />
+				<span>機器人已通過審核</span>
+			</div>
+		);
+	}
+	return null;
+}
 
-BotStatusIndicator.displayName = "BotStatusIndicator";
-
-const FavoritesTab = memo(
-	({
-		favoriteServers,
-		favoriteBots,
-	}: {
-		favoriteServers: UserDetail["favoriteServers"];
-		favoriteBots: UserDetail["favoriteBots"];
-	}) => (
+function FavoritesTab({
+	favoriteServers,
+	favoriteBots,
+}: {
+	favoriteServers: UserDetail["favoriteServers"];
+	favoriteBots: UserDetail["favoriteBots"];
+}) {
+	return (
 		<div className="mt-6 space-y-8">
-			<FavoriteServersSection servers={favoriteServers} />
-			<FavoriteBotsSection bots={favoriteBots} />
+			<div>
+				<h2 className="mb-4 font-bold text-2xl">收藏的伺服器</h2>
+				{favoriteServers.length > 0 ? (
+					<div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+						{favoriteServers.map((server) => (
+							<FavoriteServerCard key={server.id} server={server} />
+						))}
+					</div>
+				) : (
+					<EmptyState message="沒有收藏的伺服器" />
+				)}
+			</div>
+			<div>
+				<h2 className="mb-4 font-bold text-2xl">收藏的機器人</h2>
+				{favoriteBots.length > 0 ? (
+					<div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+						{favoriteBots.map((bot) => (
+							<FavoriteBotCard key={bot.id} bot={bot} />
+						))}
+					</div>
+				) : (
+					<EmptyState message="沒有收藏的機器人" />
+				)}
+			</div>
 		</div>
-	),
-);
-
-FavoritesTab.displayName = "FavoritesTab";
-
-const FavoriteServersSection = memo(
-	({ servers }: { servers: UserDetail["favoriteServers"] }) => (
-		<div>
-			<h2 className="mb-4 font-bold text-2xl">收藏的伺服器</h2>
-			{servers.length > 0 ? (
-				<div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-					{servers.map((server) => (
-						<FavoriteServerCard key={server.id} server={server} />
-					))}
-				</div>
-			) : (
-				<EmptyState message="沒有收藏的伺服器" />
-			)}
-		</div>
-	),
-);
-
-FavoriteServersSection.displayName = "FavoriteServersSection";
-
-const FavoriteBotsSection = memo(
-	({ bots }: { bots: UserDetail["favoriteBots"] }) => (
-		<div>
-			<h2 className="mb-4 font-bold text-2xl">收藏的機器人</h2>
-			{bots.length > 0 ? (
-				<div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-					{bots.map((bot) => (
-						<FavoriteBotCard key={bot.id} bot={bot} />
-					))}
-				</div>
-			) : (
-				<EmptyState message="沒有收藏的機器人" />
-			)}
-		</div>
-	),
-);
-
-FavoriteBotsSection.displayName = "FavoriteBotsSection";
+	);
+}
 
 const FavoriteServerCard = memo(
 	({ server }: { server: UserDetail["favoriteServers"][0] }) => (
@@ -836,7 +983,6 @@ const FavoriteServerCard = memo(
 		</Link>
 	),
 );
-
 FavoriteServerCard.displayName = "FavoriteServerCard";
 
 const FavoriteBotCard = memo(
@@ -880,38 +1026,25 @@ const FavoriteBotCard = memo(
 		</Link>
 	),
 );
-
 FavoriteBotCard.displayName = "FavoriteBotCard";
 
-const SettingsTab = memo(({ user }: { user: UserDetail }) => (
-	<div className="mt-6">
-		<div className="rounded-lg bg-[#2b2d31] p-6">
-			<h2 className="mb-6 font-bold text-xl">帳號設置</h2>
-			<UserSettingsForm user={user} />
-		</div>
-	</div>
-));
-
-SettingsTab.displayName = "SettingsTab";
-
-const EmptyState = memo(
-	({
-		message,
-		actionButton,
-	}: {
-		message: string;
-		actionButton?: ReactNode;
-	}) => (
+function EmptyState({
+	message,
+	actionButton,
+}: {
+	message: string;
+	actionButton?: ReactNode;
+}) {
+	return (
 		<div className="rounded-lg bg-[#2b2d31] p-8 text-center">
 			<p className="text-gray-300">{message}</p>
 			{actionButton}
 		</div>
-	),
-);
+	);
+}
 
-EmptyState.displayName = "EmptyState";
-
-const UserHeader = memo(({ user }: { user: UserDetail }) => {
+// Header 元件無須頻繁變動，可以加上 memo
+const UserHeader = memo(({ user }: { user: UserBaseProfile }) => {
 	return (
 		<div>
 			{/* Banner */}
@@ -979,10 +1112,7 @@ const UserHeader = memo(({ user }: { user: UserDetail }) => {
 				{user.social && Object.entries(user.social).some(([, val]) => val) && (
 					<div className="mt-6 flex flex-wrap gap-4">
 						{Object.entries(user.social).map(([platform, value]) => {
-							// 這裡的 value 自動被推導為 string | null | undefined
 							if (!value) return null;
-
-							// 這裡的 platform 也因為 Object.entries 的限制，需要斷言為正確的 Key
 							const config =
 								SOCIAL_PLATFORMS[platform as keyof typeof SOCIAL_PLATFORMS];
 							if (!config) return null;
@@ -1009,36 +1139,24 @@ const UserHeader = memo(({ user }: { user: UserDetail }) => {
 		</div>
 	);
 });
-
 UserHeader.displayName = "UserHeader";
 
-const PinActionButton = memo(({ itemName }: { itemName: string }) => (
-	<Button
-		variant="outline"
-		className="h-10 w-full cursor-pointer border-[#5865f2] text-white hover:bg-[#5865f2] hover:text-[#5865f2]"
-		onClick={() =>
-			showSuccessNotification(`${itemName} 的置頂設定已保留舊版樣式`)
-		}
-	>
-		置頂設定
-	</Button>
-));
+function PinActionButton({ itemName }: { itemName: string }) {
+	return (
+		<Button
+			variant="outline"
+			className="h-10 w-full cursor-pointer border-[#5865f2] text-white hover:bg-[#5865f2] hover:text-[#5865f2]"
+			onClick={() =>
+				showSuccessNotification(`${itemName} 的置頂設定已保留舊版樣式`)
+			}
+		>
+			置頂設定
+		</Button>
+	);
+}
 
-PinActionButton.displayName = "PinActionButton";
-
-const UserSettingsForm = memo(({ user }: { user: UserDetail }) => {
+function UserSettingsForm({ user }: { user: UserSettings }) {
 	const queryClient = useQueryClient();
-	const [bio, setBio] = useState(user.bio ?? "");
-	const [website, setWebsite] = useState(user.social.website ?? "");
-	const [github, setGithub] = useState(user.social.github ?? "");
-	const [discord, setDiscord] = useState(user.social.discord ?? "");
-
-	useEffect(() => {
-		setBio(user.bio ?? "");
-		setWebsite(user.social.website ?? "");
-		setGithub(user.social.github ?? "");
-		setDiscord(user.social.discord ?? "");
-	}, [user]);
 
 	const mutation = useMutation({
 		mutationFn: (input: { bio: string; social: Record<string, string> }) =>
@@ -1052,7 +1170,6 @@ const UserSettingsForm = memo(({ user }: { user: UserDetail }) => {
 				showErrorNotification(result.error);
 				return;
 			}
-
 			showSuccessNotification(result.success ?? "已成功儲存");
 			await queryClient.invalidateQueries({
 				queryKey: queryKeys.users.detail(user.id),
@@ -1069,17 +1186,19 @@ const UserSettingsForm = memo(({ user }: { user: UserDetail }) => {
 	const handleSubmit = useCallback(
 		(event: FormEvent<HTMLFormElement>) => {
 			event.preventDefault();
-			const social = {
-				website: website.trim(),
-				github: github.trim(),
-				discord: discord.trim(),
-			};
-			mutation.mutate({
-				bio,
-				social,
-			});
+			const formData = new FormData(event.currentTarget);
+
+			// 萃取表單中所有以 social. 開頭的欄位
+			const social: Record<string, string> = {};
+			for (const key of Object.keys(SOCIAL_PLATFORMS)) {
+				social[key] = (formData.get(`social.${key}`) as string)?.trim() ?? "";
+			}
+
+			const bio = (formData.get("bio") as string)?.trim() ?? "";
+
+			mutation.mutate({ bio, social });
 		},
-		[bio, discord, github, mutation, website],
+		[mutation],
 	);
 
 	const socialEntries = Object.entries(SOCIAL_PLATFORMS);
@@ -1100,8 +1219,6 @@ const UserSettingsForm = memo(({ user }: { user: UserDetail }) => {
 							/>
 						</label>
 					</div>
-
-					<div className="space-y-2"></div>
 
 					<div className="space-y-2 md:col-span-2">
 						<label className="font-medium text-gray-300 text-sm">
@@ -1138,27 +1255,13 @@ const UserSettingsForm = memo(({ user }: { user: UserDetail }) => {
 						<Button
 							type="submit"
 							className="bg-[#5865f2] text-white hover:bg-[#4752c4]"
+							disabled={mutation.isPending}
 						>
-							保存更改
+							{mutation.isPending ? "保存中..." : "保存更改"}
 						</Button>
 					</div>
 				</div>
 			</div>
 		</form>
 	);
-});
-
-UserSettingsForm.displayName = "UserSettingsForm";
-
-const MemoizedServersTab = memo(ServersTab);
-const MemoizedBotsTab = memo(BotsTab);
-const MemoizedFavoritesTab = memo(FavoritesTab);
-
-const MemoizedSettingsContent = memo(
-	({ isOwner, user }: { isOwner: boolean; user: UserDetail }) => (
-		<>
-			<SecureAPIKeyButton isOwner={isOwner} />
-			<SettingsTab user={user} />
-		</>
-	),
-);
+}

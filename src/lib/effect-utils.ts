@@ -1,8 +1,20 @@
-import { Effect, ParseResult, Schema } from "effect";
+import { Cause, Effect, type Either, ParseResult, Schema } from "effect";
 
 export function toErrorMessage(error: unknown): string {
 	if (ParseResult.isParseError(error)) {
 		return ParseResult.TreeFormatter.formatErrorSync(error);
+	}
+
+	// 攔截並解開 Effect 拋出的 FiberFailure
+	if (
+		error !== null &&
+		typeof error === "object" &&
+		"_id" in error &&
+		error._id === "FiberFailure"
+	) {
+		// squash 會攤平 Cause，回傳最根本的錯誤物件
+		const squashed = Cause.squash((error as any).cause);
+		return squashed instanceof Error ? squashed.message : String(squashed);
 	}
 
 	if (error instanceof Error) {
@@ -18,6 +30,12 @@ export function toError(error: unknown, fallback: string): Error {
 
 export function runEffect<A, E>(effect: Effect.Effect<A, E>): Promise<A> {
 	return Effect.runPromise(effect);
+}
+
+export function runEffectSafe<A, E>(
+	effect: Effect.Effect<A, E>,
+): Promise<Either.Either<A, E>> {
+	return Effect.runPromise(Effect.either(effect));
 }
 
 export function tryEffectPromise<A>(

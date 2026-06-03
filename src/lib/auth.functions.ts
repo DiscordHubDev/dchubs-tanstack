@@ -1,7 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
-import { getRequestHeaders } from "@tanstack/react-start/server";
 import { Schema } from "effect";
-import { requireDomainUser } from "./edge-context";
+import { getEdgeContext, requireDomainUser } from "./edge-context";
 
 type SessionUserLike = {
 	id?: string;
@@ -73,46 +72,65 @@ export function withDiscordProfile(
 	};
 }
 
-export const getSession = createServerFn({ method: "GET" })
-	.inputValidator(strictValidator)
-	.handler(async () => {
-		const { getAuth } = await import("@/lib/auth");
-		const auth = await getAuth();
-		const headers = getRequestHeaders();
-		const session = await auth.api.getSession({ headers });
+export const getSession = createServerFn({ method: "GET" }).handler(
+	async () => {
+		try {
+			// 使用你的 Edge Context 獲取資料庫內的完整用戶資料
+			const { user } = await requireDomainUser();
 
-		return withDiscordProfile(session as SessionLike);
-	});
+			// 手動組裝回前端需要的 Session 結構
+			const sessionData: SessionLike = {
+				user: {
+					id: user.betterAuthId,
+					discordId: user.discordId,
+					username: user.username || "",
+					avatar:
+						user.avatar || "https://cdn.discordapp.com/embed/avatars/0.png",
+					banner: user.banner,
+					bannerColor: user.bannerColor,
+				},
+			};
 
-export const ensureSession = createServerFn({ method: "GET" })
-	.inputValidator(strictValidator)
-	.handler(async () => {
-		const { getAuth } = await import("@/lib/auth");
-		const auth = await getAuth();
-		const headers = getRequestHeaders();
-		const session = await auth.api.getSession({ headers });
-		const normalizedSession = withDiscordProfile(session as SessionLike);
+			return withDiscordProfile(sessionData);
+		} catch (error) {
+			// requireDomainUser 如果找不到 trusted context 會拋錯，這裡接住並回傳 null
+			return null;
+		}
+	},
+);
 
-		if (!normalizedSession) {
+export const ensureSession = createServerFn({ method: "GET" }).handler(
+	async () => {
+		const session = await getSession();
+		if (!session) {
 			throw new Error("Unauthorized");
 		}
+		return session;
+	},
+);
 
-		return normalizedSession;
-	});
-
-export const checkAuthServerFn = createServerFn({ method: "GET" })
-	.inputValidator(strictValidator)
-	.handler(async () => {
+// 修改 checkAuthServerFn
+export const checkAuthServerFn = createServerFn({ method: "GET" }).handler(
+	async () => {
 		try {
-			// 嘗試取得帶有真實 Discord ID 的 Domain User
-			const { user } = await requireDomainUser();
-			return { isAuthenticated: true, userId: user.discordId };
+			// 直接讀取 Edge 傳遞過來的 Context，完全不碰資料庫！
+			const context = getEdgeContext();
+
+			// 檢查 Gateway 密鑰與 UserId
+			if (!context.trusted || !context.userId) {
+				return { isAuthenticated: false, userId: null };
+			}
+
+			return {
+				isAuthenticated: true,
+				userId: context.userId, // 這裡已經是安全的 Edge User ID
+			};
 		} catch (error) {
-			// 如果 Header 沒有憑證或找不到 User，就會走到這裡
 			return {
 				isAuthenticated: false,
 				userId: null,
 				error: error instanceof Error ? error.message : "Unknown error",
 			};
 		}
-	});
+	},
+);
