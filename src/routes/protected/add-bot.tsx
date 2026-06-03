@@ -12,6 +12,8 @@ export const Route = createFileRoute("/protected/add-bot")({
 		// 這裡會透過 RPC 呼叫後端確認 Header 狀態
 		const authStatus = await checkAuthServerFn();
 
+		console.log("[Add Bot Route] Auth Status:", authStatus);
+
 		if (!authStatus.isAuthenticated || !authStatus.userId) {
 			throw redirect({
 				to: "/",

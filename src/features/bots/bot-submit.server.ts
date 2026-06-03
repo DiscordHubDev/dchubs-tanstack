@@ -13,7 +13,8 @@ import {
 	SubmitBotFailed,
 } from "#/errors/bot-errors";
 import { fetchJsonEffect, runEffect, toErrorMessage } from "#/lib/effect-utils";
-import type { BotInfo, DiscordBotRPCInfo } from "#/lib/types";
+import type { BotInfo } from "#/lib/types";
+import { fetchBotRpcEffect } from "#/utils/fetch-rpc";
 import { sendDiscordWebhookEffect } from "../admin/webhook.server";
 import { sendNotificationEffect } from "../notifications/notifications.server";
 import type {
@@ -24,6 +25,7 @@ import type {
 } from "./bot-submit.schemas";
 import type {
 	DeleteBotImageResult,
+	DiscordBotRPCInfo,
 	SendPendingWebhookResult,
 	SubmitBotErrorPayload,
 	SubmitBotResult,
@@ -147,26 +149,6 @@ function parseClientId(inviteUrl: string) {
 			return clientId;
 		},
 		catch: () => new InvalidInviteUrl({ url: inviteUrl }),
-	});
-}
-
-function fetchBotRpcEffect(
-	botId: string,
-): Effect.Effect<DiscordBotRPCInfo, SubmitBotFailed> {
-	return Effect.gen(function* () {
-		// 直接 yield* fetchJsonEffect，它已經處理好狀態碼檢查與 JSON 解析
-		const payload = yield* fetchJsonEffect(
-			`https://dgsbotapi.vercel.app/v181cm/application/${botId}`,
-		).pipe(
-			Effect.mapError(
-				(error) =>
-					new SubmitBotFailed({
-						message: `Discord RPC 請求或解析失敗：${toErrorMessage(error)}`,
-					}),
-			),
-		);
-
-		return payload as DiscordBotRPCInfo;
 	});
 }
 

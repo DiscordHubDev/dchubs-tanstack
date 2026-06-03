@@ -25,6 +25,9 @@ import { Route as ServersServerIdPublishRouteImport } from './routes/servers/$se
 import { Route as ApiSitemapStaticRouteImport } from './routes/api/sitemap/static'
 import { Route as ApiSitemapServersRouteImport } from './routes/api/sitemap/servers'
 import { Route as ApiSitemapBotsRouteImport } from './routes/api/sitemap/bots'
+import { Route as ApiCronUpdateServersRouteImport } from './routes/api/cron/update-servers'
+import { Route as ApiCronUpdateBotsRouteImport } from './routes/api/cron/update-bots'
+import { Route as ApiCronCheckServerRouteImport } from './routes/api/cron/check-server'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as ProtectedBotsBotIdEditRouteImport } from './routes/protected/bots/$botId.edit'
 
@@ -108,6 +111,21 @@ const ApiSitemapBotsRoute = ApiSitemapBotsRouteImport.update({
   path: '/api/sitemap/bots',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiCronUpdateServersRoute = ApiCronUpdateServersRouteImport.update({
+  id: '/api/cron/update-servers',
+  path: '/api/cron/update-servers',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiCronUpdateBotsRoute = ApiCronUpdateBotsRouteImport.update({
+  id: '/api/cron/update-bots',
+  path: '/api/cron/update-bots',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiCronCheckServerRoute = ApiCronCheckServerRouteImport.update({
+  id: '/api/cron/check-server',
+  path: '/api/cron/check-server',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
   path: '/api/auth/$',
@@ -132,6 +150,9 @@ export interface FileRoutesByFullPath {
   '/users/$userId': typeof UsersUserIdRoute
   '/bots/': typeof BotsIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/cron/check-server': typeof ApiCronCheckServerRoute
+  '/api/cron/update-bots': typeof ApiCronUpdateBotsRoute
+  '/api/cron/update-servers': typeof ApiCronUpdateServersRoute
   '/api/sitemap/bots': typeof ApiSitemapBotsRoute
   '/api/sitemap/servers': typeof ApiSitemapServersRoute
   '/api/sitemap/static': typeof ApiSitemapStaticRoute
@@ -151,6 +172,9 @@ export interface FileRoutesByTo {
   '/users/$userId': typeof UsersUserIdRoute
   '/bots': typeof BotsIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/cron/check-server': typeof ApiCronCheckServerRoute
+  '/api/cron/update-bots': typeof ApiCronUpdateBotsRoute
+  '/api/cron/update-servers': typeof ApiCronUpdateServersRoute
   '/api/sitemap/bots': typeof ApiSitemapBotsRoute
   '/api/sitemap/servers': typeof ApiSitemapServersRoute
   '/api/sitemap/static': typeof ApiSitemapStaticRoute
@@ -172,6 +196,9 @@ export interface FileRoutesById {
   '/users/$userId': typeof UsersUserIdRoute
   '/bots/': typeof BotsIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/cron/check-server': typeof ApiCronCheckServerRoute
+  '/api/cron/update-bots': typeof ApiCronUpdateBotsRoute
+  '/api/cron/update-servers': typeof ApiCronUpdateServersRoute
   '/api/sitemap/bots': typeof ApiSitemapBotsRoute
   '/api/sitemap/servers': typeof ApiSitemapServersRoute
   '/api/sitemap/static': typeof ApiSitemapStaticRoute
@@ -194,6 +221,9 @@ export interface FileRouteTypes {
     | '/users/$userId'
     | '/bots/'
     | '/api/auth/$'
+    | '/api/cron/check-server'
+    | '/api/cron/update-bots'
+    | '/api/cron/update-servers'
     | '/api/sitemap/bots'
     | '/api/sitemap/servers'
     | '/api/sitemap/static'
@@ -213,6 +243,9 @@ export interface FileRouteTypes {
     | '/users/$userId'
     | '/bots'
     | '/api/auth/$'
+    | '/api/cron/check-server'
+    | '/api/cron/update-bots'
+    | '/api/cron/update-servers'
     | '/api/sitemap/bots'
     | '/api/sitemap/servers'
     | '/api/sitemap/static'
@@ -233,6 +266,9 @@ export interface FileRouteTypes {
     | '/users/$userId'
     | '/bots/'
     | '/api/auth/$'
+    | '/api/cron/check-server'
+    | '/api/cron/update-bots'
+    | '/api/cron/update-servers'
     | '/api/sitemap/bots'
     | '/api/sitemap/servers'
     | '/api/sitemap/static'
@@ -254,6 +290,9 @@ export interface RootRouteChildren {
   UsersUserIdRoute: typeof UsersUserIdRoute
   BotsIndexRoute: typeof BotsIndexRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
+  ApiCronCheckServerRoute: typeof ApiCronCheckServerRoute
+  ApiCronUpdateBotsRoute: typeof ApiCronUpdateBotsRoute
+  ApiCronUpdateServersRoute: typeof ApiCronUpdateServersRoute
   ApiSitemapBotsRoute: typeof ApiSitemapBotsRoute
   ApiSitemapServersRoute: typeof ApiSitemapServersRoute
   ApiSitemapStaticRoute: typeof ApiSitemapStaticRoute
@@ -374,6 +413,27 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiSitemapBotsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/cron/update-servers': {
+      id: '/api/cron/update-servers'
+      path: '/api/cron/update-servers'
+      fullPath: '/api/cron/update-servers'
+      preLoaderRoute: typeof ApiCronUpdateServersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/cron/update-bots': {
+      id: '/api/cron/update-bots'
+      path: '/api/cron/update-bots'
+      fullPath: '/api/cron/update-bots'
+      preLoaderRoute: typeof ApiCronUpdateBotsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/cron/check-server': {
+      id: '/api/cron/check-server'
+      path: '/api/cron/check-server'
+      fullPath: '/api/cron/check-server'
+      preLoaderRoute: typeof ApiCronCheckServerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/auth/$': {
       id: '/api/auth/$'
       path: '/api/auth/$'
@@ -417,6 +477,9 @@ const rootRouteChildren: RootRouteChildren = {
   UsersUserIdRoute: UsersUserIdRoute,
   BotsIndexRoute: BotsIndexRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
+  ApiCronCheckServerRoute: ApiCronCheckServerRoute,
+  ApiCronUpdateBotsRoute: ApiCronUpdateBotsRoute,
+  ApiCronUpdateServersRoute: ApiCronUpdateServersRoute,
   ApiSitemapBotsRoute: ApiSitemapBotsRoute,
   ApiSitemapServersRoute: ApiSitemapServersRoute,
   ApiSitemapStaticRoute: ApiSitemapStaticRoute,

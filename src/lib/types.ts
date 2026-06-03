@@ -42,31 +42,6 @@ export type Mail = {
 export type EmailPriority = "success" | "info" | "warning" | "danger";
 
 // types/discord.ts
-export type DiscordBotRPCInfo = {
-	id: string;
-	name: string;
-	icon: string | null;
-	description: string;
-	summary: string;
-	type: null;
-	is_monetized: boolean;
-	is_verified: boolean;
-	is_discoverable: boolean;
-	hook: boolean;
-	guild_id: string;
-	storefront_available: boolean;
-	bot_public: boolean;
-	bot_require_code_grant: boolean;
-	terms_of_service_url: string | null;
-	privacy_policy_url: string | null;
-	install_params?: {
-		scopes: string[];
-		permissions: string;
-	};
-	verify_key: string;
-	flags: number;
-	tags: string[];
-};
 
 export type BotInfo = {
 	username: string;

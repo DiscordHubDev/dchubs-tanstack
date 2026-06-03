@@ -50,3 +50,31 @@ export type DeleteBotImageInput = Schema.Schema.Type<
 export type SendPendingWebhookInput = Schema.Schema.Type<
 	typeof SendPendingWebhookSchema
 >;
+
+export const DiscordBotRPCInfoSchema = Schema.Struct({
+	id: Schema.String,
+	name: Schema.String,
+	icon: Schema.NullOr(Schema.String),
+	description: Schema.String,
+	summary: Schema.String,
+	type: Schema.Null,
+	is_monetized: Schema.Boolean,
+	is_verified: Schema.Boolean,
+	is_discoverable: Schema.Boolean,
+	hook: Schema.Boolean,
+	guild_id: Schema.String,
+	storefront_available: Schema.Boolean,
+	bot_public: Schema.Boolean,
+	bot_require_code_grant: Schema.Boolean,
+	terms_of_service_url: Schema.NullOr(Schema.String),
+	privacy_policy_url: Schema.NullOr(Schema.String),
+	install_params: Schema.optional(
+		Schema.Struct({
+			scopes: Schema.Array(Schema.String),
+			permissions: Schema.String,
+		}),
+	),
+	verify_key: Schema.String,
+	flags: Schema.Number,
+	tags: Schema.Array(Schema.String),
+});

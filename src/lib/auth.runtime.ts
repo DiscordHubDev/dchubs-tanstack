@@ -72,6 +72,7 @@ export async function createAuth() {
 			"http://localhost:3000",
 			"http://127.0.0.1:12000",
 			"https://beta.dchubs.org",
+			"http://localhost:8787",
 		],
 
 		trustProxy: true,

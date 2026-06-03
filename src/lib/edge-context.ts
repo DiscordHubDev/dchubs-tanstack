@@ -29,10 +29,7 @@ export function getEdgeContext() {
 export async function getDomainUser(edgeUserId: string) {
 	if (!edgeUserId) return null;
 
-	// 1. 判斷是否為本地開發的 Discord ID（Discord ID 全由數字組成）
 	const isDiscordId = /^\d+$/.test(edgeUserId);
-
-	// 2. 動態決定 where 條件
 	const queryCondition = isDiscordId
 		? eq(schema.authUser.discordId, edgeUserId)
 		: eq(schema.authUser.id, edgeUserId);
@@ -41,39 +38,78 @@ export async function getDomainUser(edgeUserId: string) {
 		.select({
 			betterAuthId: schema.authUser.id,
 			discordId: schema.authUser.discordId,
-			username: schema.user.username,
-			avatar: schema.user.avatar,
-			banner: schema.user.banner,
-			bannerColor: schema.user.bannerColor,
+
+			// 🚀 讀取 Better Auth 表擴充的欄位（新用戶的來源）
+			authUsername: schema.authUser.username,
+			authAvatar: schema.authUser.avatar,
+			authName: schema.authUser.name, // Better Auth 預設的 Discord 名字快照
+			authImage: schema.authUser.image, // Better Auth 預設的 Discord 大頭貼快照
+			authBanner: schema.authUser.banner, // Better Auth 預設的 Discord 大頭貼快照
+			authBannerColor: schema.authUser.bannerColor, // Better Auth 預設的 Discord 大頭貼快照
+
+			// 🚀 讀取舊 User 表的欄位（老用戶的來源）
+			legacyUsername: schema.user.username,
+			legacyAvatar: schema.user.avatar,
+			legacyBanner: schema.user.banner,
+			legacyBannerColor: schema.user.bannerColor,
 		})
 		.from(schema.authUser)
-		// 修正：用 authUser 的 userId 去對接 user 的 id
-		.innerJoin(schema.user, eq(schema.authUser.id, schema.user.id))
+		.leftJoin(schema.user, eq(schema.authUser.discordId, schema.user.id))
 		.where(queryCondition)
 		.limit(1);
 
-	return result[0] ?? null;
+	const userRow = result[0] ?? null;
+
+	if (!userRow) return null;
+
+	// ✨ 判定：如果舊 User 表完全沒有這個人的資料 -> 代表是全新用戶
+	if (!userRow.legacyUsername && userRow.discordId) {
+		console.log(
+			`💡 全新用戶 (Discord: ${userRow.discordId})，正在自動初始化舊 User 表...`,
+		);
+
+		await db.insert(schema.user).values({
+			id: userRow.discordId,
+			username: userRow.authUsername ?? userRow.authName ?? "Unknown User",
+			avatar:
+				userRow.authAvatar ??
+				userRow.authImage ??
+				"https://cdn.discordapp.com/embed/avatars/0.png",
+			banner: userRow.authBanner,
+			bannerColor: userRow.authBannerColor,
+			joinedAt: new Date().toISOString(),
+		});
+
+		return getDomainUser(edgeUserId);
+	}
+
+	return {
+		betterAuthId: userRow.betterAuthId,
+		discordId: userRow.discordId,
+		username:
+			userRow.legacyUsername ?? userRow.authUsername ?? userRow.authName,
+		avatar: userRow.legacyAvatar ?? userRow.authAvatar ?? userRow.authImage,
+		banner: userRow.legacyBanner,
+		bannerColor: userRow.legacyBannerColor,
+	};
 }
 
 export async function requireDomainUser() {
 	const context = getEdgeContext();
 
-	if (!context.trusted) {
-		throw new Error("No trusted context");
-	}
+	if (!context.trusted) throw new Error("No trusted context");
+	if (!context.userId) throw new Error("No user ID in context");
 
-	if (!context.userId) {
-		throw new Error("No user ID in context");
-	}
-
-	// if (!context.trusted || !context.userId) {
-	// 	throw new Error("Unauthorized");
-	// }
+	// 💡 新增這行來檢查
+	console.log(
+		"🔍 [requireDomainUser] Looking up DB for userId:",
+		context.userId,
+	);
 
 	const user = await getDomainUser(context.userId);
+
 	if (!user) {
 		throw new Error("User profile not found");
-		// 💡 備註：你也可以改成 throw new Error("User profile not found") 以便前端區分錯誤類型
 	}
 
 	return { context, user };

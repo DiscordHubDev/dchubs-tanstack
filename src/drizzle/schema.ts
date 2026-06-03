@@ -589,7 +589,7 @@ export const server = pgTable(
 		createdAt: timestamp({ precision: 3, mode: "string" })
 			.default(sql`CURRENT_TIMESTAMP`)
 			.notNull(),
-		ownerId: text(),
+		ownerId: text().notNull(),
 		website: text(),
 		inviteUrl: text(),
 		rules: text().array(),

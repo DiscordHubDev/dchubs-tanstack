@@ -1,4 +1,6 @@
+import type { Schema } from "effect";
 import type { Screenshot } from "#/lib/types";
+import type { DiscordBotRPCInfoSchema } from "./bot-submit.schemas";
 
 export type SubmitBotErrorPayload = {
 	tag: string;
@@ -24,3 +26,7 @@ export type DeleteBotImageResult =
 export type SendPendingWebhookResult =
 	| { success: true }
 	| { success: false; error: SubmitBotErrorPayload };
+
+export type DiscordBotRPCInfo = Schema.Schema.Type<
+	typeof DiscordBotRPCInfoSchema
+>;
