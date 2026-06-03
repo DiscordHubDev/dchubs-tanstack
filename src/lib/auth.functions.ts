@@ -24,7 +24,7 @@ export type NormalizedDiscordProfile = {
 	banner_color: string | null;
 };
 
-type SessionLike = {
+export type SessionLike = {
 	user?: SessionUserLike | null;
 	discordProfile?: Partial<NormalizedDiscordProfile> | null;
 	error?: string | null;
@@ -40,12 +40,16 @@ const strictValidator = (input: any) => {
 	return {};
 };
 
-function withDiscordProfile(session: null): null;
-function withDiscordProfile(
+export function withDiscordProfile(session: null): null;
+export function withDiscordProfile(
 	session: NonNullable<SessionLike>,
 ): NormalizedSession;
-function withDiscordProfile(session: SessionLike): NormalizedSession | null;
-function withDiscordProfile(session: SessionLike): NormalizedSession | null {
+export function withDiscordProfile(
+	session: SessionLike,
+): NormalizedSession | null;
+export function withDiscordProfile(
+	session: SessionLike,
+): NormalizedSession | null {
 	if (!session) return null;
 
 	if (session.discordProfile?.id) return session as NormalizedSession;

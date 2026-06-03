@@ -74,7 +74,7 @@ export const authUser = pgTable(
 		email: text().notNull(),
 		emailVerified: boolean().default(false).notNull(),
 		image: text(),
-		discordId: text(),
+		discordId: text("discordId").notNull(), // 保持必填
 		username: text(),
 		avatar: text(),
 		banner: text(),
@@ -85,18 +85,8 @@ export const authUser = pgTable(
 		updatedAt: timestamp({ precision: 3, mode: "string" }).notNull(),
 	},
 	(table) => [
-		index("auth_user_discordId_idx").using(
-			"btree",
-			table.discordId.asc().nullsLast().op("text_ops"),
-		),
-		uniqueIndex("auth_user_discordId_key").using(
-			"btree",
-			table.discordId.asc().nullsLast().op("text_ops"),
-		),
-		uniqueIndex("auth_user_email_key").using(
-			"btree",
-			table.email.asc().nullsLast().op("text_ops"),
-		),
+		uniqueIndex("auth_user_discordId_key").on(table.discordId),
+		uniqueIndex("auth_user_email_key").on(table.email),
 	],
 );
 

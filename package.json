@@ -70,7 +70,6 @@
     "zod": "4"
   },
   "devDependencies": {
-    "react-security-scanner": "^1.0.0",
     "@biomejs/biome": "2.4.5",
     "@cloudflare/vite-plugin": "^1.31.2",
     "@rolldown/plugin-babel": "^0.2.3",
@@ -90,10 +89,12 @@
     "lightningcss": "^1.32.0",
     "pg": "^8.21.0",
     "react-compiler-runtime": "^1.0.0",
+    "react-security-scanner": "^1.0.0",
     "rollup-plugin-visualizer": "^7.0.1",
     "tsx": "^4.21.0",
     "typescript": "^5.7.2",
     "vite": "^8.0.0",
+    "vite-plugin-inspect": "^11.4.1",
     "vitest": "^3.0.5",
     "wrangler": "^4.81.1"
   }

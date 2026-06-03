@@ -27,3 +27,5 @@ export const HomeSearchSchema = Schema.Struct({
 });
 
 export type HomeSearch = Schema.Schema.Type<typeof HomeSearchSchema>;
+
+export const serversListInputSchema = ServerListInputSchema;

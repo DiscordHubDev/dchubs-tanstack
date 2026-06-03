@@ -140,9 +140,23 @@ function validateSearch(search: Record<string, unknown>): ServerDetailSearch {
 	return tab ? { tab } : {};
 }
 
-export const Route = createFileRoute("/servers/$serverId")({
+export const Route = createFileRoute("/servers/$serverId/")({
 	validateSearch,
-	head: ({ loaderData, params }) => {
+	head: ({ loaderData, params, match }) => {
+		if (match.pathname.endsWith("/publish")) {
+			const publishTitle = "發布伺服器 | DiscordHubs";
+			const publishCanonical = new URL(match.pathname, siteUrl).toString();
+
+			return {
+				meta: [
+					{ title: publishTitle },
+					{ property: "og:title", content: publishTitle },
+					{ property: "og:url", content: publishCanonical },
+				],
+				links: [{ rel: "canonical", href: publishCanonical }],
+			};
+		}
+
 		const detail =
 			(loaderData as { detail: ServerDetail | null } | undefined)?.detail ??
 			null;

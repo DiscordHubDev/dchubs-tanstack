@@ -2,6 +2,10 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
 import BotForm from "#/components/form/BotForm";
 import { checkAuthServerFn } from "#/lib/auth.functions";
 
+const siteUrl =
+	(typeof process !== "undefined" ? process.env.BETTER_AUTH_URL : undefined) ||
+	"https://dchubs.org";
+
 export const Route = createFileRoute("/protected/add-bot")({
 	preload: false,
 	beforeLoad: async ({ location }) => {
@@ -9,12 +13,20 @@ export const Route = createFileRoute("/protected/add-bot")({
 		const authStatus = await checkAuthServerFn();
 
 		if (!authStatus.isAuthenticated || !authStatus.userId) {
-			// 雙重保險：Client 端跳轉時發現沒登入，強制導向登入頁
 			throw redirect({
-				to: "/", // 或 "/login"
+				to: "/",
 				search: { redirect: location.href },
 			});
 		}
+	},
+	head: ({ match }) => {
+		const publishTitle = "發布機器人 | DiscordHubs";
+		const publishCanonical = new URL(match.pathname, siteUrl).toString();
+
+		return {
+			meta: [{ title: publishTitle }],
+			links: [{ rel: "canonical", href: publishCanonical }],
+		};
 	},
 	component: RouteComponent,
 });

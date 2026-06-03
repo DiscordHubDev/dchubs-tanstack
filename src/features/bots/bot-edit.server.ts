@@ -1,8 +1,7 @@
-import { and, asc, eq } from "drizzle-orm";
+import { and, asc, eq, sql } from "drizzle-orm";
 import { Data, Effect } from "effect";
 import { db } from "#/drizzle/db";
 import { bot, botCommand, botDevelopers, user } from "#/drizzle/schema";
-import { getSessionUserIdEffect } from "#/lib/edge-context";
 import { runEffect, toErrorMessage } from "#/lib/effect-utils";
 import type { BotEditDefaults, BotEditResult } from "./bot-edit.types";
 
@@ -51,46 +50,50 @@ function isDeveloperEffect(
 
 function getBotEditBundleEffect(
 	botId: string,
+	userId: string,
 ): Effect.Effect<BotEditResult, BotEditFailed> {
 	return Effect.gen(function* () {
-		const userId = yield* Effect.catchAll(getSessionUserIdEffect(), () =>
-			Effect.succeed(null),
-		);
-		if (!userId) {
-			return { status: "forbidden" };
-		}
-
-		const isDeveloper = yield* isDeveloperEffect(botId, userId);
-		if (!isDeveloper) {
-			return { status: "forbidden" };
-		}
-
 		const botRows = yield* dbEffect("Failed to load bot", () =>
 			db
 				.select({
-					name: bot.name,
-					description: bot.description,
-					longDescription: bot.longDescription,
-					prefix: bot.prefix,
-					inviteUrl: bot.inviteUrl,
-					website: bot.website,
-					supportServer: bot.supportServer,
-					tags: bot.tags,
-					screenshots: bot.screenshots,
-					banner: bot.banner,
-					secret: bot.secret,
-					voteNotificationUrl: bot.voteNotificationUrl,
+					bot: {
+						name: bot.name,
+						description: bot.description,
+						longDescription: bot.longDescription,
+						prefix: bot.prefix,
+						inviteUrl: bot.inviteUrl,
+						website: bot.website,
+						supportServer: bot.supportServer,
+						tags: bot.tags,
+						screenshots: bot.screenshots,
+						banner: bot.banner,
+						secret: bot.secret,
+						voteNotificationUrl: bot.voteNotificationUrl,
+					},
+					hasAccess: sql<boolean>`count(${botDevelopers.b}) FILTER (WHERE ${botDevelopers.b} = ${userId}) > 0`,
 				})
 				.from(bot)
+				.leftJoin(botDevelopers, eq(bot.id, botDevelopers.a))
 				.where(eq(bot.id, botId))
+				.groupBy(bot.id)
 				.limit(1),
 		);
 
-		const currentBot = botRows[0];
-		if (!currentBot) {
+		const row = botRows[0];
+
+		// 安全防線一：先判斷東西在不在，杜絕 IDOR 探測
+		if (!row) {
 			return { status: "not_found" };
 		}
 
+		// 安全防線二：東西在，但你不是開發者
+		if (!row.hasAccess) {
+			return { status: "forbidden" };
+		}
+
+		const currentBot = row.bot;
+
+		// 2. 這裡保持你原本優秀的 Effect.all 並行查詢（載入剩餘的關聯資料）
 		const [commandRows, developerRows] = yield* Effect.all([
 			dbEffect("Failed to load bot commands", () =>
 				db
@@ -117,6 +120,7 @@ function getBotEditBundleEffect(
 			),
 		]);
 
+		// 3. 資料組合邏輯（維持原樣）
 		const defaults: BotEditDefaults = {
 			botName: currentBot.name,
 			botPrefix: normalizeOptionalString(currentBot.prefix),
@@ -125,14 +129,12 @@ function getBotEditBundleEffect(
 			botInvite: normalizeOptionalString(currentBot.inviteUrl),
 			botWebsite: normalizeOptionalString(currentBot.website),
 			botSupport: normalizeOptionalString(currentBot.supportServer),
-			developers: developerRows.map((developer) => ({
-				name: developer.username,
-			})),
-			commands: commandRows.map((command) => ({
-				name: command.name,
-				description: command.description,
-				usage: command.usage,
-				category: command.category ?? "",
+			developers: developerRows.map((dev) => ({ name: dev.username })),
+			commands: commandRows.map((cmd) => ({
+				name: cmd.name,
+				description: cmd.description,
+				usage: cmd.usage,
+				category: cmd.category ?? "",
 			})),
 			tags: normalizeList(currentBot.tags),
 			secret: normalizeOptionalString(currentBot.secret),
@@ -143,14 +145,14 @@ function getBotEditBundleEffect(
 
 		return {
 			status: "ok",
-			bundle: {
-				botId,
-				defaults,
-			},
+			bundle: { botId, defaults },
 		};
 	});
 }
 
-export function getBotEditBundleById(botId: string): Promise<BotEditResult> {
-	return runEffect(getBotEditBundleEffect(botId));
+export function getBotEditBundleById(
+	botId: string,
+	userId: string,
+): Promise<BotEditResult> {
+	return runEffect(getBotEditBundleEffect(botId, userId));
 }

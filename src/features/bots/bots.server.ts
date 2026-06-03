@@ -128,9 +128,9 @@ function getListOrderBy(category: BotCategory) {
 
 function listBotsPageEffect(
 	input: BotListQueryInput,
+	userId: string | null,
 ): Effect.Effect<BotListQueryResult, Error> {
 	return Effect.gen(function* () {
-		const userId = yield* getSessionUserIdEffect();
 		const favoriteIds = yield* getFavoriteIdsEffect(userId);
 
 		const whereClause = getListWhere(input.category);
@@ -186,9 +186,10 @@ function listBotsPageEffect(
 	});
 }
 
-function listBotFilterBundleEffect(): Effect.Effect<BotFilterBundle, Error> {
+function listBotFilterBundleEffect(
+	userId: string | null,
+): Effect.Effect<BotFilterBundle, Error> {
 	return Effect.gen(function* () {
-		const userId = yield* getSessionUserIdEffect();
 		const favoriteIds = yield* getFavoriteIdsEffect(userId);
 
 		const rows = yield* tryEffectPromise("Failed to load all bots", () =>
@@ -253,12 +254,15 @@ function listBotFilterBundleEffect(): Effect.Effect<BotFilterBundle, Error> {
 
 export async function listBotsPage(
 	input: BotListQueryInput,
+	userId: string | null,
 ): Promise<BotListQueryResult> {
-	return runEffect(listBotsPageEffect(input));
+	return runEffect(listBotsPageEffect(input, userId));
 }
 
-export async function listBotFilterBundle(): Promise<BotFilterBundle> {
-	return runEffect(listBotFilterBundleEffect());
+export async function listBotFilterBundle(
+	userId: string | null,
+): Promise<BotFilterBundle> {
+	return runEffect(listBotFilterBundleEffect(userId));
 }
 
 export function isDeveloperEffect(botId: string, discordId: string) {

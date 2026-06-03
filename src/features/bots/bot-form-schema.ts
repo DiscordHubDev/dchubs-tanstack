@@ -10,7 +10,7 @@ export const BotDescriptionSchema = Schema.String.pipe(
 );
 export const BotLongDescriptionSchema = NonEmptyString;
 export const BotInviteSchema = Schema.String.pipe(
-	Schema.pattern(/discord\.com\/oauth2\/authorize/),
+	Schema.pattern(/discord\.com\/(api\/)?oauth2\/authorize/),
 );
 export const BotWebsiteSchema = Schema.optional(Schema.String);
 export const BotSupportSchema = Schema.optional(Schema.String);

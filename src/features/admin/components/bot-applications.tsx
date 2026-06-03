@@ -27,11 +27,7 @@ import { useBotApplications } from "#/hooks/use-bot-applications";
 import { useDialog } from "#/hooks/use-dialog";
 import { showErrorAlert } from "#/lib/error-alert";
 import type { Bot as BotType } from "@/types/admin";
-import {
-	sendNotification,
-	updateBotServerCountBackgroundFn,
-} from "../admin.functions";
-import { sendDiscordWebhook } from "../webhook.functions";
+import { sendNotification } from "../admin.functions";
 import RejectBotDialog from "./reject-bot-dialog";
 
 // ── Constants ──────────────────────────────────────────────
@@ -369,53 +365,23 @@ export default function BotApplications({
 
 	const handleApprove = useCallback(
 		async (app: BotType) => {
-			const ok = await review(app.id, "approved");
-			if (!ok) return;
-
-			// Fire-and-forget background tasks
-			void Promise.all(
-				app.developers.map((dev) =>
-					sendNotification({
-						subject: "您的機器人申請已通過 ✅",
-						teaser: `${app.name} 已通過審核`,
-						content: `您好！機器人「${app.name}」已核准上架，感謝耐心等待。`,
-						priority: "success",
-						userIds: [dev.id],
-					}),
-				),
-			).catch(() => {});
-			void sendDiscordWebhook({
-				data: {
-					_tag: "approvedBot",
-					bot: {
-						id: app.id,
-						name: app.name,
-						prefix: app.prefix,
-						description: app.description,
-						developers: app.developers,
-						inviteUrl: app.inviteUrl,
-						tags: app.tags,
-						icon: app.icon,
-						banner: app.banner,
-					},
-				},
-			}).catch((error) => {
-				console.error("[Webhook 背景發送失敗] approvedBot:", error);
+			await review({
+				id: app.id,
+				status: "approved",
 			});
-			void updateBotServerCountBackgroundFn({ data: { botId: app.id } }).catch(
-				(error) => {
-					console.error("[背景更新伺服器數量失敗] approvedBot:", error);
-				},
-			);
 		},
 		[review],
 	);
 
 	const handleReject = useCallback(
-		async (id: string, reason: string) => {
+		async (reason: string) => {
 			const app = rejectDialog.item;
 			if (!app) return;
-			const ok = await review(id, "rejected", reason);
+			const ok = await review({
+				id: app.id,
+				status: "rejected",
+				reason: reason,
+			});
 			if (!ok) return;
 			rejectDialog.close();
 

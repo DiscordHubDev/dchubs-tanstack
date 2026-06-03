@@ -23,12 +23,13 @@ import {
 	SidebarTrigger,
 	useSidebar,
 } from "../ui/sidebar";
-import { NavItem } from "./nav-item"; // 💡 確保引入 NavItem
+import { NavItem } from "./nav-item";
 import { NavMain } from "./nav-main";
 import { NavSecondary } from "./nav-secondary";
 import { NavUser } from "./nav-user";
 
-const ADMIN_ID = ["857502876108193812", "549056425943629825"];
+const adminEnv = process.env.VITE_ADMIN_IDS || "";
+const ADMIN_ID = adminEnv ? adminEnv.split(",").map((id) => id.trim()) : [];
 
 const data = {
 	navMain: [
@@ -90,7 +91,7 @@ const data = {
 			title: "管理員頁面",
 			url: "/admin",
 			icon: ShieldPlus,
-			onlyFor: ADMIN_ID,
+			onlyFor: ADMIN_ID, // 💡 綁定管理員 ID 陣列
 		},
 	],
 };
@@ -120,7 +121,6 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 		if (isMobile) setOpenMobile(true);
 	}, [isMobile, setOpenMobile]);
 
-	// 💡 按鈕資料在這裡
 	const navItem = [
 		{
 			title: "返回首頁",
@@ -168,19 +168,28 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 					id: undefined,
 				};
 
+	// 💡 取得精確的 Discord ID，避免與資料庫 UUID 混淆
+	const currentDiscordId =
+		session?.user?.discordId ?? session?.discordProfile?.id;
+
+	// 💡 核心邏輯：過濾 NavSecondary
 	const filterednavSecondary = data.navSecondary.filter((item) => {
+		// 如果沒有設定 onlyFor，代表所有人皆可見
 		if (!item.onlyFor) return true;
-		return !!user?.id && item.onlyFor.includes(user.id);
+		// 如果有設定 onlyFor，需確認使用者「已登入」且「ID 在名單內」
+		return (
+			status === "authenticated" &&
+			!!currentDiscordId &&
+			item.onlyFor.includes(currentDiscordId)
+		);
 	});
 
-	// 💡 移除外層 div，直接回傳 Sidebar 以確保 Provider 能正常計算寬度縮放
 	return (
 		<Sidebar collapsible="icon" {...props}>
 			<SidebarHeader>
 				<SidebarTrigger className="ml-0.5" />
 			</SidebarHeader>
 			<SidebarContent>
-				{/* 💡 確保有在此處渲染 NavItem */}
 				<NavItem items={navItem} />
 				<Separator className="h-0.5 bg-muted-foreground/30" />
 				<NavMain items={data.navMain} />

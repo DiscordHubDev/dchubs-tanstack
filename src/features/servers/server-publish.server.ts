@@ -238,54 +238,60 @@ function isCloudinaryNotFoundError(error: unknown): boolean {
 	return details.message.toLowerCase().includes("not found");
 }
 
-function getAccessibleGuildEffect(serverId: string): Effect.Effect<
-	{
-		userId: string;
-		guild: DiscordGuild;
-	},
-	Error
-> {
+function getAccessibleGuildEffect(
+	serverId: string,
+): Effect.Effect<{ userId: string; guild: DiscordGuild }, Error> {
 	return Effect.gen(function* () {
-		const userId = yield* getSessionUserIdEffect();
-		const [userAccessToken, botToken] = yield* Effect.all([
-			getDiscordAccessTokenEffect(userId),
-			getBotTokenEffect(),
-		]);
+		const userId = yield* getSessionUserIdEffect(); // 記得底層要加 React.cache
+		const userAccessToken = yield* getDiscordAccessTokenEffect(userId);
 
-		const [userGuilds, botGuilds] = yield* Effect.all([
-			tryEffectPromise("Failed to fetch user guilds", () =>
+		// 1. 只抓取「使用者」的伺服器列表 (通常數量少，且必須抓來驗證管理員權限)
+		const userGuilds = yield* tryEffectPromise(
+			"Failed to fetch user guilds",
+			() =>
 				fetchDiscordGuilds({
 					token: userAccessToken,
 					tokenType: "Bearer",
 				}),
-			),
-			tryEffectPromise("Failed to fetch bot guilds", () =>
-				fetchDiscordGuilds({
-					token: botToken,
-					tokenType: "Bot",
-				}),
-			),
-		]);
-
-		const botGuildIds = new Set(botGuilds.map((guild) => guild.id));
-		const guild = userGuilds.find(
-			(item) => item.id === serverId && botGuildIds.has(item.id),
 		);
 
+		// 2. 先確認使用者有沒有這個伺服器
+		const guild = userGuilds.find((item) => item.id === serverId);
 		if (!guild) {
-			return yield* Effect.fail(
-				new Error("你沒有權限發布這個伺服器，或機器人尚未加入該伺服器"),
-			);
+			return yield* Effect.fail(new Error("你在 Discord 中沒有找到這個伺服器"));
 		}
 
 		if (!hasGuildManagePermission(guild)) {
 			return yield* Effect.fail(new Error("你需要該伺服器的管理權限才能發布"));
 		}
 
-		return {
-			userId,
-			guild,
-		};
+		// 3. 【優化核心】單點確認機器人是否在該伺服器
+		// 不要 fetchDiscordGuilds 抓全部，直接寫一個 Effect 去單查指定的 Server
+		const botToken = yield* getBotTokenEffect();
+		const isBotInGuild = yield* checkBotInGuildEffect(serverId, botToken);
+
+		if (!isBotInGuild) {
+			return yield* Effect.fail(new Error("機器人尚未加入該伺服器"));
+		}
+
+		return { userId, guild };
+	});
+}
+
+function checkBotInGuildEffect(serverId: string, botToken: string) {
+	return Effect.tryPromise({
+		try: async () => {
+			const res = await fetch(
+				`https://discord.com/api/v10/guilds/${serverId}`,
+				{
+					method: "GET",
+					headers: { Authorization: `Bot ${botToken}` },
+				},
+			);
+			// 只要不是 401/403/404，通常就代表機器人看得到這個伺服器
+			return res.ok;
+		},
+		catch: () => new Error("無法驗證機器人狀態"),
 	});
 }
 
@@ -382,10 +388,11 @@ function upsertServerPublishEffect(
 		const existing = existingRows[0];
 
 		if (existing) {
-			yield* tryEffectPromise("Failed to update server publish data", () =>
+			yield* tryEffectPromise("Failed to upsert server publish data", () =>
 				db
-					.update(server)
-					.set({
+					.insert(server)
+					.values({
+						id: input.serverId,
 						name: guild.name,
 						description: shortDescription,
 						longDescription,
@@ -397,9 +404,29 @@ function upsertServerPublishEffect(
 						voteNotificationUrl: webhookUrl,
 						icon: iconUrl,
 						banner: bannerUrl,
-						ownerId: existing.ownerId ?? userId,
+						ownerId: userId,
+						members: 0,
+						online: 0,
+						upvotes: 0,
+						features: [],
+						screenshots: [],
 					})
-					.where(eq(server.id, input.serverId)),
+					.onConflictDoUpdate({
+						target: server.id,
+						set: {
+							name: guild.name,
+							description: shortDescription,
+							longDescription,
+							inviteUrl: inviteLink,
+							website,
+							rules,
+							tags,
+							secret,
+							voteNotificationUrl: webhookUrl,
+							icon: iconUrl,
+							banner: bannerUrl,
+						},
+					}),
 			);
 
 			return {
@@ -535,6 +562,27 @@ function uploadServerBannerEffect(
 	});
 }
 
+const checkIsServerOwnerEffect = (serverId: string, userId: string) =>
+	Effect.tryPromise({
+		try: () =>
+			db.query.server.findFirst({
+				where: and(eq(server.id, serverId), eq(server.ownerId, userId)),
+				columns: {
+					id: true,
+				},
+			}),
+		catch: (error) => error,
+	}).pipe(
+		Effect.map((server) => !!server),
+
+		Effect.catchAll((error) =>
+			Effect.sync(() => {
+				console.error("檢查伺服器權限時發生錯誤:", error);
+				return false;
+			}),
+		),
+	);
+
 export function getServerPublishBundleById(
 	serverId: string,
 ): Promise<ServerPublishBundle> {
@@ -551,4 +599,11 @@ export function uploadServerBanner(
 	input: ServerBannerUploadInput,
 ): Promise<ServerBannerUploadResult> {
 	return runEffect(uploadServerBannerEffect(input));
+}
+
+export function checkIsServerOwner(
+	serverId: string,
+	userId: string,
+): Promise<boolean> {
+	return runEffect(checkIsServerOwnerEffect(serverId, userId));
 }

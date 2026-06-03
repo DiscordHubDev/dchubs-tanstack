@@ -28,3 +28,5 @@ export const BotHomeSearchSchema = Schema.Struct({
 });
 
 export type BotHomeSearch = Schema.Schema.Type<typeof BotHomeSearchSchema>;
+
+export const botsListInputSchema = BotListInputSchema;

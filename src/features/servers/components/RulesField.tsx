@@ -119,8 +119,8 @@ export function RulesField({
 					type="button"
 					onClick={addRule}
 					disabled={!canAddRule}
-					variant="outline"
 					size="sm"
+					className="bg-discord hover:bg-discord-hover text-white disabled:bg-discord/50 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
 				>
 					新增規則
 				</Button>
@@ -155,14 +155,13 @@ export function RulesField({
 									removeRule(index);
 								}
 							}}
-							placeholder={`規範 ${index + 1}`}
+							placeholder={`規則 ${index + 1}`}
 							disabled={disabled}
 						/>
 						<Button
 							type="button"
 							onClick={() => removeRule(index)}
-							disabled={disabled}
-							variant="outline"
+							className="bg-[#ed4245] text-white hover:bg-[#c93b3e]"
 							size="icon"
 						>
 							<Trash2 className="h-4 w-4" />

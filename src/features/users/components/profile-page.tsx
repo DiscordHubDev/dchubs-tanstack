@@ -189,7 +189,7 @@ export function UserProfilePage({
 					}}
 					className="mb-8"
 				>
-					<TabsList className="h-full w-full overflow-hidden overflow-y-auto border-[#1e1f22] border-b bg-[#2b2d31]">
+					<TabsList className="h-full w-full overflow-hidden overflow-y-hidden border-[#1e1f22] border-b bg-[#2b2d31]">
 						<TabsTrigger
 							value="servers"
 							className="data-[state=active]:bg-[#36393f]"

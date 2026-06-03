@@ -1,6 +1,7 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { jwt } from "better-auth/plugins";
+import { tanstackStartCookies } from "better-auth/tanstack-start";
 import { db } from "#/drizzle/db";
 import * as schema from "#/drizzle/schema";
 
@@ -81,6 +82,7 @@ export async function createAuth() {
 					expirationTime: "1h", // 這個 plugin 的 JWT 是給第三方 API 用的，保留沒問題
 				},
 			}),
+			tanstackStartCookies(),
 		],
 
 		advanced: {

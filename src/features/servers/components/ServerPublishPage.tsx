@@ -4,7 +4,7 @@ import {
 	useQueryClient,
 	useSuspenseQuery,
 } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
+import { ClientOnly, useNavigate } from "@tanstack/react-router";
 import { type ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import Swal from "sweetalert2";
 import MarkdownRenderer from "#/components/MarkdownRenderer";
@@ -188,6 +188,18 @@ export function ServerPublishPage({ serverId }: ServerPublishPageProps) {
 	);
 	const [isIconUploading] = useState(false);
 
+	const [bannerFile, setBannerFile] = useState<File | null>(null);
+	const [localPreviewUrl, setLocalPreviewUrl] = useState<string | null>(null);
+
+	// 新增：當元件卸載或更換預覽網址時，釋放 Object URL 記憶體
+	useEffect(() => {
+		return () => {
+			if (localPreviewUrl) {
+				URL.revokeObjectURL(localPreviewUrl);
+			}
+		};
+	}, [localPreviewUrl]);
+
 	const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 	const previewRef = useRef<HTMLDivElement | null>(null);
 	const bannerFileInputRef = useRef<HTMLInputElement | null>(null);
@@ -311,7 +323,25 @@ export function ServerPublishPage({ serverId }: ServerPublishPageProps) {
 					upsertServerPublishFn({ data: payload }),
 				),
 			),
-		onSuccess: async (result) => {
+		onSuccess: async (result, payload) => {
+			queryClient.setQueryData(
+				queryKeys.servers.detail(serverId),
+				(oldData: any) => {
+					if (!oldData) return oldData;
+					return {
+						...oldData,
+						name: payload.form.serverName, // 對應 serverName
+						description: payload.form.shortDescription, // 對應 shortDescription
+						longDescription: payload.form.longDescription, // 對應 longDescription
+						inviteUrl: payload.form.inviteLink, // 對應 inviteLink
+						website: payload.form.websiteLink, // 對應 websiteLink
+						rules: payload.form.rules, // 對應 rules
+						tags: payload.form.tags, // 對應 tags
+						secret: payload.form.secret, // 對應 secret
+						voteNotificationUrl: payload.form.webhook_url, // 對應 webhook_url
+					};
+				},
+			);
 			await Promise.all([
 				queryClient.invalidateQueries({
 					queryKey: queryKeys.servers.publish(serverId),
@@ -319,7 +349,6 @@ export function ServerPublishPage({ serverId }: ServerPublishPageProps) {
 				queryClient.invalidateQueries({
 					queryKey: queryKeys.servers.detail(serverId),
 				}),
-				queryClient.invalidateQueries({ queryKey: queryKeys.servers.all }),
 			]);
 
 			await Swal.fire({
@@ -408,10 +437,25 @@ export function ServerPublishPage({ serverId }: ServerPublishPageProps) {
 			onSubmit: ({ value }) => validateForm(value),
 		},
 		onSubmit: async ({ value }) => {
+			let finalBannerUrl = normalizeExternalUrl(bannerPreviewUrl);
+
+			// 如果有選取新圖片，先執行圖片上傳
+			if (bannerFile) {
+				try {
+					const result = await bannerUploadMutation.mutateAsync(bannerFile);
+					// 上傳成功後，使用後端回傳的圖片網址
+					finalBannerUrl = normalizeExternalUrl(result.bannerUrl);
+				} catch (error) {
+					console.error("Banner 圖片上傳失敗，已取消發布流程:", error);
+					return;
+				}
+			}
+
+			// 執行原始的表單儲存
 			await saveMutation.mutateAsync({
 				serverId,
 				iconUrl: normalizeExternalUrl(iconPreviewUrl),
-				bannerUrl: normalizeExternalUrl(bannerPreviewUrl),
+				bannerUrl: finalBannerUrl,
 				form: value,
 			});
 		},
@@ -422,6 +466,11 @@ export function ServerPublishPage({ serverId }: ServerPublishPageProps) {
 		(state) => state.values.longDescription,
 	);
 
+	const sanitizedMarkdown = useMemo(
+		() => longDescriptionValue || "詳細描述預覽 (支援Markdown)",
+		[longDescriptionValue],
+	);
+
 	const handleScroll = () => {
 		if (!textareaRef.current || !previewRef.current) {
 			return;
@@ -430,19 +479,47 @@ export function ServerPublishPage({ serverId }: ServerPublishPageProps) {
 		previewRef.current.scrollTop = textareaRef.current.scrollTop;
 	};
 
-	const handleBannerFileChange = async (
-		event: ChangeEvent<HTMLInputElement>,
-	) => {
+	const handleBannerFileChange = (event: ChangeEvent<HTMLInputElement>) => {
 		const file = event.target.files?.[0];
 		if (!file) {
 			return;
 		}
 
-		try {
-			await bannerUploadMutation.mutateAsync(file);
-		} finally {
+		// 基本驗證
+		const mimeType = resolveSupportedBannerMimeType(file);
+		if (!mimeType) {
+			showErrorAlert("請選擇 GIF、PNG、JPG、JPEG 或 WEBP 圖片檔案", "格式錯誤");
 			event.target.value = "";
+			return;
 		}
+
+		if (file.size <= 0) {
+			showErrorAlert("選擇的檔案內容為空，請重新選擇", "檔案無效");
+			event.target.value = "";
+			return;
+		}
+
+		if (file.size > MAX_BANNER_IMAGE_BYTES) {
+			showErrorAlert("圖片檔案大小不可超過 10MB", "檔案過大");
+			event.target.value = "";
+			return;
+		}
+
+		// 釋放前一次的本機預覽網址記憶體
+		if (localPreviewUrl) {
+			URL.revokeObjectURL(localPreviewUrl);
+		}
+
+		// 建立新的 Object URL 作為預覽
+		const newPreviewUrl = URL.createObjectURL(file);
+		setLocalPreviewUrl(newPreviewUrl);
+		setBannerPreviewUrl(newPreviewUrl);
+		setBannerFile(file); // 儲存檔案以供提交時上傳
+
+		setBannerUploadStatus("已選擇新圖片，將於儲存時上傳");
+		setBannerUploadError(null);
+
+		event.target.value = ""; // 清空 input 以允許重複選取相同檔案
 	};
 
 	const isBannerUploading = bannerUploadMutation.isPending;
@@ -455,18 +532,18 @@ export function ServerPublishPage({ serverId }: ServerPublishPageProps) {
 				<div className="flex flex-wrap items-center justify-between gap-3">
 					<div>
 						<h1 className="text-2xl font-bold">
-							{bundle.isPublished ? "編輯伺服器" : "發布伺服器"}
+							{bundle.isPublished ? "編輯您的伺服器" : "發布您的伺服器"}
 						</h1>
 					</div>
 					<Button
 						type="button"
-						variant="outline"
 						onClick={() =>
 							void navigate({
 								to: "/servers/$serverId",
 								params: { serverId },
 							})
 						}
+						className="bg-discord text-white hover:bg-discord-hover"
 					>
 						返回伺服器頁
 					</Button>
@@ -481,6 +558,9 @@ export function ServerPublishPage({ serverId }: ServerPublishPageProps) {
 					className="grid gap-6 lg:grid-cols-2"
 				>
 					<div className="space-y-6 rounded-xl border border-white/10 bg-[#2b2d31] p-5">
+						<h2 className="border-b border-white/10 pb-2 font-bold text-lg">
+							基本資訊
+						</h2>
 						<form.Field
 							name="serverName"
 							validators={{
@@ -682,6 +762,10 @@ export function ServerPublishPage({ serverId }: ServerPublishPageProps) {
 							{(field) => <ServerTagField field={field} />}
 						</form.Field>
 
+						<h2 className="border-b border-white/10 pb-2 font-bold text-lg">
+							投票通知
+						</h2>
+
 						<form.Field
 							name="secret"
 							validators={{
@@ -700,7 +784,7 @@ export function ServerPublishPage({ serverId }: ServerPublishPageProps) {
 											onChange={(event) =>
 												field.handleChange(event.target.value)
 											}
-											placeholder="可選：Webhook 密鑰 (用於驗證來自 Discord 的 Webhook 請求)"
+											placeholder="可選：Webhook 密鑰 (用於驗證來自自訂端點的 Webhook 請求)"
 											aria-invalid={Boolean(errorMessage)}
 										/>
 										{errorMessage ? (
@@ -729,7 +813,7 @@ export function ServerPublishPage({ serverId }: ServerPublishPageProps) {
 											onChange={(event) =>
 												field.handleChange(event.target.value)
 											}
-											placeholder="可選：Discord Webhook 網址"
+											placeholder="可選：Discord Webhook 網址 或 自訂端點網址"
 											aria-invalid={Boolean(errorMessage)}
 										/>
 										{errorMessage ? (
@@ -739,6 +823,10 @@ export function ServerPublishPage({ serverId }: ServerPublishPageProps) {
 								);
 							}}
 						</form.Field>
+
+						<h2 className="border-b border-white/10 pb-2 font-bold text-lg">
+							圖片上傳
+						</h2>
 
 						<div className="space-y-2">
 							<Label htmlFor="bannerImageFile">
@@ -794,17 +882,20 @@ export function ServerPublishPage({ serverId }: ServerPublishPageProps) {
 									}
 									className="w-full bg-[#5865f2] text-white hover:bg-[#4752c4] disabled:cursor-not-allowed disabled:bg-[#5865f2]/70"
 								>
-									{saveMutation.isPending || isSubmitting
-										? "儲存中..."
-										: bundle.isPublished
-											? "更新伺服器"
-											: "發布伺服器"}
+									{bannerUploadMutation.isPending
+										? "圖片上傳中..."
+										: saveMutation.isPending || isSubmitting
+											? "儲存中..."
+											: bundle.isPublished
+												? "更新伺服器"
+												: "發布伺服器"}
 								</Button>
 							)}
 						</form.Subscribe>
 					</div>
 
-					<div className="space-y-4 rounded-xl border border-white/10 bg-[#2b2d31] p-5">
+					<div className="flex h-full flex-col space-y-4 rounded-xl border border-white/10 bg-[#2b2d31] p-5">
+						{/* 1. 橫幅預覽 */}
 						<div className="space-y-2">
 							<Label>Icon 預覽</Label>
 							<div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-full border border-white/10 bg-[#36393f]">
@@ -837,19 +928,22 @@ export function ServerPublishPage({ serverId }: ServerPublishPageProps) {
 							</div>
 						</div>
 
-						<div className="space-y-2">
+						{/* 3. Markdown 預覽（加上 flex-1 與 h-0 讓它自動延伸至最底部） */}
+						<div className="flex flex-1 flex-col space-y-2">
 							<Label>Markdown 預覽</Label>
 							<div
 								ref={previewRef}
-								className="h-105 overflow-y-auto rounded-lg border border-white/10 bg-[#1f2124] p-4"
+								className="flex-1 h-0 overflow-y-auto rounded-lg border border-white/10 bg-[#1f2124] p-4"
 							>
-								{longDescriptionValue.trim() ? (
-									<MarkdownRenderer content={longDescriptionValue} />
-								) : (
-									<p className="text-sm text-[#b9bbbe]">
-										在左側輸入詳細介紹後，這裡會同步顯示預覽。
-									</p>
-								)}
+								<ClientOnly>
+									{sanitizedMarkdown.trim() ? (
+										<MarkdownRenderer content={sanitizedMarkdown} />
+									) : (
+										<p className="text-sm text-[#b9bbbe]">
+											在左側輸入詳細介紹後，這裡會同步顯示預覽。
+										</p>
+									)}
+								</ClientOnly>
 							</div>
 						</div>
 					</div>

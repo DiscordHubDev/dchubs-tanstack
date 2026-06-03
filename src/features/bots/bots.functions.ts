@@ -1,6 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { Effect } from "effect";
-import { requireDomainUser } from "#/lib/edge-context";
+import { authMiddleware } from "#/lib/auth-middleware";
 import { effectInputValidator } from "#/lib/effect-utils";
 import { BotListInputSchema } from "./bots.schemas";
 import {
@@ -9,34 +9,34 @@ import {
 	listBotsPage,
 } from "./bots.server";
 
-export const botsListInputSchema = BotListInputSchema;
-
 export const getBotsListFn = createServerFn({ method: "GET" })
+	.middleware([authMiddleware])
 	.inputValidator(effectInputValidator(BotListInputSchema))
-	.handler(async ({ data }) => {
-		return listBotsPage(data);
+	.handler(async ({ data, context }) => {
+		return listBotsPage(data, context.user?.discordId ?? null);
 	});
 
-export const getBotFilterBundleFn = createServerFn({ method: "GET" }).handler(
-	async () => {
-		return listBotFilterBundle();
-	},
-);
+export const getBotFilterBundleFn = createServerFn({ method: "GET" })
+	.middleware([authMiddleware])
+	.handler(async ({ context }) => {
+		return listBotFilterBundle(context.user?.discordId ?? null);
+	});
 
 export const checkBotDeveloperServerFn = createServerFn({ method: "GET" })
+	.middleware([authMiddleware])
 	.inputValidator((data: { botId: string }) => data)
-	.handler(async ({ data }) => {
-		try {
-			// 1. 從全域 Edge Context 拿到當前登入者的 Discord ID
-			const { user } = await requireDomainUser();
+	.handler(async ({ data, context }) => {
+		if (!context.user) {
+			return { isLoggedIn: false, isDeveloper: false };
+		}
 
-			// 2. 呼叫同目錄的純後端 Effect 進行檢查
+		try {
 			const isDeveloper = await Effect.runPromise(
-				isDeveloperEffect(data.botId, user.discordId || ""),
+				isDeveloperEffect(data.botId, context.user.discordId || ""),
 			);
 
 			return { isLoggedIn: true, isDeveloper };
 		} catch {
-			return { isLoggedIn: false, isDeveloper: false };
+			return { isLoggedIn: true, isDeveloper: false };
 		}
 	});

@@ -12,11 +12,7 @@ import {
 	userFavoriteBots,
 	userFavoriteServers,
 } from "#/drizzle/schema";
-import {
-	getDomainUser,
-	getEdgeContext,
-	getSessionUserIdEffect,
-} from "#/lib/edge-context";
+import { getDomainUser } from "#/lib/edge-context";
 import { runEffect, tryEffectPromise } from "#/lib/effect-utils";
 import { ApiJwtPayloadSchema } from "./users.schemas";
 import type {
@@ -483,13 +479,13 @@ function upsertUserFromSessionEffect(
 	});
 }
 
-function getCurrentUserEffect(): Effect.Effect<UserDetail | null, Error> {
+function getCurrentUserEffect(
+	discordId?: string,
+): Effect.Effect<UserDetail | null, Error> {
 	return Effect.gen(function* () {
-		const { userId } = getEdgeContext();
-		if (!userId) return null;
-
+		if (!discordId) return null;
 		const domainUser = yield* dbEffect("Failed to resolve domain user", () =>
-			getDomainUser(userId),
+			getDomainUser(discordId),
 		);
 
 		if (!domainUser?.discordId) return null;
@@ -520,18 +516,16 @@ export function upsertUserFromSession(
 	return runEffect(upsertUserFromSessionEffect(profile));
 }
 
-export function getCurrentUser(): Promise<UserDetail | null> {
-	return runEffect(getCurrentUserEffect());
+export function getCurrentUser(discordId?: string): Promise<UserDetail | null> {
+	return runEffect(getCurrentUserEffect(discordId));
 }
 
 export function updateUserSettingsForCurrentUser(
 	input: UpdateUserSettingsInput,
+	userId: string,
 ): Promise<UpdateState> {
 	return runEffect(
 		Effect.gen(function* () {
-			const userId = yield* getSessionUserIdEffect();
-			if (!userId) return { error: "未登入" };
-
 			const currentUser = yield* dbEffect("Failed to load user settings", () =>
 				db.query.user.findFirst({
 					where: eq(user.id, userId),
@@ -594,14 +588,10 @@ export function updateUserSettingsForCurrentUser(
 
 export function toggleFavoriteForCurrentUser(
 	input: ToggleFavoriteParams,
+	userId: string,
 ): Promise<ToggleFavoriteResult> {
 	return runEffect(
 		Effect.gen(function* () {
-			const userId = yield* getSessionUserIdEffect();
-			if (!userId) {
-				return yield* Effect.fail(new Error("未登入"));
-			}
-
 			if (input.target === "server") {
 				const exists = yield* dbEffect("Failed to check server favorite", () =>
 					db.query.userFavoriteServers.findFirst({
@@ -691,14 +681,11 @@ export function toggleFavoriteForCurrentUser(
 	);
 }
 
-export function createOrRegenerateApiTokenForCurrentUser(): Promise<ApiTokenPair> {
+export function createOrRegenerateApiTokenForCurrentUser(
+	userId: string,
+): Promise<ApiTokenPair> {
 	return runEffect(
 		Effect.gen(function* () {
-			const userId = yield* getSessionUserIdEffect();
-			if (!userId) {
-				return yield* Effect.fail(new Error("未登入"));
-			}
-
 			const tokens = yield* dbEffect(
 				"Failed to sign API JWT tokens",
 				async () => {

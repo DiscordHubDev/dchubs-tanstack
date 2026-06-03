@@ -1,5 +1,6 @@
 import { createServerFn } from "@tanstack/react-start";
 import { Schema } from "effect";
+import { authMiddleware, protectedMiddleware } from "#/lib/auth-middleware";
 import { effectInputValidator } from "#/lib/effect-utils";
 import {
 	toggleFavoriteInputEffectSchema,
@@ -22,42 +23,50 @@ const strictValidator = (input: any) => {
 	return {};
 };
 
-export const getCurrentUserFn = createServerFn({ method: "GET" }).handler(
-	async () => {
-		return getCurrentUser();
-	},
-);
+// 1. 取得當前使用者：允許未登入（會回傳 null 或由內部處理）
+export const getCurrentUserFn = createServerFn({ method: "GET" })
+	.middleware([authMiddleware])
+	.handler(async ({ context }) => {
+		return getCurrentUser(context.user?.discordId);
+	});
 
+// 2. 取得特定使用者：公開讀取
 export const getUserByIdFn = createServerFn({ method: "GET" })
+	.middleware([authMiddleware])
 	.inputValidator(effectInputValidator(userByIdInputEffectSchema))
 	.handler(async ({ data }) => {
 		return getUserById(data.id);
 	});
 
 export const upsertUserFromSessionFn = createServerFn({ method: "POST" })
+	.middleware([authMiddleware])
 	.inputValidator(effectInputValidator(upsertUserFromSessionInputEffectSchema))
 	.handler(async ({ data }) => {
 		return upsertUserFromSession(data);
 	});
 
+// 4. 更新個人設定：必須登入 🔒
 export const updateUserSettingsFn = createServerFn({ method: "POST" })
+	.middleware([protectedMiddleware])
 	.inputValidator(effectInputValidator(updateUserSettingsInputEffectSchema))
-	.handler(async ({ data }) => {
-		return updateUserSettingsForCurrentUser(data);
+	.handler(async ({ data, context }) => {
+		return updateUserSettingsForCurrentUser(data, context.user.discordId);
 	});
 
+// 5. 切換收藏：必須登入 🔒
 export const toggleFavoriteFn = createServerFn({ method: "POST" })
+	.middleware([protectedMiddleware])
 	.inputValidator(effectInputValidator(toggleFavoriteInputEffectSchema))
-	.handler(async ({ data }) => {
-		return toggleFavoriteForCurrentUser(data);
+	.handler(async ({ data, context }) => {
+		return toggleFavoriteForCurrentUser(data, context.user.discordId);
 	});
 
-export const createOrRegenerateApiTokenFn = createServerFn({
-	method: "POST",
-})
+// 6. 產生 API Token：必須登入 (高敏感操作) 🔒
+export const createOrRegenerateApiTokenFn = createServerFn({ method: "POST" })
+	.middleware([protectedMiddleware])
 	.inputValidator(strictValidator)
-	.handler(async () => {
-		return createOrRegenerateApiTokenForCurrentUser();
+	.handler(async ({ context }) => {
+		return createOrRegenerateApiTokenForCurrentUser(context.user.discordId);
 	});
 
 // Compatible aliases for legacy naming.

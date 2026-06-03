@@ -1,18 +1,20 @@
 import { v2 as cloudinary } from "cloudinary";
-import { eq, inArray, or } from "drizzle-orm";
+import { and, eq, inArray, or } from "drizzle-orm";
 import { Effect } from "effect";
 import { db } from "#/drizzle/db";
 import { bot, botCommand, botDevelopers, user } from "#/drizzle/schema";
 import {
 	BotAlreadyExists,
 	type DiscordRpcFailed,
+	ForbiddenError,
 	ImageUploadFailed,
 	InvalidInviteUrl,
 	NotificationFailed,
 	SubmitBotFailed,
 } from "#/errors/bot-errors";
-import { fetchJsonEffect, toErrorMessage } from "#/lib/effect-utils";
+import { fetchJsonEffect, runEffect, toErrorMessage } from "#/lib/effect-utils";
 import type { BotInfo, DiscordBotRPCInfo } from "#/lib/types";
+import { sendDiscordWebhookEffect } from "../admin/webhook.server";
 import { sendNotificationEffect } from "../notifications/notifications.server";
 import type {
 	DeleteBotImageInput,
@@ -467,14 +469,17 @@ function submitPipeline(
 		);
 		yield* persistBotEffect(payload, developerIds);
 		yield* notifyDevelopersEffect(input);
-		yield* sendPendingWebhookEffect({
-			botId,
-			botName: payload.botRow.name,
-			botDescription: payload.botRow.description,
-			iconUrl:
+
+		yield* sendDiscordWebhookEffect({
+			_tag: "pendingBot",
+			avatarUrl:
 				payload.botRow.icon || "https://cdn.discordapp.com/embed/avatars/0.png",
-			inviteUrl: payload.botRow.inviteUrl,
-			mode: payload.mode,
+			data: {
+				botName: payload.botRow.name,
+				botPrefix: payload.botRow.prefix || "",
+				botDescription: payload.botRow.description || "",
+				tags: payload.botRow.tags || [],
+			},
 		});
 
 		return botId;
@@ -685,25 +690,56 @@ function sendPendingWebhookResultEffect(
 		),
 	);
 }
+function enforceBotDeveloperEffect(botId: string, userId: string) {
+	return Effect.gen(function* () {
+		// 1. 將 Drizzle 的 Promise 轉換為 Effect
+		const developerRecord = yield* Effect.promise(() =>
+			db.query.botDevelopers.findFirst({
+				where: and(eq(botDevelopers.a, botId), eq(botDevelopers.b, userId)),
+			}),
+		);
+
+		// 2. 檢查是否存在，不存在則利用 yield* 拋出錯誤
+		if (!developerRecord) {
+			yield* Effect.fail(
+				new ForbiddenError({
+					message: "Forbidden: You are not a developer of this bot",
+				}),
+			);
+		}
+
+		return true;
+	});
+}
 
 export function submitBot(input: SubmitBotInput): Promise<SubmitBotResult> {
-	return Effect.runPromise(submitBotEffect(input));
+	return runEffect(submitBotEffect(input));
 }
 
 export function uploadBotImages(
 	input: UploadBotImagesInput,
 ): Promise<UploadBotImagesResult> {
-	return Effect.runPromise(uploadBotImagesEffect(input));
+	return runEffect(uploadBotImagesEffect(input));
 }
 
 export function deleteBotImage(
 	input: DeleteBotImageInput,
 ): Promise<DeleteBotImageResult> {
-	return Effect.runPromise(deleteBotImageEffect(input));
+	return runEffect(deleteBotImageEffect(input));
 }
 
 export function sendPendingWebhook(
 	input: SendPendingWebhookInput,
 ): Promise<SendPendingWebhookResult> {
-	return Effect.runPromise(sendPendingWebhookResultEffect(input));
+	return runEffect(sendPendingWebhookResultEffect(input));
+}
+export function enforceBotDeveloper(
+	botId: string,
+	userId: string,
+): Promise<boolean> {
+	return runEffect(enforceBotDeveloperEffect(botId, userId));
+}
+
+export function parseBotId(inviteUrl: string): Promise<string> {
+	return runEffect(parseClientId(inviteUrl));
 }

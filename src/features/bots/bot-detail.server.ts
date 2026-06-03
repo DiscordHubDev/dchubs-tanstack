@@ -11,7 +11,6 @@ import {
 	userFavoriteBots,
 	vote,
 } from "#/drizzle/schema";
-import { getSessionUserIdEffect } from "#/lib/edge-context";
 import { runEffect, tryEffectPromise } from "#/lib/effect-utils";
 import type {
 	BotDetail,
@@ -79,7 +78,7 @@ function mapRowToPublicBot(
 }
 
 function getFavoriteIdsEffect(
-	userId: string | null,
+	userId: string | null | undefined,
 ): Effect.Effect<Set<string>, Error> {
 	if (!userId) {
 		return Effect.succeed(new Set<string>());
@@ -96,9 +95,10 @@ function getFavoriteIdsEffect(
 }
 
 function getRecentVoteCreatedAtEffect(
-	userId: string | null,
+	userId: string | null | undefined, // ✅ 加上 undefined 支援
 	botId: string,
 ): Effect.Effect<string | null, Error> {
+	// ✅ 只要沒有 userId，代表是遊客，直接回傳 null
 	if (!userId) {
 		return Effect.succeed(null);
 	}
@@ -113,7 +113,7 @@ function getRecentVoteCreatedAtEffect(
 			.from(vote)
 			.where(
 				and(
-					eq(vote.userId, userId),
+					eq(vote.userId, userId), // 此時 TS 知道 userId 絕對是 string
 					eq(vote.itemId, botId),
 					eq(vote.itemType, "bot"),
 					gte(vote.createdAt, twelveHoursAgo),
@@ -134,9 +134,9 @@ function calculateAvgRating(reviews: BotReview[]): number {
 
 function getBotDetailEffect(
 	botId: string,
+	userId: string | null | undefined,
 ): Effect.Effect<BotDetail | null, Error> {
 	return Effect.gen(function* () {
-		const userId = yield* getSessionUserIdEffect();
 		const favoriteIds = yield* getFavoriteIdsEffect(userId);
 
 		const botRows = yield* dbEffect("Failed to fetch bot detail", () =>
@@ -294,13 +294,11 @@ function getBotDetailEffect(
 	});
 }
 
-function voteBotEffect(botId: string): Effect.Effect<BotVoteResult, Error> {
+function voteBotEffect(
+	botId: string,
+	userId: string,
+): Effect.Effect<BotVoteResult, Error> {
 	return Effect.gen(function* () {
-		const userId = yield* getSessionUserIdEffect();
-		if (!userId) {
-			return yield* Effect.fail(new Error("請先登入再投票"));
-		}
-
 		const targetRows = yield* dbEffect("Failed to find bot for vote", () =>
 			db
 				.select({ id: bot.id, upvotes: bot.upvotes })
@@ -367,13 +365,9 @@ function voteBotEffect(botId: string): Effect.Effect<BotVoteResult, Error> {
 function rateBotEffect(
 	botId: string,
 	rating: number,
+	userId: string,
 ): Effect.Effect<BotRateResult, Error> {
 	return Effect.gen(function* () {
-		const userId = yield* getSessionUserIdEffect();
-		if (!userId) {
-			return yield* Effect.fail(new Error("請先登入再評分"));
-		}
-
 		const targetRows = yield* dbEffect("Failed to find bot for rating", () =>
 			db
 				.select({ id: bot.id })
@@ -438,12 +432,11 @@ function reportBotEffect(input: {
 	itemName: string;
 	subject: string;
 	content: string;
+	userId: string; // ✅ 這裡現在是必填字串了
 }): Effect.Effect<BotReportResult, Error> {
 	return Effect.gen(function* () {
-		const userId = yield* getSessionUserIdEffect();
-		if (!userId) {
-			return yield* Effect.fail(new Error("請先登入再檢舉"));
-		}
+		// ❌ 刪掉這段：const userId = yield* getSessionUserIdEffect();
+		// ❌ 刪掉這段：if (!userId) { return yield* Effect.fail(...) }
 
 		yield* dbEffect("Failed to submit report", () =>
 			db.insert(report).values({
@@ -453,7 +446,7 @@ function reportBotEffect(input: {
 				type: "bot",
 				itemId: input.botId,
 				itemName: input.itemName,
-				reportedById: userId,
+				reportedById: input.userId, // ✅ 直接使用外部傳進來的 input.userId
 				attachments: [],
 			}),
 		);
@@ -465,19 +458,26 @@ function reportBotEffect(input: {
 	});
 }
 
-export function getBotDetailById(botId: string): Promise<BotDetail | null> {
-	return runEffect(getBotDetailEffect(botId));
+export function getBotDetailById(
+	botId: string,
+	userId: string | null | undefined,
+): Promise<BotDetail | null> {
+	return runEffect(getBotDetailEffect(botId, userId));
 }
 
-export function voteBotById(botId: string): Promise<BotVoteResult> {
-	return runEffect(voteBotEffect(botId));
+export function voteBotById(
+	botId: string,
+	userId: string,
+): Promise<BotVoteResult> {
+	return runEffect(voteBotEffect(botId, userId));
 }
 
 export function rateBotById(
 	botId: string,
 	rating: number,
+	userId: string,
 ): Promise<BotRateResult> {
-	return runEffect(rateBotEffect(botId, rating));
+	return runEffect(rateBotEffect(botId, rating, userId));
 }
 
 export function reportBotById(input: {
@@ -485,6 +485,7 @@ export function reportBotById(input: {
 	itemName: string;
 	subject: string;
 	content: string;
+	userId: string;
 }): Promise<BotReportResult> {
-	return runEffect(reportBotEffect(input));
+	return runEffect(reportBotEffect({ ...input }));
 }

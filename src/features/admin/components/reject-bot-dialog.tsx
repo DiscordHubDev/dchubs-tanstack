@@ -40,7 +40,7 @@ export default memo(function RejectBotDialog({
 	userIds: readonly Developer[];
 	isOpen: boolean;
 	onClose: () => void;
-	onConfirm: (id: string, reason: string) => void;
+	onConfirm: (reason: string) => void;
 }) {
 	const [reason, setReason] = useState("");
 	const [isSubmitting, setIsSubmitting] = useState(false);
@@ -92,12 +92,12 @@ export default memo(function RejectBotDialog({
 				}),
 			);
 
-			onConfirm(botId, reason.trim());
+			onConfirm(reason.trim());
 		} catch (e) {
 			console.error("Failed to reject bot:", e);
 			setIsSubmitting(false);
 		}
-	}, [botId, botName, userIds, reason, isValid, isSubmitting, onConfirm]);
+	}, [botName, userIds, reason, isValid, isSubmitting, onConfirm]);
 
 	const handleKeyDown = useCallback(
 		(e: React.KeyboardEvent) => {

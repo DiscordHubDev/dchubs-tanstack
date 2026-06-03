@@ -1,5 +1,5 @@
 import { getRequest } from "@tanstack/react-start/server";
-import { eq, or } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 import { Effect } from "effect";
 import { db } from "#/drizzle/db";
 import * as schema from "#/drizzle/schema";
@@ -29,6 +29,14 @@ export function getEdgeContext() {
 export async function getDomainUser(edgeUserId: string) {
 	if (!edgeUserId) return null;
 
+	// 1. 判斷是否為本地開發的 Discord ID（Discord ID 全由數字組成）
+	const isDiscordId = /^\d+$/.test(edgeUserId);
+
+	// 2. 動態決定 where 條件
+	const queryCondition = isDiscordId
+		? eq(schema.authUser.discordId, edgeUserId)
+		: eq(schema.authUser.id, edgeUserId);
+
 	const result = await db
 		.select({
 			betterAuthId: schema.authUser.id,
@@ -39,16 +47,12 @@ export async function getDomainUser(edgeUserId: string) {
 			bannerColor: schema.user.bannerColor,
 		})
 		.from(schema.authUser)
-		.innerJoin(schema.user, eq(schema.authUser.discordId, schema.user.id))
-		.where(
-			or(
-				eq(schema.authUser.id, edgeUserId), // Better Auth UUID
-				eq(schema.authUser.discordId, edgeUserId), // Discord ID（本地開發用）
-			),
-		)
+		// 修正：用 authUser 的 userId 去對接 user 的 id
+		.innerJoin(schema.user, eq(schema.authUser.id, schema.user.id))
+		.where(queryCondition)
 		.limit(1);
 
-	return result[0] || null;
+	return result[0] ?? null;
 }
 
 export async function requireDomainUser() {
@@ -73,14 +77,6 @@ export async function requireDomainUser() {
 	}
 
 	return { context, user };
-}
-
-export async function getOptionalDomainUser() {
-	const context = getEdgeContext();
-	if (!context.trusted || !context.userId) return null;
-
-	const user = await getDomainUser(context.userId);
-	return user ?? null;
 }
 
 export function getSessionUserIdEffect(): Effect.Effect<string, Error> {

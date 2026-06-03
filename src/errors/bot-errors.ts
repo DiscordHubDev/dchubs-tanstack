@@ -25,3 +25,7 @@ export class NotificationFailed extends Data.TaggedError(
 export class ImageUploadFailed extends Data.TaggedError("ImageUploadFailed")<{
 	filename: string;
 }> {}
+
+export class ForbiddenError extends Data.TaggedError("ForbiddenError")<{
+	message: string;
+}> {}

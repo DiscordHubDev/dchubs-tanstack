@@ -9,6 +9,7 @@ import {
 	userFavoriteServers,
 	vote,
 } from "#/drizzle/schema";
+import { ServerNotFoundError } from "#/errors/server-error";
 import { getSessionUserIdEffect } from "#/lib/edge-context";
 import { runEffect, tryEffectPromise } from "#/lib/effect-utils";
 import type {
@@ -19,6 +20,13 @@ import type {
 	ServerVoteResult,
 } from "./server-detail.types";
 import type { PublicServer } from "./servers.types";
+
+// 提取：處理陣列型別的輔助函式，避免重複的 filter(Boolean) 邏輯
+const cleanStringArray = (arr: unknown): string[] =>
+	Array.isArray(arr) ? arr.filter(Boolean) : [];
+
+// 提取：將魔法數字 (Magic Number) 轉換為具語意化的常數
+const TWELVE_HOURS_MS = 12 * 60 * 60 * 1000;
 
 function dbEffect<A>(
 	label: string,
@@ -124,87 +132,21 @@ function calculateAvgRating(reviews: ServerReview[]): number {
 
 function getServerDetailEffect(
 	serverId: string,
+	userId: string | null = null,
 ): Effect.Effect<ServerDetail | null, Error> {
 	return Effect.gen(function* () {
-		const userId = yield* getSessionUserIdEffect();
-		const favoriteIds = yield* getFavoriteIdsEffect(userId);
-
-		const serverRows = yield* dbEffect("Failed to fetch server detail", () =>
-			db
-				.select({
-					id: server.id,
-					name: server.name,
-					description: server.description,
-					longDescription: server.longDescription,
-					tags: server.tags,
-					members: server.members,
-					online: server.online,
-					upvotes: server.upvotes,
-					icon: server.icon,
-					banner: server.banner,
-					inviteUrl: server.inviteUrl,
-					createdAt: server.createdAt,
-					ownerId: server.ownerId,
-					website: server.website,
-					rules: server.rules,
-					features: server.features,
-					screenshots: server.screenshots,
-					pin: server.pin,
-					pinExpiry: server.pinExpiry,
-				})
-				.from(server)
-				.where(eq(server.id, serverId))
-				.limit(1),
-		);
-
-		const currentServer = serverRows[0];
-		if (!currentServer) return null;
-
-		const [ownerRows, reviewRows, recentVoteCreatedAt, relatedRows] =
-			yield* Effect.all([
-				dbEffect("Failed to fetch server owner", () => {
-					if (!currentServer.ownerId) {
-						return Promise.resolve(
-							[] as Array<{
-								id: string;
-								username: string;
-								avatar: string;
-							}>,
-						);
-					}
-
-					return db
-						.select({
-							id: user.id,
-							username: user.username,
-							avatar: user.avatar,
-						})
-						.from(user)
-						.where(eq(user.id, currentServer.ownerId))
-						.limit(1);
-				}),
-				dbEffect("Failed to fetch server reviews", () =>
-					db
-						.select({
-							id: review.id,
-							createdAt: review.createdAt,
-							botId: review.botId,
-							rating: review.rating,
-							vote: review.vote,
-							comment: review.comment,
-							userId: review.userId,
-							serverId: review.serverId,
-						})
-						.from(review)
-						.where(eq(review.serverId, serverId)),
-				),
-				getRecentVoteCreatedAtEffect(userId, serverId),
-				dbEffect("Failed to fetch related servers", () =>
+		// 1. 並行獲取「我的最愛 IDs」與「伺服器詳細資訊」
+		// 這兩者互不依賴，可以同時發起請求以節省時間
+		const [favoriteIds, serverRows] = yield* Effect.all(
+			[
+				getFavoriteIdsEffect(userId),
+				dbEffect("Failed to fetch server detail", () =>
 					db
 						.select({
 							id: server.id,
 							name: server.name,
 							description: server.description,
+							longDescription: server.longDescription,
 							tags: server.tags,
 							members: server.members,
 							online: server.online,
@@ -213,16 +155,89 @@ function getServerDetailEffect(
 							banner: server.banner,
 							inviteUrl: server.inviteUrl,
 							createdAt: server.createdAt,
+							ownerId: server.ownerId,
+							website: server.website,
+							rules: server.rules,
+							features: server.features,
+							screenshots: server.screenshots,
 							pin: server.pin,
 							pinExpiry: server.pinExpiry,
 						})
 						.from(server)
-						.where(ne(server.id, serverId))
-						.orderBy(desc(server.upvotes))
-						.limit(40),
+						.where(eq(server.id, serverId))
+						.limit(1),
 				),
-			]);
+			],
+			{ concurrency: "unbounded" },
+		);
 
+		const currentServer = serverRows[0];
+		if (!currentServer) return null;
+
+		// 2. 並行獲取所有依賴 currentServer 的後續資料
+		const [ownerRows, reviewRows, recentVoteCreatedAt, relatedRows] =
+			yield* Effect.all(
+				[
+					// 優化：直接使用 Effect 邏輯處理 ownerId，避免在 dbEffect 中回傳假 Promise
+					currentServer.ownerId
+						? dbEffect("Failed to fetch server owner", () =>
+								db
+									.select({
+										id: user.id,
+										username: user.username,
+										avatar: user.avatar,
+									})
+									.from(user)
+									.where(eq(user.id, currentServer.ownerId!))
+									.limit(1),
+							)
+						: Effect.succeed([]),
+
+					dbEffect("Failed to fetch server reviews", () =>
+						db
+							.select({
+								id: review.id,
+								createdAt: review.createdAt,
+								botId: review.botId,
+								rating: review.rating,
+								vote: review.vote,
+								comment: review.comment,
+								userId: review.userId,
+								serverId: review.serverId,
+							})
+							.from(review)
+							.where(eq(review.serverId, serverId)),
+					),
+
+					getRecentVoteCreatedAtEffect(userId, serverId),
+
+					dbEffect("Failed to fetch related servers", () =>
+						db
+							.select({
+								id: server.id,
+								name: server.name,
+								description: server.description,
+								tags: server.tags,
+								members: server.members,
+								online: server.online,
+								upvotes: server.upvotes,
+								icon: server.icon,
+								banner: server.banner,
+								inviteUrl: server.inviteUrl,
+								createdAt: server.createdAt,
+								pin: server.pin,
+								pinExpiry: server.pinExpiry,
+							})
+							.from(server)
+							.where(ne(server.id, serverId))
+							.orderBy(desc(server.upvotes))
+							.limit(40),
+					),
+				],
+				{ concurrency: "unbounded" },
+			);
+
+		// 3. 處理關聯資料
 		const reviews = reviewRows.map((item) => ({
 			...item,
 			rating: Number(item.rating ?? 0),
@@ -241,70 +256,59 @@ function getServerDetailEffect(
 			.slice(0, 3)
 			.map((item) => mapRowToPublicServer(item, favoriteIds));
 
-		const owner = ownerRows[0]
-			? {
-					id: ownerRows[0].id,
-					username: ownerRows[0].username,
-					avatar: ownerRows[0].avatar,
-				}
+		const nextVoteAt = recentVoteCreatedAt
+			? new Date(
+					new Date(recentVoteCreatedAt).getTime() + TWELVE_HOURS_MS,
+				).toISOString()
 			: null;
 
-		const detail: ServerDetail = {
+		// 4. 組裝最終結果
+		return {
 			...mapRowToPublicServer(currentServer, favoriteIds),
 			longDescription: currentServer.longDescription,
 			website: currentServer.website,
-			rules: Array.isArray(currentServer.rules)
-				? currentServer.rules.filter(Boolean)
-				: [],
-			features: Array.isArray(currentServer.features)
-				? currentServer.features.filter(Boolean)
-				: [],
-			screenshots: Array.isArray(currentServer.screenshots)
-				? currentServer.screenshots.filter(Boolean)
-				: [],
-			owner,
+			rules: cleanStringArray(currentServer.rules),
+			features: cleanStringArray(currentServer.features),
+			screenshots: cleanStringArray(currentServer.screenshots),
+			owner: ownerRows[0] ?? null, // 優化：利用 Nullish Coalescing 直接賦值
 			reviews,
 			currentRating,
 			totalReviews: reviews.length,
 			userRating,
 			hasVotedRecently: Boolean(recentVoteCreatedAt),
-			nextVoteAt: recentVoteCreatedAt
-				? new Date(
-						new Date(recentVoteCreatedAt).getTime() + 12 * 60 * 60 * 1000,
-					).toISOString()
-				: null,
+			nextVoteAt,
 			relatedServers,
-		};
-
-		return detail;
+		} satisfies ServerDetail;
 	});
 }
 
 function voteServerEffect(
 	serverId: string,
-): Effect.Effect<ServerVoteResult, Error> {
+	userId: string,
+): Effect.Effect<ServerVoteResult, ServerNotFoundError | Error> {
 	return Effect.gen(function* () {
-		const userId = yield* getSessionUserIdEffect();
-		if (!userId) {
-			return yield* Effect.fail(new Error("請先登入再投票"));
-		}
-
-		const targetRows = yield* dbEffect("Failed to find server for vote", () =>
-			db
-				.select({ id: server.id, upvotes: server.upvotes })
-				.from(server)
-				.where(eq(server.id, serverId))
-				.limit(1),
+		// 1. 平行執行查詢：同時獲取「伺服器資訊」與「最後投票時間」來降低 I/O 延遲
+		const [targetRows, recentVoteCreatedAt] = yield* Effect.all(
+			[
+				dbEffect("Failed to find server for vote", () =>
+					db
+						.select({ id: server.id, upvotes: server.upvotes })
+						.from(server)
+						.where(eq(server.id, serverId))
+						.limit(1),
+				),
+				getRecentVoteCreatedAtEffect(userId, serverId),
+			],
+			{ concurrency: "unbounded" },
 		);
+
 		const target = targetRows[0];
 		if (!target) {
-			return yield* Effect.fail(new Error("找不到伺服器"));
+			// 在 Effect.gen 中，直接 yield* Effect.fail 即可中斷執行，不需加上 return
+			yield* Effect.fail(new ServerNotFoundError({}));
 		}
 
-		const recentVoteCreatedAt = yield* getRecentVoteCreatedAtEffect(
-			userId,
-			serverId,
-		);
+		// 2. 檢查冷卻時間
 		if (recentVoteCreatedAt) {
 			return {
 				success: false,
@@ -316,9 +320,10 @@ function voteServerEffect(
 			};
 		}
 
-		yield* dbEffect("Failed to cast server vote", async () => {
-			await db.transaction(async (tx) => {
-				// 1. 新增投票紀錄
+		// 3. 執行 Transaction 並直接回傳更新後的票數 (減少一次 DB 查詢)
+		const updatedRows = yield* dbEffect("Failed to cast server vote", () =>
+			db.transaction(async (tx) => {
+				// 3.1 寫入投票紀錄
 				await tx.insert(vote).values({
 					id: crypto.randomUUID(),
 					userId: userId,
@@ -326,28 +331,20 @@ function voteServerEffect(
 					itemType: "server",
 				});
 
-				// 2. 更新伺服器得票數 (此處保留 sql 作為原子的數值遞增操作，這是 ORM 推薦且安全的標準寫法)
-				await tx
+				// 3.2 遞增票數並利用 RETURNING 語法直接獲取最新結果 (需 DB 支援，如 Postgres/SQLite)
+				return await tx
 					.update(server)
 					.set({ upvotes: sql`${server.upvotes} + 1` })
-					.where(eq(server.id, serverId));
-			});
-		});
-
-		const updatedRows = yield* dbEffect(
-			"Failed to read updated server votes",
-			() =>
-				db
-					.select({ upvotes: server.upvotes })
-					.from(server)
 					.where(eq(server.id, serverId))
-					.limit(1),
+					.returning({ upvotes: server.upvotes });
+			}),
 		);
 
 		return {
 			success: true,
 			message: "投票成功",
-			upvotes: updatedRows[0]?.upvotes ?? target.upvotes + 1,
+			// 若使用 MySQL 不支援 returning，updatedRows 可能為空，此處提供安全降級
+			upvotes: updatedRows?.[0]?.upvotes ?? target.upvotes + 1,
 			nextVoteAt: new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString(),
 		};
 	});
@@ -356,13 +353,10 @@ function voteServerEffect(
 function rateServerEffect(
 	serverId: string,
 	rating: number,
-): Effect.Effect<ServerRateResult, Error> {
+	userId: string,
+): Effect.Effect<ServerRateResult, ServerNotFoundError | Error> {
 	return Effect.gen(function* () {
-		const userId = yield* getSessionUserIdEffect();
-		if (!userId) {
-			return yield* Effect.fail(new Error("請先登入再評分"));
-		}
-
+		// 1. 確認伺服器是否存在
 		const targetRows = yield* dbEffect("Failed to find server for rating", () =>
 			db
 				.select({ id: server.id })
@@ -372,27 +366,13 @@ function rateServerEffect(
 		);
 
 		if (!targetRows[0]) {
-			return yield* Effect.fail(new Error("找不到伺服器"));
+			yield* Effect.fail(new ServerNotFoundError({}));
 		}
 
-		const existing = yield* dbEffect(
-			"Failed to fetch current user review",
-			() =>
-				db.query.review.findFirst({
-					where: and(eq(review.userId, userId), eq(review.serverId, serverId)),
-					columns: {
-						id: true,
-					},
-				}),
-		);
-
-		if (existing) {
-			yield* dbEffect("Failed to update review rating", () =>
-				db.update(review).set({ rating }).where(eq(review.id, existing.id)),
-			);
-		} else {
-			yield* dbEffect("Failed to create review rating", () =>
-				db.insert(review).values({
+		yield* dbEffect("Failed to upsert review rating", () =>
+			db
+				.insert(review)
+				.values({
 					id: crypto.randomUUID(),
 					userId,
 					serverId,
@@ -400,9 +380,12 @@ function rateServerEffect(
 					rating,
 					vote: 0,
 					comment: null,
+				})
+				.onConflictDoUpdate({
+					target: [review.userId, review.serverId],
+					set: { rating },
 				}),
-			);
-		}
+		);
 
 		const statsRows = yield* dbEffect("Failed to calculate rating stats", () =>
 			db
@@ -427,13 +410,9 @@ function reportServerEffect(input: {
 	itemName: string;
 	subject: string;
 	content: string;
+	reporterId: string;
 }): Effect.Effect<ServerReportResult, Error> {
 	return Effect.gen(function* () {
-		const userId = yield* getSessionUserIdEffect();
-		if (!userId) {
-			return yield* Effect.fail(new Error("請先登入再檢舉"));
-		}
-
 		yield* dbEffect("Failed to submit report", () =>
 			db.insert(report).values({
 				id: crypto.randomUUID(),
@@ -442,7 +421,7 @@ function reportServerEffect(input: {
 				type: "server",
 				itemId: input.serverId,
 				itemName: input.itemName,
-				reportedById: userId,
+				reportedById: input.reporterId,
 				attachments: [],
 			}),
 		);
@@ -456,19 +435,24 @@ function reportServerEffect(input: {
 
 export function getServerDetailById(
 	serverId: string,
+	userId: string | null = null,
 ): Promise<ServerDetail | null> {
-	return runEffect(getServerDetailEffect(serverId));
+	return runEffect(getServerDetailEffect(serverId, userId));
 }
 
-export function voteServerById(serverId: string): Promise<ServerVoteResult> {
-	return runEffect(voteServerEffect(serverId));
+export function voteServerById(
+	serverId: string,
+	userId: string,
+): Promise<ServerVoteResult> {
+	return runEffect(voteServerEffect(serverId, userId));
 }
 
 export function rateServerById(
 	serverId: string,
 	rating: number,
+	userId: string,
 ): Promise<ServerRateResult> {
-	return runEffect(rateServerEffect(serverId, rating));
+	return runEffect(rateServerEffect(serverId, rating, userId));
 }
 
 export function reportServerById(input: {
@@ -476,6 +460,7 @@ export function reportServerById(input: {
 	itemName: string;
 	subject: string;
 	content: string;
+	reporterId: string;
 }): Promise<ServerReportResult> {
 	return runEffect(reportServerEffect(input));
 }

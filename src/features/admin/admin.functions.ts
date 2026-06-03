@@ -5,14 +5,13 @@ import { desc, eq } from "drizzle-orm";
 import { Effect, pipe } from "effect";
 import { db } from "#/drizzle/db";
 import { bot, notification, report, server } from "#/drizzle/schema";
-import { getSessionUserIdEffect, requireDomainUser } from "#/lib/edge-context";
+import { adminMiddleware } from "#/lib/auth-middleware";
 import {
 	effectInputValidator,
 	fetchJsonEffect,
 	runEffect,
 } from "#/lib/effect-utils";
 import type { ActionResult, ReportStatus } from "#/types/admin";
-
 import {
 	BotIdSchema,
 	RejectBotSchema,
@@ -20,76 +19,22 @@ import {
 	ServerGuildIdSchema,
 	UpdateReportSchema,
 } from "./admin.schemas";
+import {
+	fetchAndUpdateServerCount,
+	fromDrizzle,
+	toResult,
+} from "./admin.server";
+import { sendDiscordWebhookFn } from "./webhook.functions";
 
-interface SendNotificationParams {
+export interface SendNotificationParams {
 	subject: string;
 	teaser?: string;
 	content: string;
 	priority?: "info" | "warning" | "error" | "success";
-	userIds: string[]; // 改回用戶 ID
+	userIds: string[];
 }
 
 const DISCORD_BOT_TOKEN = process.env.DISCORD_BOT_TOKEN;
-
-/**
- * 將 Drizzle query 包裝為 Effect，並將捕捉到的錯誤轉換為 typed failures
- */
-export const fromDrizzle = <A>(query: () => Promise<A>) =>
-	Effect.tryPromise({
-		try: query,
-		catch: (e) => new Error(e instanceof Error ? e.message : "資料庫操作失敗"),
-	});
-
-/**
- * 執行 Effect 並將結果轉換為 ActionResult 格式
- */
-export const toResult = <A>(
-	effect: Effect.Effect<A, Error>,
-): Promise<ActionResult<A>> =>
-	pipe(
-		effect,
-		Effect.match({
-			onSuccess: (data) => ({ success: true as const, data }),
-			onFailure: (e) => ({ success: false as const, error: e.message }),
-		}),
-		Effect.runPromise,
-	);
-
-export const resolveReportServerFn = createServerFn({ method: "POST" })
-	// 2. 宣告前端傳進來的參數型別 (Validator)
-	.inputValidator(
-		(data: {
-			reportId: string;
-			status: ReportStatus;
-			resolutionNote: string;
-		}) => data,
-	)
-	// 3. 原本的邏輯搬進 handler
-	.handler(async ({ data }) => {
-		const { reportId, status, resolutionNote } = data;
-
-		const { context, user } = await requireDomainUser();
-		if (!context.isAdmin || !user.discordId) {
-			throw new Error("未登入或無管理權限");
-		}
-
-		// 核心修正：使用 db.update()
-		const [updated] = await db
-			.update(report)
-			.set({
-				status: status,
-				resolutionNote: resolutionNote,
-				handledById: user.discordId,
-				handledAt: new Date().toISOString(),
-			})
-			.where(eq(report.id, reportId))
-			.returning();
-
-		return {
-			...updated,
-			attachments: updated.attachments as string[],
-		};
-	});
 
 /**
  * 步驟一：透過 User ID 獲取或建立 DM Channel ID
@@ -206,99 +151,30 @@ export async function sendNotification({
 export const updateBotServerCountBackgroundFn = createServerFn({
 	method: "POST",
 })
+	.middleware([adminMiddleware])
 	.inputValidator((data: { botId: string }) => data)
 	.handler(async ({ data }) => {
-		const { botId } = data;
-
-		const fetchTask = async () => {
-			try {
-				// 1. 使用 runEffect 執行，resultData 直接就是 JSON 物件
-				const resultData = await runEffect(
-					fetchJsonEffect(
-						"https://getbotserver.dawngs.top/get_bot_server_count",
-						{
-							method: "POST",
-							headers: { "Content-Type": "application/json" },
-							body: JSON.stringify({ bot_id: botId }),
-							// 確保 Playwright 有足夠時間重試 (3 分鐘)
-							signal: AbortSignal.timeout(180000),
-						},
-					),
-				);
-
-				let serverCount: number | null = null;
-
-				// 2. 直接對 resultData 進行操作
-				if (Array.isArray(resultData)) {
-					const found = resultData.find(
-						(item) => typeof item?.server_count === "number",
-					);
-					if (found) serverCount = found.server_count;
-				} else if (typeof (resultData as any)?.server_count === "number") {
-					serverCount = (resultData as any).server_count;
-				}
-
-				if (serverCount !== null) {
-					// ✨ 使用 Drizzle ORM 更新資料庫
-					await db
-						.update(bot)
-						.set({ servers: serverCount })
-						.where(eq(bot.id, botId));
-
-					console.log(`✅ 成功更新伺服器數量 (Bot: ${botId}): ${serverCount}`);
-				} else {
-					console.warn(`⚠️ 返回資料中找不到有效的 server_count (Bot: ${botId})`);
-				}
-			} catch (error: any) {
-				// fetchJsonEffect 失敗時會進到這裡
-				if (error.name === "TimeoutError") {
-					console.warn(`⏳ 請求超時 (Bot: ${botId}): 已超過 3 分鐘`);
-				} else {
-					console.warn(
-						`❌ 背景更新伺服器數量失敗 (Bot: ${botId}):`,
-						error.message,
-					);
-				}
-			}
-		};
-
-		// ✅ 在 VPS (Node.js 原生環境) 中，直接呼叫且不 await 即可實現背景執行
-		fetchTask();
-
-		// 立即返回 API 回應，不阻塞前端
+		fetchAndUpdateServerCount(data.botId);
 		return { success: true, message: "已在背景處理" };
 	});
 
-export const getSessionUserIdServerFn = createServerFn({
-	method: "GET",
-}).handler(async () => {
-	try {
-		// 在後端「執行」這個 Effect，並等待結果
-		const userId = await Effect.runPromise(getSessionUserIdEffect());
-		return { success: true, userId };
-	} catch (error) {
-		// 將 Error 轉成字串傳給前端，因為 Error 物件無法透過網路序列化
-		return {
-			success: false,
-			error: error instanceof Error ? error.message : String(error),
-		};
-	}
-});
-
-export const adminGetAllBots = createServerFn({ method: "GET" }).handler(() =>
-	toResult(
-		fromDrizzle(() =>
-			db.query.bot.findMany({
-				with: { developers: { with: { user: true } } },
-				orderBy: [desc(bot.createdAt)],
-			}),
+export const adminGetAllBots = createServerFn({ method: "GET" })
+	.middleware([adminMiddleware])
+	.handler(() =>
+		toResult(
+			fromDrizzle(() =>
+				db.query.bot.findMany({
+					with: { developers: { with: { user: true } } },
+					orderBy: [desc(bot.createdAt)],
+				}),
+			),
 		),
-	),
-);
+	);
 
 /** Fetch all servers */
-export const adminGetAllServers = createServerFn({ method: "GET" }).handler(
-	() =>
+export const adminGetAllServers = createServerFn({ method: "GET" })
+	.middleware([adminMiddleware])
+	.handler(() =>
 		toResult(
 			fromDrizzle(() =>
 				db.query.server.findMany({
@@ -307,45 +183,121 @@ export const adminGetAllServers = createServerFn({ method: "GET" }).handler(
 				}),
 			),
 		),
-);
+	);
 
 /** Fetch all reports */
-export const getReports = createServerFn({ method: "GET" }).handler(() =>
-	toResult(
-		fromDrizzle(() =>
-			db.query.report.findMany({
-				with: {
-					reportedBy: true,
-					handledBy: true,
-				},
-				orderBy: [desc(report.reportedAt)],
-			}),
+export const getReports = createServerFn({ method: "GET" })
+	.middleware([adminMiddleware])
+	.handler(() =>
+		toResult(
+			fromDrizzle(() =>
+				db.query.report.findMany({
+					with: {
+						reportedBy: true,
+						handledBy: true,
+					},
+					orderBy: [desc(report.reportedAt)],
+				}),
+			),
 		),
-	),
-);
+	);
 
 /** Approve or reject a bot application */
 export const reviewBot = createServerFn({ method: "POST" })
+	.middleware([adminMiddleware])
 	.inputValidator(effectInputValidator(ReviewBotSchema))
-	.handler(
-		({ data }): Promise<ActionResult> =>
-			toResult(
-				fromDrizzle(() =>
-					db
-						.update(bot)
-						.set({
-							status: data.status,
-							rejectionReason: data.rejectionReason ?? null,
-							approvedAt:
-								data.status === "approved" ? new Date().toISOString() : null,
-						})
-						.where(eq(bot.id, data.id)),
-				),
-			),
-	);
+	.handler(async ({ data }) => {
+		const result = await toResult(
+			fromDrizzle(async () => {
+				// 先執行更新動作
+				await db
+					.update(bot)
+					.set({
+						status: data.status,
+						rejectionReason: data.rejectionReason ?? null,
+						approvedAt:
+							data.status === "approved" ? new Date().toISOString() : null,
+					})
+					.where(eq(bot.id, data.id));
+
+				// 統一在這邊撈出最新狀態，並同時 join 開發者資訊
+				return await db.query.bot.findFirst({
+					where: eq(bot.id, data.id),
+					with: {
+						developers: {
+							with: {
+								user: true,
+							},
+						},
+					},
+				});
+			}),
+		);
+
+		if (!result.success || !result.data) {
+			throw new Error(`審核更新失敗: ${result.error || "找不到該機器人資料"}`);
+		}
+
+		const app = result.data;
+
+		// 2. 如果是「核准」，在伺服器端背景觸發其他通知與任務 (Fire-and-forget)
+		if (data.status === "approved") {
+			const developersList = app.developers || [];
+			const devIds = developersList.map((d) => d.b);
+
+			// A. 發送私訊通知 (使用 external function)
+			sendNotification({
+				subject: "您的機器人申請已通過 ✅",
+				teaser: `${app.name} 已通過審核`,
+				content: `您好！機器人「${app.name}」已核准上架，感謝您的耐心等待。`,
+				priority: "success",
+				userIds: devIds,
+			}).catch((e) =>
+				console.error(`[Discord 私訊通知失敗] BotID: ${app.id}, Error:`, e),
+			);
+
+			// B. 發送 Discord 群組 Webhook 通知
+			sendDiscordWebhookFn({
+				data: {
+					_tag: "approvedBot",
+					bot: {
+						id: app.id,
+						name: app.name,
+						prefix: app.prefix,
+						description: app.description ?? "",
+						inviteUrl: app.inviteUrl ?? "",
+						tags: app.tags ?? [],
+						icon: app.icon,
+						banner: app.banner,
+						developers: developersList.map((d) => ({
+							id: d.b,
+							username: d.user?.username || "未知",
+						})),
+					},
+				},
+			})
+				.then((res) => {
+					if (!res?.success) {
+						console.warn(
+							`[Webhook 處理失敗] BotID: ${app.id}, Reason:`,
+							res?.error,
+						);
+					}
+				})
+				.catch((e) =>
+					console.error(`[Webhook 發送異常] BotID: ${app.id}, Error:`, e),
+				);
+
+			// C. 觸發背景更新伺服器數量任務
+			fetchAndUpdateServerCount(app.id);
+		}
+
+		return { success: true };
+	});
 
 /** Delete a bot by id */
 export const deleteBot = createServerFn({ method: "POST" })
+	.middleware([adminMiddleware])
 	.inputValidator(effectInputValidator(BotIdSchema))
 	.handler(
 		({ data }): Promise<ActionResult> =>
@@ -354,6 +306,7 @@ export const deleteBot = createServerFn({ method: "POST" })
 
 /** Delete a server by guild id */
 export const deleteServer = createServerFn({ method: "POST" })
+	.middleware([adminMiddleware])
 	.inputValidator(effectInputValidator(ServerGuildIdSchema))
 	.handler(
 		({ data }): Promise<ActionResult> =>
@@ -364,6 +317,7 @@ export const deleteServer = createServerFn({ method: "POST" })
 
 /** Update a report */
 export const updateReport = createServerFn({ method: "POST" })
+	.middleware([adminMiddleware])
 	.inputValidator(effectInputValidator(UpdateReportSchema))
 	.handler(
 		({ data }): Promise<ActionResult> =>
@@ -387,43 +341,46 @@ export const updateReport = createServerFn({ method: "POST" })
 /** Fetch pending bots count + reports count — used for SSR badge hydration */
 export const adminGetDashboardCounts = createServerFn({
 	method: "GET",
-}).handler(
-	async (): Promise<
-		ActionResult<{ pendingBots: number; pendingReports: number }>
-	> =>
-		toResult(
-			pipe(
-				Effect.all({
-					pendingBots: fromDrizzle(async () => {
-						const rows = await db.query.bot.findMany({
-							where: eq(bot.status, "pending"),
-							columns: { id: true },
-						});
-						return rows.length;
+})
+	.middleware([adminMiddleware])
+	.handler(
+		async (): Promise<
+			ActionResult<{ pendingBots: number; pendingReports: number }>
+		> =>
+			toResult(
+				pipe(
+					Effect.all({
+						pendingBots: fromDrizzle(async () => {
+							const rows = await db.query.bot.findMany({
+								where: eq(bot.status, "pending"),
+								columns: { id: true },
+							});
+							return rows.length;
+						}),
+						pendingReports: fromDrizzle(async () => {
+							const rows = await db.query.report.findMany({
+								where: eq(report.status, "pending"),
+								columns: { id: true },
+							});
+							return rows.length;
+						}),
 					}),
-					pendingReports: fromDrizzle(async () => {
-						const rows = await db.query.report.findMany({
-							where: eq(report.status, "pending"),
-							columns: { id: true },
-						});
-						return rows.length;
-					}),
-				}),
+				),
 			),
-		),
-);
+	);
 
 /**
  * 拒絕機器人申請 (Server Function)
  */
 export const rejectBotServerFn = createServerFn({ method: "POST" })
+	.middleware([adminMiddleware])
 	.inputValidator(effectInputValidator(RejectBotSchema))
-	.handler(async ({ data }) => {
+	.handler(async ({ data, context }) => {
 		const { botId, reason } = data;
 
 		// 1. Verify Admin Permissions
-		const { context, user } = await requireDomainUser();
-		if (!context.isAdmin || !user.discordId) {
+		const user = context.user;
+		if (!context.edgeContext.isAdmin || !user.discordId) {
 			throw new Error("未登入或無管理權限");
 		}
 
@@ -487,7 +444,6 @@ export const rejectBotServerFn = createServerFn({ method: "POST" })
 		}
 
 		// 3. Trigger External Notifications (Non-blocking)
-		// Note: In a real environment, we'd use Effect.fork or a queue
 		const { botName, developerIds } = result as {
 			botName: string;
 			developerIds: string[];
@@ -503,4 +459,34 @@ export const rejectBotServerFn = createServerFn({ method: "POST" })
 		}).catch((e) => console.error("Failed to send rejection DMs:", e));
 
 		return { success: true };
+	});
+
+export const resolveReportServerFn = createServerFn({ method: "POST" })
+	.middleware([adminMiddleware])
+	.inputValidator(
+		(data: {
+			reportId: string;
+			status: ReportStatus;
+			resolutionNote: string;
+		}) => data,
+	)
+	.handler(async ({ data, context }) => {
+		const { reportId, status, resolutionNote } = data;
+		const handledById = context.user.discordId;
+
+		const [updated] = await db
+			.update(report)
+			.set({
+				status: status,
+				resolutionNote: resolutionNote,
+				handledById,
+				handledAt: new Date().toISOString(),
+			})
+			.where(eq(report.id, reportId))
+			.returning();
+
+		return {
+			...updated,
+			attachments: updated.attachments as string[],
+		};
 	});

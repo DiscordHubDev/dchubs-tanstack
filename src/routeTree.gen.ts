@@ -14,13 +14,14 @@ import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as BotsIndexRouteImport } from './routes/bots/index'
 import { Route as UsersUserIdRouteImport } from './routes/users/$userId'
-import { Route as ServersServerIdRouteImport } from './routes/servers/$serverId'
 import { Route as ProtectedProfileRouteImport } from './routes/protected/profile'
 import { Route as ProtectedAdminRouteImport } from './routes/protected/admin'
 import { Route as ProtectedAddServerRouteImport } from './routes/protected/add-server'
 import { Route as ProtectedAddBotRouteImport } from './routes/protected/add-bot'
 import { Route as BotsBotIdRouteImport } from './routes/bots/$botId'
-import { Route as ServersServerIdPublishRouteImport } from './routes/servers/$serverId.publish'
+import { Route as ServersServerIdRouteRouteImport } from './routes/servers/$serverId/route'
+import { Route as ServersServerIdIndexRouteImport } from './routes/servers/$serverId/index'
+import { Route as ServersServerIdPublishRouteImport } from './routes/servers/$serverId/publish'
 import { Route as ApiSitemapStaticRouteImport } from './routes/api/sitemap/static'
 import { Route as ApiSitemapServersRouteImport } from './routes/api/sitemap/servers'
 import { Route as ApiSitemapBotsRouteImport } from './routes/api/sitemap/bots'
@@ -52,11 +53,6 @@ const UsersUserIdRoute = UsersUserIdRouteImport.update({
   path: '/users/$userId',
   getParentRoute: () => rootRouteImport,
 } as any)
-const ServersServerIdRoute = ServersServerIdRouteImport.update({
-  id: '/servers/$serverId',
-  path: '/servers/$serverId',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const ProtectedProfileRoute = ProtectedProfileRouteImport.update({
   id: '/protected/profile',
   path: '/protected/profile',
@@ -82,10 +78,20 @@ const BotsBotIdRoute = BotsBotIdRouteImport.update({
   path: '/bots/$botId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ServersServerIdRouteRoute = ServersServerIdRouteRouteImport.update({
+  id: '/servers/$serverId',
+  path: '/servers/$serverId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ServersServerIdIndexRoute = ServersServerIdIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ServersServerIdRouteRoute,
+} as any)
 const ServersServerIdPublishRoute = ServersServerIdPublishRouteImport.update({
   id: '/publish',
   path: '/publish',
-  getParentRoute: () => ServersServerIdRoute,
+  getParentRoute: () => ServersServerIdRouteRoute,
 } as any)
 const ApiSitemapStaticRoute = ApiSitemapStaticRouteImport.update({
   id: '/api/sitemap/static',
@@ -117,12 +123,12 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/servers/$serverId': typeof ServersServerIdRouteRouteWithChildren
   '/bots/$botId': typeof BotsBotIdRoute
   '/protected/add-bot': typeof ProtectedAddBotRoute
   '/protected/add-server': typeof ProtectedAddServerRoute
   '/protected/admin': typeof ProtectedAdminRoute
   '/protected/profile': typeof ProtectedProfileRoute
-  '/servers/$serverId': typeof ServersServerIdRouteWithChildren
   '/users/$userId': typeof UsersUserIdRoute
   '/bots/': typeof BotsIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -130,6 +136,7 @@ export interface FileRoutesByFullPath {
   '/api/sitemap/servers': typeof ApiSitemapServersRoute
   '/api/sitemap/static': typeof ApiSitemapStaticRoute
   '/servers/$serverId/publish': typeof ServersServerIdPublishRoute
+  '/servers/$serverId/': typeof ServersServerIdIndexRoute
   '/protected/bots/$botId/edit': typeof ProtectedBotsBotIdEditRoute
 }
 export interface FileRoutesByTo {
@@ -141,7 +148,6 @@ export interface FileRoutesByTo {
   '/protected/add-server': typeof ProtectedAddServerRoute
   '/protected/admin': typeof ProtectedAdminRoute
   '/protected/profile': typeof ProtectedProfileRoute
-  '/servers/$serverId': typeof ServersServerIdRouteWithChildren
   '/users/$userId': typeof UsersUserIdRoute
   '/bots': typeof BotsIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -149,6 +155,7 @@ export interface FileRoutesByTo {
   '/api/sitemap/servers': typeof ApiSitemapServersRoute
   '/api/sitemap/static': typeof ApiSitemapStaticRoute
   '/servers/$serverId/publish': typeof ServersServerIdPublishRoute
+  '/servers/$serverId': typeof ServersServerIdIndexRoute
   '/protected/bots/$botId/edit': typeof ProtectedBotsBotIdEditRoute
 }
 export interface FileRoutesById {
@@ -156,12 +163,12 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/servers/$serverId': typeof ServersServerIdRouteRouteWithChildren
   '/bots/$botId': typeof BotsBotIdRoute
   '/protected/add-bot': typeof ProtectedAddBotRoute
   '/protected/add-server': typeof ProtectedAddServerRoute
   '/protected/admin': typeof ProtectedAdminRoute
   '/protected/profile': typeof ProtectedProfileRoute
-  '/servers/$serverId': typeof ServersServerIdRouteWithChildren
   '/users/$userId': typeof UsersUserIdRoute
   '/bots/': typeof BotsIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
@@ -169,6 +176,7 @@ export interface FileRoutesById {
   '/api/sitemap/servers': typeof ApiSitemapServersRoute
   '/api/sitemap/static': typeof ApiSitemapStaticRoute
   '/servers/$serverId/publish': typeof ServersServerIdPublishRoute
+  '/servers/$serverId/': typeof ServersServerIdIndexRoute
   '/protected/bots/$botId/edit': typeof ProtectedBotsBotIdEditRoute
 }
 export interface FileRouteTypes {
@@ -177,12 +185,12 @@ export interface FileRouteTypes {
     | '/'
     | '/about'
     | '/sitemap.xml'
+    | '/servers/$serverId'
     | '/bots/$botId'
     | '/protected/add-bot'
     | '/protected/add-server'
     | '/protected/admin'
     | '/protected/profile'
-    | '/servers/$serverId'
     | '/users/$userId'
     | '/bots/'
     | '/api/auth/$'
@@ -190,6 +198,7 @@ export interface FileRouteTypes {
     | '/api/sitemap/servers'
     | '/api/sitemap/static'
     | '/servers/$serverId/publish'
+    | '/servers/$serverId/'
     | '/protected/bots/$botId/edit'
   fileRoutesByTo: FileRoutesByTo
   to:
@@ -201,7 +210,6 @@ export interface FileRouteTypes {
     | '/protected/add-server'
     | '/protected/admin'
     | '/protected/profile'
-    | '/servers/$serverId'
     | '/users/$userId'
     | '/bots'
     | '/api/auth/$'
@@ -209,18 +217,19 @@ export interface FileRouteTypes {
     | '/api/sitemap/servers'
     | '/api/sitemap/static'
     | '/servers/$serverId/publish'
+    | '/servers/$serverId'
     | '/protected/bots/$botId/edit'
   id:
     | '__root__'
     | '/'
     | '/about'
     | '/sitemap.xml'
+    | '/servers/$serverId'
     | '/bots/$botId'
     | '/protected/add-bot'
     | '/protected/add-server'
     | '/protected/admin'
     | '/protected/profile'
-    | '/servers/$serverId'
     | '/users/$userId'
     | '/bots/'
     | '/api/auth/$'
@@ -228,6 +237,7 @@ export interface FileRouteTypes {
     | '/api/sitemap/servers'
     | '/api/sitemap/static'
     | '/servers/$serverId/publish'
+    | '/servers/$serverId/'
     | '/protected/bots/$botId/edit'
   fileRoutesById: FileRoutesById
 }
@@ -235,12 +245,12 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  ServersServerIdRouteRoute: typeof ServersServerIdRouteRouteWithChildren
   BotsBotIdRoute: typeof BotsBotIdRoute
   ProtectedAddBotRoute: typeof ProtectedAddBotRoute
   ProtectedAddServerRoute: typeof ProtectedAddServerRoute
   ProtectedAdminRoute: typeof ProtectedAdminRoute
   ProtectedProfileRoute: typeof ProtectedProfileRoute
-  ServersServerIdRoute: typeof ServersServerIdRouteWithChildren
   UsersUserIdRoute: typeof UsersUserIdRoute
   BotsIndexRoute: typeof BotsIndexRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
@@ -287,13 +297,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof UsersUserIdRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/servers/$serverId': {
-      id: '/servers/$serverId'
-      path: '/servers/$serverId'
-      fullPath: '/servers/$serverId'
-      preLoaderRoute: typeof ServersServerIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/protected/profile': {
       id: '/protected/profile'
       path: '/protected/profile'
@@ -329,12 +332,26 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BotsBotIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/servers/$serverId': {
+      id: '/servers/$serverId'
+      path: '/servers/$serverId'
+      fullPath: '/servers/$serverId'
+      preLoaderRoute: typeof ServersServerIdRouteRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/servers/$serverId/': {
+      id: '/servers/$serverId/'
+      path: '/'
+      fullPath: '/servers/$serverId/'
+      preLoaderRoute: typeof ServersServerIdIndexRouteImport
+      parentRoute: typeof ServersServerIdRouteRoute
+    }
     '/servers/$serverId/publish': {
       id: '/servers/$serverId/publish'
       path: '/publish'
       fullPath: '/servers/$serverId/publish'
       preLoaderRoute: typeof ServersServerIdPublishRouteImport
-      parentRoute: typeof ServersServerIdRoute
+      parentRoute: typeof ServersServerIdRouteRoute
     }
     '/api/sitemap/static': {
       id: '/api/sitemap/static'
@@ -374,28 +391,29 @@ declare module '@tanstack/react-router' {
   }
 }
 
-interface ServersServerIdRouteChildren {
+interface ServersServerIdRouteRouteChildren {
   ServersServerIdPublishRoute: typeof ServersServerIdPublishRoute
+  ServersServerIdIndexRoute: typeof ServersServerIdIndexRoute
 }
 
-const ServersServerIdRouteChildren: ServersServerIdRouteChildren = {
+const ServersServerIdRouteRouteChildren: ServersServerIdRouteRouteChildren = {
   ServersServerIdPublishRoute: ServersServerIdPublishRoute,
+  ServersServerIdIndexRoute: ServersServerIdIndexRoute,
 }
 
-const ServersServerIdRouteWithChildren = ServersServerIdRoute._addFileChildren(
-  ServersServerIdRouteChildren,
-)
+const ServersServerIdRouteRouteWithChildren =
+  ServersServerIdRouteRoute._addFileChildren(ServersServerIdRouteRouteChildren)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  ServersServerIdRouteRoute: ServersServerIdRouteRouteWithChildren,
   BotsBotIdRoute: BotsBotIdRoute,
   ProtectedAddBotRoute: ProtectedAddBotRoute,
   ProtectedAddServerRoute: ProtectedAddServerRoute,
   ProtectedAdminRoute: ProtectedAdminRoute,
   ProtectedProfileRoute: ProtectedProfileRoute,
-  ServersServerIdRoute: ServersServerIdRouteWithChildren,
   UsersUserIdRoute: UsersUserIdRoute,
   BotsIndexRoute: BotsIndexRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,

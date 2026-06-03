@@ -26,28 +26,30 @@ export function useBotApplications({
 	}, [items, search]);
 
 	const review = useCallback(
-		async (
-			id: string,
-			status: Extract<BotStatus, "approved" | "rejected">,
-			reason?: string,
-		) => {
+		async ({
+			id,
+			status,
+			reason,
+		}: {
+			id: string;
+			status: Extract<BotStatus, "approved" | "rejected">;
+			reason?: string;
+		}) => {
 			try {
-				const result = await reviewBot({
+				// 直接 await，不用檢查 success
+				await reviewBot({
 					data: { id, status, rejectionReason: reason },
 				});
 
-				if (!result.success) {
-					// 💡 修改點 2：直接把 result.error (或預設字串) 丟給 onError
-					onError?.(result.error ?? "審核失敗");
-					return false;
-				}
+				// 只要沒報錯走到這裡，就代表審核成功 ✅
 				setItems((prev) =>
 					prev.map((b) => (b.id === id ? { ...b, status } : b)),
 				);
 				return true;
 			} catch (err) {
-				// 💡 額外建議：既然用了 async/await，加上 try/catch 可以捕捉網路斷線等未預期錯誤
-				onError?.(err);
+				// 所有的失敗 (包含權限不足、資料庫錯誤、網路斷線) 都會統一集中到這裡處理 ❌
+				const errorMessage = err instanceof Error ? err.message : "審核失敗";
+				onError?.(errorMessage);
 				return false;
 			}
 		},

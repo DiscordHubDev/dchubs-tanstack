@@ -37,7 +37,7 @@ import {
 import { serverDetailQueryOptions } from "../server-detail.query";
 import type { ServerDetailTab, ServerReview } from "../server-detail.types";
 
-const routeApi = getRouteApi("/servers/$serverId");
+const routeApi = getRouteApi("/servers/$serverId/");
 const VALID_TABS: readonly ServerDetailTab[] = [
 	"about",
 	"rules",

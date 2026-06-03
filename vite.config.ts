@@ -75,11 +75,14 @@ export default defineConfig({
 
 	optimizeDeps: {
 		include: ["react", "react-dom", "@tanstack/react-router"],
-		exclude: ["bun"],
+		exclude: ["bun", "drizzle-orm/bun-sql"],
+	},
+
+	ssr: {
+		external: ["bun", "drizzle-orm/bun-sql"],
 	},
 
 	plugins: [
-		// Bundle size visualizer — run with: ANALYZE=true bun run build
 		isAnalyze &&
 			visualizer({
 				open: true,

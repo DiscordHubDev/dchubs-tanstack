@@ -2,6 +2,7 @@ const usersRoot = ["users"] as const;
 const inboxRoot = ["inbox"] as const;
 const serversRoot = ["servers"] as const;
 const botsRoot = ["bots"] as const;
+const adminRoot = ["admin"] as const;
 
 export const queryKeys = {
 	users: {
@@ -37,5 +38,12 @@ export const queryKeys = {
 			limit: number;
 		}) => [...botsRoot, "list", input] as const,
 		filterBundle: () => [...botsRoot, "filter-bundle"] as const,
+	},
+	admin: {
+		all: adminRoot,
+		bots: () => [...adminRoot, "bots"] as const,
+		servers: () => [...adminRoot, "servers"] as const,
+		reports: () => [...adminRoot, "reports"] as const,
+		dashboardCounts: () => [...adminRoot, "dashboard-counts"] as const,
 	},
 } as const;

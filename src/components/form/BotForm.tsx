@@ -1,6 +1,7 @@
 import { type AnyFieldApi, useForm, useStore } from "@tanstack/react-form";
+import { useNavigate } from "@tanstack/react-router";
 import { Effect, Schema } from "effect";
-import { Info, Plus, Trash2, Upload, X } from "lucide-react";
+import { Info, Plus, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "react-toastify";
 import MarkdownRenderer from "#/components/MarkdownRenderer";
@@ -37,6 +38,7 @@ import type { CategoryType, Screenshot } from "#/lib/types";
 type BotFormDefaultValues = Partial<BotFormData> & {
 	screenshots?: string[];
 	banner?: string | null;
+	iconUrl?: string | null; // 補充未定義的 iconUrl
 };
 
 type BotFormProps = {
@@ -44,9 +46,15 @@ type BotFormProps = {
 	defaultValues?: BotFormDefaultValues;
 };
 
+type MediaItem = {
+	url: string;
+	public_id?: string;
+	file?: File;
+};
+
 type MediaState = {
-	screenshots: Screenshot[];
-	banner: Screenshot | null;
+	screenshots: MediaItem[];
+	banner: MediaItem | null;
 };
 
 const botCategories: CategoryType[] = [];
@@ -73,32 +81,16 @@ type ValidationResult = {
 	warnings: string[];
 };
 
-type UploadAttempt =
-	| { status: "empty"; items: Screenshot[]; validCount: number }
-	| { status: "success"; items: Screenshot[]; validCount: number };
-
-type UploadResult =
-	| UploadAttempt
-	| { status: "error"; error: ImageUploadFailed };
-
 type CommandItem = BotFormData["commands"][number];
-
 type DeveloperItem = BotFormData["developers"][number];
 
 function readFirstError(errors: unknown[] | undefined): string | null {
 	if (!Array.isArray(errors) || errors.length === 0) {
 		return null;
 	}
-
 	const first = errors[0];
-	if (typeof first === "string") {
-		return first;
-	}
-
-	if (first instanceof Error) {
-		return first.message;
-	}
-
+	if (typeof first === "string") return first;
+	if (first instanceof Error) return first.message;
 	return String(first);
 }
 
@@ -107,12 +99,8 @@ function readPersistedFields(): {
 	botLongDescription: string;
 } {
 	if (typeof window === "undefined") {
-		return {
-			botDescription: "",
-			botLongDescription: "",
-		};
+		return { botDescription: "", botLongDescription: "" };
 	}
-
 	return {
 		botDescription: window.localStorage.getItem("desc") ?? "",
 		botLongDescription: window.localStorage.getItem("longdesc") ?? "",
@@ -124,30 +112,22 @@ function buildScreenshotFromUrl(url: string): Screenshot {
 	const filename = parts[parts.length - 1] || "";
 	const publicId = filename.split(".")[0] || filename;
 
-	return {
-		url,
-		public_id: publicId,
-	};
+	return { url, public_id: publicId };
 }
 
+// 記憶體優化：讀取為 Data URL 後，僅作為短暫傳輸用，不會長期掛載在 DOM 上
 async function readFileAsDataUrl(file: File): Promise<string> {
 	return new Promise((resolve, reject) => {
 		const reader = new FileReader();
-
-		reader.onerror = () => {
-			reject(new Error("無法讀取選取的圖片檔案"));
-		};
-
+		reader.onerror = () => reject(new Error("無法讀取選取的圖片檔案"));
 		reader.onload = () => {
 			const result = reader.result;
 			if (typeof result !== "string") {
 				reject(new Error("無法解析選取的圖片檔案"));
 				return;
 			}
-
 			resolve(result);
 		};
-
 		reader.readAsDataURL(file);
 	});
 }
@@ -161,26 +141,29 @@ async function ScreenshotUpload(files: File[]): Promise<Screenshot[]> {
 	);
 
 	const result = await uploadBotImagesFn({
-		data: {
-			files: payload,
-		},
+		data: { files: payload },
 	});
 
-	if (!result.success) {
-		throw new Error(result.error.message);
-	}
-
+	if (!result.success) throw new Error(result.error.message);
 	return result.items;
 }
 
 async function deleteCloudinaryImage(publicId: string): Promise<void> {
-	const result = await deleteBotImageFn({
-		data: { publicId },
-	});
+	const result = await deleteBotImageFn({ data: { publicId } });
+	if (!result.success) throw new Error(result.error.message);
+}
 
-	if (!result.success) {
-		throw new Error(result.error.message);
-	}
+// 修復：改為對應 BotFormData 的欄位名稱
+function hasRequiredPublishFields(values: {
+	botDescription: string;
+	botLongDescription: string;
+	botInvite: string;
+}): boolean {
+	return (
+		values.botDescription.trim().length > 0 &&
+		values.botLongDescription.trim().length > 0 &&
+		values.botInvite.trim().length > 0
+	);
 }
 
 function validateFiles(
@@ -231,18 +214,6 @@ function validateFiles(
 	);
 }
 
-function uploadImages(
-	files: File[],
-): Effect.Effect<Screenshot[], ImageUploadFailed> {
-	return Effect.tryPromise({
-		try: () => ScreenshotUpload(files),
-		catch: () =>
-			new ImageUploadFailed({
-				filename: files[0]?.name ?? "unknown",
-			}),
-	});
-}
-
 function deleteImage(publicId: string): Effect.Effect<void, never> {
 	return Effect.promise(() => deleteCloudinaryImage(publicId));
 }
@@ -258,7 +229,6 @@ function getSubmitErrorMessage(error: SubmitBotErrorPayload): string {
 		case "NotificationFailed":
 			return "已提交，但通知送出失敗。";
 		case "SubmitBotFailed":
-			return error.message || "提交失敗，請稍後再試。";
 		default:
 			return error.message || "提交失敗，請稍後再試。";
 	}
@@ -266,13 +236,8 @@ function getSubmitErrorMessage(error: SubmitBotErrorPayload): string {
 
 function ClientOnly({ children }: { children: React.ReactNode }) {
 	const [mounted, setMounted] = useState(false);
-
-	useEffect(() => {
-		setMounted(true);
-	}, []);
-
+	useEffect(() => setMounted(true), []);
 	if (!mounted) return null;
-
 	return <>{children}</>;
 }
 
@@ -285,10 +250,7 @@ function ScreenshotGrid({
 	screenshotPreviews,
 	removeScreenshot,
 }: ScreenshotGridProps) {
-	if (screenshotPreviews.length === 0) {
-		return null;
-	}
-
+	if (screenshotPreviews.length === 0) return null;
 	return (
 		<div className="grid grid-cols-2 gap-3 md:grid-cols-3">
 			{screenshotPreviews.map((url, index) => (
@@ -296,7 +258,7 @@ function ScreenshotGrid({
 					<img
 						src={url}
 						alt={`Screenshot ${index + 1}`}
-						className="h-32 w-full object-cover"
+						className="h-24 w-full object-cover md:h-32"
 						loading="lazy"
 					/>
 					<button
@@ -327,13 +289,8 @@ function TagField({ field, categories = [], maxTags = 8 }: TagFieldProps) {
 
 	const addTag = (raw: string) => {
 		const value = raw.trim();
-		if (!value || tags.length >= maxTags) {
-			return;
-		}
-
-		if (tags.some((item) => item.toLowerCase() === value.toLowerCase())) {
-			return;
-		}
+		if (!value || tags.length >= maxTags) return;
+		if (tags.some((item) => item.toLowerCase() === value.toLowerCase())) return;
 
 		field.handleChange([...tags, value]);
 		setNextTag("");
@@ -344,8 +301,8 @@ function TagField({ field, categories = [], maxTags = 8 }: TagFieldProps) {
 	};
 
 	return (
-		<div className="space-y-3">
-			<Label>標籤</Label>
+		<div className="space-y-3 text-[#dcddde]">
+			<Label className="text-sm font-medium text-[#eee]">標籤</Label>
 
 			<div className="flex gap-2">
 				<Input
@@ -360,12 +317,13 @@ function TagField({ field, categories = [], maxTags = 8 }: TagFieldProps) {
 					}}
 					placeholder="輸入標籤後按 Enter"
 					disabled={tags.length >= maxTags}
+					className="bg-[#202225] border-[#18191c] text-white transition-colors duration-200 placeholder:text-[#72767d] focus-visible:border-[#5865f2] focus-visible:ring-1 focus-visible:ring-[#5865f2] disabled:opacity-50 disabled:bg-[#2f3136]"
 				/>
 				<Button
 					type="button"
 					onClick={() => addTag(nextTag)}
 					disabled={!nextTag.trim() || tags.length >= maxTags}
-					variant="outline"
+					className="bg-discord text-white border-transparent hover:bg-discord-hover active:bg-discord transition-all duration-200 shadow-sm disabled:bg-[#3c45a5]/50 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
 				>
 					加入
 				</Button>
@@ -378,7 +336,7 @@ function TagField({ field, categories = [], maxTags = 8 }: TagFieldProps) {
 							key={category.id}
 							type="button"
 							onClick={() => addTag(category.name)}
-							className="rounded-full px-3 py-1 text-white text-xs"
+							className="rounded-full px-3 py-1 text-xs font-medium text-white cursor-pointer transition-all duration-150 hover:scale-105 active:scale-95 brightness-100 hover:brightness-110 shadow-sm"
 							style={{ backgroundColor: category.color }}
 						>
 							{category.name}
@@ -391,24 +349,26 @@ function TagField({ field, categories = [], maxTags = 8 }: TagFieldProps) {
 				{tags.map((tag) => (
 					<span
 						key={tag}
-						className="inline-flex items-center gap-2 rounded-full bg-white/10 px-3 py-1 text-xs"
+						className="inline-flex items-center gap-1.5 rounded-full bg-[#2f3136] hover:bg-[#35383e] text-[#b9bbbe] border border-[#202225] px-3 py-1 text-xs transition-all duration-150 hover:text-white"
 					>
 						{tag}
 						<button
 							type="button"
 							onClick={() => removeTag(tag)}
-							className="rounded-full p-0.5 transition-colors hover:bg-black/10"
+							className="group cursor-pointer rounded-full p-0.5 transition-all duration-200 hover:bg-[#ed4245]/20"
 						>
-							<X className="h-3 w-3" />
+							<X className="h-3 w-3 text-[#b9bbbe] group-hover:text-[#ed4245] group-hover:scale-110 transition-transform" />
 						</button>
 					</span>
 				))}
 			</div>
 
-			<p className="text-gray-400 text-xs">最多 {maxTags} 個標籤</p>
+			<p className="text-xs text-[#b9bbbe]">最多 {maxTags} 個標籤</p>
 
 			{errorMessage ? (
-				<p className="text-[#ed4245] text-sm">{errorMessage}</p>
+				<p className="text-sm text-[#ed4245] font-medium animate-pulse">
+					{errorMessage}
+				</p>
 			) : null}
 		</div>
 	);
@@ -423,27 +383,18 @@ function CommandListField({ field }: CommandListFieldProps) {
 		? (field.state.value as CommandItem[])
 		: [];
 	const errorMessage = readFirstError(field.state.meta.errors);
-	const keyCounterRef = useRef(0);
-	const commandKeysRef = useRef<string[]>([]);
 
-	const buildKey = () => {
-		keyCounterRef.current += 1;
-		return `command-${keyCounterRef.current}`;
-	};
-
-	while (commandKeysRef.current.length < commands.length) {
-		commandKeysRef.current.push(buildKey());
-	}
-	if (commandKeysRef.current.length > commands.length) {
-		commandKeysRef.current.length = commands.length;
-	}
-	const commandKeys = commandKeysRef.current;
+	// 最佳實踐：改用隨機 UUID 作為陣列 Key，避免因增刪導致的渲染錯誤
+	const [commandKeys, setCommandKeys] = useState<string[]>(() =>
+		commands.map(() => crypto.randomUUID()),
+	);
 
 	const addCommand = () => {
 		field.handleChange([
 			...commands,
 			{ name: "", description: "", usage: "", category: "" },
 		]);
+		setCommandKeys((prev) => [...prev, crypto.randomUUID()]);
 	};
 
 	const updateCommand = (index: number, patch: Partial<CommandItem>) => {
@@ -455,13 +406,9 @@ function CommandListField({ field }: CommandListFieldProps) {
 	};
 
 	const removeCommand = (index: number) => {
-		const nextCommands = commands.filter(
-			(_, currentIndex) => currentIndex !== index,
-		);
-		commandKeysRef.current = commandKeysRef.current.filter(
-			(_, currentIndex) => currentIndex !== index,
-		);
+		const nextCommands = commands.filter((_, i) => i !== index);
 		field.handleChange(nextCommands);
+		setCommandKeys((prev) => prev.filter((_, i) => i !== index));
 	};
 
 	return (
@@ -472,7 +419,7 @@ function CommandListField({ field }: CommandListFieldProps) {
 					type="button"
 					onClick={addCommand}
 					size="sm"
-					className="bg-discord text-white hover:bg-discord-hover"
+					className="bg-[#5865f2] text-white hover:bg-[#4752c4]"
 				>
 					<Plus className="h-4 w-4" />
 					新增指令
@@ -480,7 +427,7 @@ function CommandListField({ field }: CommandListFieldProps) {
 			</div>
 
 			{commands.length === 0 ? (
-				<p className="rounded-md border border-white/10 border-dashed px-3 py-3 text-[#b9bbbe] text-sm">
+				<p className="rounded-md border border-dashed border-white/10 px-3 py-3 text-sm text-[#b9bbbe]">
 					尚未新增任何指令。
 				</p>
 			) : (
@@ -491,13 +438,13 @@ function CommandListField({ field }: CommandListFieldProps) {
 							className="space-y-3 rounded-lg border border-white/10 p-4"
 						>
 							<div className="flex items-center justify-between">
-								<p className="font-semibold text-sm text-white">
+								<p className="text-sm font-semibold text-white">
 									指令 {index + 1}
 								</p>
 								<Button
 									type="button"
 									onClick={() => removeCommand(index)}
-									className="bg-red-600 text-white hover:bg-red-700"
+									className="bg-[#ed4245] text-white hover:bg-[#c93b3e]"
 									size="icon"
 								>
 									<Trash2 className="h-4 w-4" />
@@ -511,9 +458,7 @@ function CommandListField({ field }: CommandListFieldProps) {
 										value={command.name}
 										onBlur={field.handleBlur}
 										onChange={(event) =>
-											updateCommand(index, {
-												name: event.target.value,
-											})
+											updateCommand(index, { name: event.target.value })
 										}
 										placeholder="例如：help"
 									/>
@@ -524,9 +469,7 @@ function CommandListField({ field }: CommandListFieldProps) {
 										value={command.category ?? ""}
 										onBlur={field.handleBlur}
 										onChange={(event) =>
-											updateCommand(index, {
-												category: event.target.value,
-											})
+											updateCommand(index, { category: event.target.value })
 										}
 										placeholder="例如：管理"
 									/>
@@ -539,9 +482,7 @@ function CommandListField({ field }: CommandListFieldProps) {
 									value={command.description}
 									onBlur={field.handleBlur}
 									onChange={(event) =>
-										updateCommand(index, {
-											description: event.target.value,
-										})
+										updateCommand(index, { description: event.target.value })
 									}
 									placeholder="描述指令用途"
 									rows={2}
@@ -554,9 +495,7 @@ function CommandListField({ field }: CommandListFieldProps) {
 									value={command.usage}
 									onBlur={field.handleBlur}
 									onChange={(event) =>
-										updateCommand(index, {
-											usage: event.target.value,
-										})
+										updateCommand(index, { usage: event.target.value })
 									}
 									placeholder="例如：/help"
 								/>
@@ -565,9 +504,8 @@ function CommandListField({ field }: CommandListFieldProps) {
 					))}
 				</div>
 			)}
-
 			{errorMessage ? (
-				<p className="text-[#ed4245] text-sm">{errorMessage}</p>
+				<p className="text-sm text-[#ed4245]">{errorMessage}</p>
 			) : null}
 		</div>
 	);
@@ -582,24 +520,14 @@ function DeveloperListField({ field }: DeveloperListFieldProps) {
 		? (field.state.value as DeveloperItem[])
 		: [];
 	const errorMessage = readFirstError(field.state.meta.errors);
-	const keyCounterRef = useRef(0);
-	const developerKeysRef = useRef<string[]>([]);
 
-	const buildKey = () => {
-		keyCounterRef.current += 1;
-		return `developer-${keyCounterRef.current}`;
-	};
-
-	while (developerKeysRef.current.length < developers.length) {
-		developerKeysRef.current.push(buildKey());
-	}
-	if (developerKeysRef.current.length > developers.length) {
-		developerKeysRef.current.length = developers.length;
-	}
-	const developerKeys = developerKeysRef.current;
+	const [developerKeys, setDeveloperKeys] = useState<string[]>(() =>
+		developers.map(() => crypto.randomUUID()),
+	);
 
 	const addDeveloper = () => {
 		field.handleChange([...developers, { name: "" }]);
+		setDeveloperKeys((prev) => [...prev, crypto.randomUUID()]);
 	};
 
 	const updateDeveloper = (index: number, name: string) => {
@@ -611,13 +539,9 @@ function DeveloperListField({ field }: DeveloperListFieldProps) {
 	};
 
 	const removeDeveloper = (index: number) => {
-		const nextDevelopers = developers.filter(
-			(_, currentIndex) => currentIndex !== index,
-		);
-		developerKeysRef.current = developerKeysRef.current.filter(
-			(_, currentIndex) => currentIndex !== index,
-		);
+		const nextDevelopers = developers.filter((_, i) => i !== index);
 		field.handleChange(nextDevelopers);
+		setDeveloperKeys((prev) => prev.filter((_, i) => i !== index));
 	};
 
 	return (
@@ -628,7 +552,7 @@ function DeveloperListField({ field }: DeveloperListFieldProps) {
 					type="button"
 					onClick={addDeveloper}
 					size="sm"
-					className="bg-discord text-white hover:bg-discord-hover"
+					className="bg-[#5865f2] text-white hover:bg-[#4752c4]"
 				>
 					<Plus className="h-4 w-4" />
 					新增開發者
@@ -636,7 +560,7 @@ function DeveloperListField({ field }: DeveloperListFieldProps) {
 			</div>
 
 			{developers.length === 0 ? (
-				<p className="rounded-md border border-white/10 border-dashed px-3 py-3 text-[#b9bbbe] text-sm">
+				<p className="rounded-md border border-dashed border-white/10 px-3 py-3 text-sm text-[#b9bbbe]">
 					尚未新增任何開發者。
 				</p>
 			) : (
@@ -652,7 +576,7 @@ function DeveloperListField({ field }: DeveloperListFieldProps) {
 							<Button
 								type="button"
 								onClick={() => removeDeveloper(index)}
-								className="bg-red-600 text-white hover:bg-red-700"
+								className="bg-[#ed4245] text-white hover:bg-[#c93b3e]"
 								size="icon"
 							>
 								<Trash2 className="h-4 w-4" />
@@ -661,9 +585,8 @@ function DeveloperListField({ field }: DeveloperListFieldProps) {
 					))}
 				</div>
 			)}
-
 			{errorMessage ? (
-				<p className="text-[#ed4245] text-sm">{errorMessage}</p>
+				<p className="text-sm text-[#ed4245]">{errorMessage}</p>
 			) : null}
 		</div>
 	);
@@ -674,6 +597,17 @@ export default function BotForm({
 	defaultValues,
 }: BotFormProps) {
 	const persisted = useMemo(() => readPersistedFields(), []);
+
+	const objectUrlsRef = useRef<Set<string>>(new Set());
+
+	useEffect(() => {
+		return () => {
+			// Adding curly braces prevents the implicit return
+			objectUrlsRef.current.forEach((url) => {
+				URL.revokeObjectURL(url);
+			});
+		};
+	}, []);
 
 	const form = useForm({
 		defaultValues: {
@@ -704,53 +638,89 @@ export default function BotForm({
 			setLoading(true);
 			setSuccess(false);
 
-			const payload = {
-				form: value,
-				screenshots: media.screenshots,
-				banner: media.banner?.url ?? null,
-				mode,
-			};
+			try {
+				// 1. 處理 Banner 上傳
+				let finalBannerUrl = media.banner?.url ?? null;
+				if (media.banner?.file) {
+					toast.info("上傳 Banner 中...");
+					const uploadedBanner = await ScreenshotUpload([media.banner.file]);
+					finalBannerUrl = uploadedBanner[0]?.url ?? null;
+				}
 
-			const response = await Effect.runPromise(
-				Effect.tryPromise({
-					try: () => submitBotFn({ data: payload }),
-					catch: (error) =>
-						new SubmitBotFailed({
-							message: `提交失敗：${toErrorMessage(error)}`,
-						}),
-				}).pipe(
-					Effect.catchAll((error) =>
-						Effect.succeed({
-							success: false as const,
-							error: {
-								tag: error._tag,
-								message: error.message,
-							},
-						} satisfies SubmitBotResult),
+				// 2. 處理 Screenshots 上傳
+				const finalScreenshots = [...media.screenshots];
+				const localScreenshotIndices: number[] = [];
+				const localScreenshotFiles: File[] = [];
+
+				media.screenshots.forEach((s, index) => {
+					if (s.file) {
+						localScreenshotIndices.push(index);
+						localScreenshotFiles.push(s.file);
+					}
+				});
+
+				if (localScreenshotFiles.length > 0) {
+					toast.info(`上傳 ${localScreenshotFiles.length} 張截圖中...`);
+					const uploadedScreenshots =
+						await ScreenshotUpload(localScreenshotFiles);
+
+					// 將上傳後的遠端 URL 替換回原陣列對應的位置
+					localScreenshotIndices.forEach((originalIndex, newIndex) => {
+						finalScreenshots[originalIndex] = uploadedScreenshots[newIndex];
+					});
+				}
+
+				// 3. 送出最終表單資料
+				const payload = {
+					form: value,
+					screenshots: finalScreenshots,
+					banner: finalBannerUrl,
+					mode,
+				};
+
+				const response = await Effect.runPromise(
+					Effect.tryPromise({
+						try: () => submitBotFn({ data: payload }),
+						catch: (error) =>
+							new SubmitBotFailed({
+								message: `提交失敗：${toErrorMessage(error)}`,
+							}),
+					}).pipe(
+						Effect.catchAll((error) =>
+							Effect.succeed({
+								success: false as const,
+								error: {
+									tag: error._tag,
+									message: error.message,
+								},
+							} satisfies SubmitBotResult),
+						),
 					),
-				),
-			);
+				);
 
-			if (!response.success) {
-				toast.error(getSubmitErrorMessage(response.error));
+				if (!response.success) {
+					toast.error(getSubmitErrorMessage(response.error));
+					setLoading(false);
+					return;
+				}
+
+				setSuccess(true);
+				window.localStorage.removeItem("desc");
+				window.localStorage.removeItem("longdesc");
+
+				if (mode === "create") {
+					form.reset();
+					setMedia({ screenshots: [], banner: null });
+				}
+
+				if (mode === "edit") {
+					toast.success("編輯成功");
+				}
+			} catch (error) {
+				toast.error(`圖片上傳失敗：${toErrorMessage(error)}`);
+			} finally {
 				setLoading(false);
-				return;
 			}
-
-			setSuccess(true);
-			window.localStorage.removeItem("desc");
-			window.localStorage.removeItem("longdesc");
-
-			if (mode === "create") {
-				form.reset();
-				setMedia({ screenshots: [], banner: null });
-			}
-
-			if (mode === "edit") {
-				toast.success("編輯成功");
-			}
-
-			setLoading(false);
 		},
 	});
 
@@ -758,12 +728,14 @@ export default function BotForm({
 		screenshots: [],
 		banner: null,
 	});
-	const [uploading, setUploading] = useState(false);
+	const [uploading] = useState(false);
 	const [loading, setLoading] = useState(false);
 	const [success, setSuccess] = useState(false);
 
 	const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 	const previewRef = useRef<HTMLDivElement | null>(null);
+	const bannerFileInputRef = useRef<HTMLInputElement | null>(null);
+	const screenshotsFileInputRef = useRef<HTMLInputElement | null>(null);
 	const persistedRef = useRef(persisted);
 
 	const longDescription = useStore(
@@ -946,103 +918,82 @@ export default function BotForm({
 					: 1
 				: Math.max(0, 5 - media.screenshots.length);
 
-		if (remainingSlots <= 0) {
-			return;
-		}
+		if (remainingSlots <= 0) return;
 
-		setUploading(true);
+		// 僅驗證檔案
+		const validFiles = await Effect.runPromise(
+			validateFiles(files, remainingSlots).pipe(
+				Effect.catchAll(() => Effect.succeed([] as File[])),
+			),
+		);
 
-		const uploadAttemptEffect = Effect.gen(function* () {
-			const validFiles = yield* validateFiles(files, remainingSlots);
-			if (validFiles.length === 0) {
-				return {
-					status: "empty" as const,
-					items: [] as Screenshot[],
-					validCount: 0,
-				};
-			}
+		if (validFiles.length === 0) return;
 
-			const items = yield* uploadImages(validFiles);
-			return {
-				status: "success" as const,
-				items,
-				validCount: validFiles.length,
-			};
+		// 建立本機預覽 (Object URL)
+		const newItems: MediaItem[] = validFiles.map((file) => {
+			const url = URL.createObjectURL(file);
+			objectUrlsRef.current.add(url);
+			return { url, file };
 		});
-		const uploadEffect: Effect.Effect<UploadResult, never> =
-			uploadAttemptEffect.pipe(
-				Effect.catchAll((error) =>
-					Effect.succeed({
-						status: "error" as const,
-						error,
-					}),
-				),
-			);
 
-		const result = await Effect.runPromise(uploadEffect);
-
-		if (result.status === "error") {
-			const message =
-				result.error instanceof ImageUploadFailed
-					? `圖片 ${result.error.filename} 上傳失敗`
-					: "上傳失敗";
-			toast.error(message);
-			setUploading(false);
-			return;
-		}
-
-		if (result.status === "success" && result.items.length > 0) {
-			if (kind === "banner") {
-				setMedia((previous) => ({
-					...previous,
-					banner: result.items[0] ?? null,
-				}));
-			} else {
-				setMedia((previous) => ({
-					...previous,
-					screenshots: [...previous.screenshots, ...result.items],
-				}));
+		if (kind === "banner") {
+			// 若原有本地 banner，先釋放
+			if (media.banner?.file) {
+				URL.revokeObjectURL(media.banner.url);
+				objectUrlsRef.current.delete(media.banner.url);
 			}
-
-			if (result.items.length < result.validCount) {
-				toast.warning(
-					`只上傳了 ${result.items.length} 個檔案，其他可能是格式不符或上傳失敗。`,
-				);
-			} else {
-				toast.success("上傳成功！");
-			}
+			setMedia((previous) => ({
+				...previous,
+				banner: newItems[0] ?? null,
+			}));
+		} else {
+			setMedia((previous) => ({
+				...previous,
+				screenshots: [...previous.screenshots, ...newItems],
+			}));
 		}
-
-		setUploading(false);
 	};
 
 	const removeScreenshot = (index: number) => {
 		const toDelete = media.screenshots[index];
+		if (!toDelete) return;
+
+		if (toDelete.file) {
+			// 本地圖片：釋放記憶體
+			URL.revokeObjectURL(toDelete.url);
+			objectUrlsRef.current.delete(toDelete.url);
+		} else if (toDelete.public_id) {
+			// 遠端圖片：呼叫刪除 API
+			void Effect.runPromise(
+				deleteImage(toDelete.public_id).pipe(
+					Effect.catchAll(() => Effect.succeed(undefined)),
+				),
+			);
+		}
+
 		setMedia((previous) => ({
 			...previous,
 			screenshots: previous.screenshots.filter(
 				(_, current) => current !== index,
 			),
 		}));
-		if (!toDelete) return;
-
-		void Effect.runPromise(
-			deleteImage(toDelete.public_id).pipe(
-				Effect.catchAll(() => Effect.succeed(undefined)),
-			),
-		);
 	};
 
 	const removeBanner = () => {
 		const toDelete = media.banner;
-		setMedia((previous) => ({ ...previous, banner: null }));
 		if (!toDelete) return;
 
-		void Effect.runPromise(
-			deleteImage(toDelete.public_id).pipe(
-				Effect.catchAll(() => Effect.succeed(undefined)),
-			),
-		);
+		if (toDelete.file) {
+			URL.revokeObjectURL(toDelete.url);
+			objectUrlsRef.current.delete(toDelete.url);
+		} else if (toDelete.public_id) {
+			void Effect.runPromise(
+				deleteImage(toDelete.public_id).pipe(
+					Effect.catchAll(() => Effect.succeed(undefined)),
+				),
+			);
+		}
+		setMedia((previous) => ({ ...previous, banner: null }));
 	};
 
 	const sanitizedMarkdown = useMemo(
@@ -1051,52 +1002,219 @@ export default function BotForm({
 	);
 
 	return (
-		<div className="min-h-screen bg-[#1e1f22] text-white">
-			<div className="mx-auto max-w-4xl px-4 py-8">
-				<div className="rounded-lg bg-[#2b2d31] p-6 shadow-lg">
-					<h1 className="mb-6 font-bold text-2xl">
-						{mode === "edit" ? "編輯" : "新增"}您的 Discord 機器人
-					</h1>
+		<div className="min-h-screen bg-[#1e1f22] px-4 py-8 text-white">
+			<div className="mx-auto max-w-7xl space-y-6">
+				<div className="flex flex-wrap items-center justify-between gap-3">
+					<div>
+						<h1 className="text-2xl font-bold">
+							{mode === "edit" ? "編輯" : "新增"}您的 Discord 機器人
+						</h1>
+					</div>
+				</div>
 
-					<form
-						onKeyDown={(event) => {
-							if (
-								event.key === "Enter" &&
-								event.target instanceof HTMLInputElement
-							) {
-								event.preventDefault();
-							}
-						}}
-						onSubmit={(event) => {
+				<form
+					onKeyDown={(event) => {
+						if (
+							event.key === "Enter" &&
+							event.target instanceof HTMLInputElement
+						) {
 							event.preventDefault();
-							event.stopPropagation();
-							void form.handleSubmit();
-						}}
-						className="space-y-6"
-					>
-						<div className="space-y-4">
-							<h2 className="font-semibold text-xl">基本資訊</h2>
+						}
+					}}
+					onSubmit={(event) => {
+						event.preventDefault();
+						event.stopPropagation();
+						void form.handleSubmit();
+					}}
+					className="grid gap-6 lg:grid-cols-2"
+				>
+					<div className="space-y-6 rounded-xl border border-white/10 bg-[#2b2d31] p-5">
+						<h2 className="border-b border-white/10 pb-2 font-bold text-lg">
+							基本資訊
+						</h2>
 
+						<form.Field
+							name="botName"
+							validators={{ onChange: ({ value }) => validateBotName(value) }}
+						>
+							{(field) => {
+								const errorMessage = readFirstError(field.state.meta.errors);
+								return (
+									<div className="space-y-2">
+										<Label htmlFor="botName">機器人名稱 *</Label>
+										<Input
+											id="botName"
+											value={field.state.value ?? ""}
+											onBlur={field.handleBlur}
+											onChange={(event) =>
+												field.handleChange(event.target.value)
+											}
+											placeholder="輸入您的機器人名稱"
+											aria-invalid={Boolean(errorMessage)}
+										/>
+										{errorMessage ? (
+											<p className="text-sm text-[#ed4245]">{errorMessage}</p>
+										) : null}
+									</div>
+								);
+							}}
+						</form.Field>
+
+						<form.Field
+							name="botPrefix"
+							validators={{
+								onChange: ({ value }) => validateBotPrefix(value),
+							}}
+						>
+							{(field) => {
+								const errorMessage = readFirstError(field.state.meta.errors);
+								return (
+									<div className="space-y-2">
+										<Label htmlFor="botPrefix">機器人前綴 *</Label>
+										<Input
+											id="botPrefix"
+											value={field.state.value ?? ""}
+											onBlur={field.handleBlur}
+											onChange={(event) =>
+												field.handleChange(event.target.value)
+											}
+											placeholder="例如：! 或 /"
+											aria-invalid={Boolean(errorMessage)}
+										/>
+										{errorMessage ? (
+											<p className="text-sm text-[#ed4245]">{errorMessage}</p>
+										) : null}
+									</div>
+								);
+							}}
+						</form.Field>
+
+						<form.Field
+							name="botDescription"
+							validators={{
+								onChange: ({ value }) => validateBotDescription(value),
+							}}
+						>
+							{(field) => {
+								const errorMessage = readFirstError(field.state.meta.errors);
+								return (
+									<div className="space-y-2">
+										<Label htmlFor="botDescription">簡短描述 *</Label>
+										<Textarea
+											id="botDescription"
+											value={field.state.value ?? ""}
+											rows={3}
+											maxLength={200}
+											onBlur={field.handleBlur}
+											onChange={(event) =>
+												field.handleChange(event.target.value)
+											}
+											placeholder="簡短描述您的機器人功能（最多 200 字）"
+											aria-invalid={Boolean(errorMessage)}
+										/>
+										<div className="flex items-center justify-between text-xs text-[#b9bbbe]">
+											<span>最多 200 字</span>
+											<span>{(field.state.value ?? "").length}/200</span>
+										</div>
+										{errorMessage ? (
+											<p className="text-sm text-[#ed4245]">{errorMessage}</p>
+										) : null}
+									</div>
+								);
+							}}
+						</form.Field>
+
+						{/* 效能優化：對長文本區塊加入防抖 (Debounce) 驗證 */}
+						<form.Field
+							name="botLongDescription"
+							validators={{
+								onChangeAsyncDebounceMs: 500,
+								onChangeAsync: async ({ value }) =>
+									validateBotLongDescription(value),
+							}}
+						>
+							{(field) => {
+								const errorMessage = readFirstError(field.state.meta.errors);
+								return (
+									<div className="space-y-2">
+										<Label htmlFor="botLongDescription">詳細描述 *</Label>
+										<textarea
+											id="botLongDescription"
+											ref={(el) => {
+												textareaRef.current = el;
+											}}
+											rows={14}
+											className="flex min-h-16 w-full rounded-md border border-input bg-transparent px-3 py-2 text-base shadow-xs outline-none transition-[color,box-shadow] placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:aria-invalid:ring-destructive/40"
+											value={field.state.value ?? ""}
+											onBlur={field.handleBlur}
+											onScroll={handleScroll}
+											onChange={(event) =>
+												field.handleChange(event.target.value)
+											}
+											placeholder="請輸入詳細描述 (支援Markdown)"
+											aria-invalid={Boolean(errorMessage)}
+										/>
+										{errorMessage ? (
+											<p className="text-sm text-[#ed4245]">{errorMessage}</p>
+										) : null}
+									</div>
+								);
+							}}
+						</form.Field>
+
+						<form.Field
+							name="botInvite"
+							validators={{
+								onChange: ({ value }) => validateBotInvite(value),
+							}}
+						>
+							{(field) => {
+								const errorMessage = readFirstError(field.state.meta.errors);
+								return (
+									<div className="space-y-2">
+										<Label htmlFor="botInvite">機器人邀請連結 *</Label>
+										<Input
+											id="botInvite"
+											value={field.state.value ?? ""}
+											onBlur={field.handleBlur}
+											onChange={(event) =>
+												field.handleChange(event.target.value)
+											}
+											placeholder="例如：https://discord.com/oauth2/authorize?client_id=..."
+											aria-invalid={Boolean(errorMessage)}
+										/>
+										{errorMessage ? (
+											<p className="text-sm text-[#ed4245]">{errorMessage}</p>
+										) : null}
+									</div>
+								);
+							}}
+						</form.Field>
+
+						<div className="grid grid-cols-1 gap-4 md:grid-cols-2">
 							<form.Field
-								name="botName"
-								validators={{ onChange: ({ value }) => validateBotName(value) }}
+								name="botWebsite"
+								validators={{
+									onChange: ({ value }) => validateBotWebsite(value),
+								}}
 							>
 								{(field) => {
 									const errorMessage = readFirstError(field.state.meta.errors);
 									return (
 										<div className="space-y-2">
-											<Label htmlFor="botName">機器人名稱 *</Label>
+											<Label htmlFor="botWebsite">網站連結</Label>
 											<Input
-												id="botName"
+												id="botWebsite"
 												value={field.state.value ?? ""}
 												onBlur={field.handleBlur}
 												onChange={(event) =>
 													field.handleChange(event.target.value)
 												}
-												placeholder="輸入您的機器人名稱"
+												placeholder="例如：https://example.com"
+												aria-invalid={Boolean(errorMessage)}
 											/>
 											{errorMessage ? (
-												<p className="text-[#ed4245] text-sm">{errorMessage}</p>
+												<p className="text-sm text-[#ed4245]">{errorMessage}</p>
 											) : null}
 										</div>
 									);
@@ -1104,454 +1222,287 @@ export default function BotForm({
 							</form.Field>
 
 							<form.Field
-								name="botPrefix"
+								name="botSupport"
 								validators={{
-									onChange: ({ value }) => validateBotPrefix(value),
+									onChange: ({ value }) => validateBotSupport(value),
 								}}
 							>
 								{(field) => {
 									const errorMessage = readFirstError(field.state.meta.errors);
 									return (
 										<div className="space-y-2">
-											<Label htmlFor="botPrefix">機器人前綴 *</Label>
+											<Label htmlFor="botSupport">支援伺服器連結</Label>
 											<Input
-												id="botPrefix"
+												id="botSupport"
 												value={field.state.value ?? ""}
 												onBlur={field.handleBlur}
 												onChange={(event) =>
 													field.handleChange(event.target.value)
 												}
-												placeholder="例如：! 或 /"
+												placeholder="例如：https://discord.gg/example"
+												aria-invalid={Boolean(errorMessage)}
 											/>
 											{errorMessage ? (
-												<p className="text-[#ed4245] text-sm">{errorMessage}</p>
+												<p className="text-sm text-[#ed4245]">{errorMessage}</p>
 											) : null}
 										</div>
 									);
 								}}
 							</form.Field>
+						</div>
 
-							<form.Field
-								name="botDescription"
-								validators={{
-									onChange: ({ value }) => validateBotDescription(value),
-								}}
+						<form.Field
+							name="developers"
+							validators={{
+								onChange: ({ value }) => validateDevelopers(value),
+							}}
+						>
+							{(field) => <DeveloperListField field={field} />}
+						</form.Field>
+
+						<form.Field
+							name="tags"
+							validators={{ onChange: ({ value }) => validateTags(value) }}
+						>
+							{(field) => <TagField field={field} categories={botCategories} />}
+						</form.Field>
+
+						<form.Field
+							name="commands"
+							validators={{
+								onChange: ({ value }) => validateCommands(value),
+							}}
+						>
+							{(field) => <CommandListField field={field} />}
+						</form.Field>
+
+						<h2 className="border-b border-white/10 pb-2 font-bold text-lg">
+							投票通知
+						</h2>
+
+						<form.Field
+							name="secret"
+							validators={{
+								onChange: ({ value }) => validateSecret(value),
+							}}
+						>
+							{(field) => {
+								const errorMessage = readFirstError(field.state.meta.errors);
+								return (
+									<div className="space-y-2">
+										<Label htmlFor="secret">Secret</Label>
+										<Input
+											id="secret"
+											value={field.state.value ?? ""}
+											onBlur={field.handleBlur}
+											onChange={(event) =>
+												field.handleChange(event.target.value)
+											}
+											placeholder="可選：Webhook 密鑰 (用於驗證來自自訂端點的 Webhook 請求)"
+											aria-invalid={Boolean(errorMessage)}
+										/>
+										{errorMessage ? (
+											<p className="text-sm text-[#ed4245]">{errorMessage}</p>
+										) : null}
+									</div>
+								);
+							}}
+						</form.Field>
+
+						<form.Field
+							name="webhook_url"
+							validators={{
+								onChange: ({ value }) => validateWebhookUrl(value),
+							}}
+						>
+							{(field) => {
+								const errorMessage = readFirstError(field.state.meta.errors);
+								return (
+									<div className="space-y-2">
+										<Label htmlFor="webhook_url">Webhook 網址</Label>
+										<Input
+											id="webhook_url"
+											value={field.state.value ?? ""}
+											onBlur={field.handleBlur}
+											onChange={(event) =>
+												field.handleChange(event.target.value)
+											}
+											placeholder="可選：Discord Webhook 網址 或 自訂端點網址"
+											aria-invalid={Boolean(errorMessage)}
+										/>
+										{errorMessage ? (
+											<p className="text-sm text-[#ed4245]">{errorMessage}</p>
+										) : null}
+									</div>
+								);
+							}}
+						</form.Field>
+
+						<h2 className="border-b border-white/10 pb-2 font-bold text-lg">
+							圖片上傳
+						</h2>
+
+						<div className="space-y-2">
+							<Label htmlFor="bot-banner">機器人橫幅</Label>
+							<input
+								ref={bannerFileInputRef}
+								id="bot-banner"
+								type="file"
+								accept="image/*"
+								className="sr-only"
+								disabled={uploading || !!media.banner}
+								onChange={(event) => handleMediaUpload(event, "banner")}
+							/>
+							<Button
+								type="button"
+								className="bg-[#5865f2] text-white hover:bg-[#4752c4] disabled:cursor-not-allowed disabled:bg-[#5865f2]/70"
+								disabled={uploading || !!media.banner}
+								onClick={() => bannerFileInputRef.current?.click()}
 							>
-								{(field) => {
-									const errorMessage = readFirstError(field.state.meta.errors);
-									return (
-										<div className="space-y-2">
-											<Label htmlFor="botDescription">簡短描述 *</Label>
-											<Textarea
-												id="botDescription"
-												value={field.state.value ?? ""}
-												maxLength={200}
-												onBlur={field.handleBlur}
-												onChange={(event) =>
-													field.handleChange(event.target.value)
-												}
-												placeholder="簡短描述您的機器人功能（最多 200 字）"
-											/>
-											{errorMessage ? (
-												<p className="text-[#ed4245] text-sm">{errorMessage}</p>
-											) : null}
-										</div>
-									);
-								}}
-							</form.Field>
+								{uploading ? "圖片上傳中..." : "選擇橫幅圖片"}
+							</Button>
+							<p className="text-xs text-[#b9bbbe]">
+								上傳您機器人的自訂橫幅 (如不設置將以機器人橫幅代替)
+							</p>
+						</div>
 
-							<form.Field
-								name="botLongDescription"
-								validators={{
-									onChange: ({ value }) => validateBotLongDescription(value),
-								}}
+						<div className="space-y-2">
+							<Label htmlFor="bot-screenshots">機器人截圖（最多 5 張）</Label>
+							<input
+								ref={screenshotsFileInputRef}
+								id="bot-screenshots"
+								type="file"
+								accept="image/*"
+								multiple
+								className="sr-only"
+								disabled={uploading || media.screenshots.length >= 5}
+								onChange={(event) => handleMediaUpload(event, "screenshots")}
+							/>
+							<Button
+								type="button"
+								className="bg-[#5865f2] text-white hover:bg-[#4752c4] disabled:cursor-not-allowed disabled:bg-[#5865f2]/70"
+								disabled={uploading || media.screenshots.length >= 5}
+								onClick={() => screenshotsFileInputRef.current?.click()}
 							>
-								{(field) => {
-									const errorMessage = readFirstError(field.state.meta.errors);
-									return (
-										<div className="space-y-2">
-											<Label htmlFor="botLongDescription">詳細描述 *</Label>
-											<Textarea
-												id="botLongDescription"
-												value={field.state.value ?? ""}
-												rows={10}
-												placeholder="請輸入詳細描述 (支援Markdown)"
-												ref={(el) => {
-													textareaRef.current = el;
-												}}
-												onScroll={handleScroll}
-												onChange={(event) =>
-													field.handleChange(event.target.value)
-												}
-												onBlur={field.handleBlur}
-											/>
-											{errorMessage ? (
-												<p className="text-[#ed4245] text-sm">{errorMessage}</p>
-											) : null}
-										</div>
-									);
-								}}
-							</form.Field>
+								{uploading ? "圖片上傳中..." : "選擇截圖"}
+							</Button>
+							<p className="text-xs text-[#b9bbbe]">
+								上傳您機器人的截圖，展示機器人的功能和使用場景
+							</p>
+						</div>
 
+						<div className="space-y-4 border-t border-white/10 pt-4">
+							<div className="flex items-start gap-2">
+								<Info size={16} className="mt-0.5 text-[#5865f2]" />
+								<p className="text-sm text-[#b9bbbe]">
+									{mode === "edit"
+										? "保存後，變更可能需要一段時間才會套用。"
+										: "提交後，我們將審核您的機器人。審核通常需要 1-2 個工作日。"}
+								</p>
+							</div>
+
+							{/* 修復：清除了未定義變數，並綁定正確的表單屬性 */}
+							<form.Subscribe
+								selector={(state) => ({
+									canSubmit: state.canSubmit,
+									isSubmitting: state.isSubmitting,
+									hasRequiredFields: hasRequiredPublishFields({
+										botDescription: state.values.botDescription ?? "",
+										botLongDescription: state.values.botLongDescription ?? "",
+										botInvite: state.values.botInvite ?? "",
+									}),
+								})}
+							>
+								{({ canSubmit, isSubmitting, hasRequiredFields }) => (
+									<Button
+										type="submit"
+										disabled={
+											!hasRequiredFields ||
+											!canSubmit ||
+											isSubmitting ||
+											loading ||
+											uploading
+										}
+										className="w-full bg-[#5865f2] text-white hover:bg-[#4752c4] disabled:cursor-not-allowed disabled:bg-[#5865f2]/70"
+									>
+										{loading || isSubmitting
+											? "儲存中..."
+											: mode === "edit"
+												? "更新機器人"
+												: "新增機器人"}
+									</Button>
+								)}
+							</form.Subscribe>
+						</div>
+					</div>
+
+					<div className="flex h-full flex-col space-y-4 rounded-xl border border-white/10 bg-[#2b2d31] p-5">
+						{/* 1. 橫幅預覽 */}
+						<div className="space-y-2">
+							<Label>橫幅預覽</Label>
+							<div className="h-40 overflow-hidden rounded-lg border border-white/10 bg-[#36393f]">
+								{media.banner ? (
+									<div className="group relative h-full w-full">
+										<img
+											src={media.banner.url}
+											alt="Banner preview"
+											className="h-full w-full object-cover"
+										/>
+										<button
+											type="button"
+											onClick={removeBanner}
+											className="absolute top-2 right-2 rounded-full bg-black/60 p-1 text-white opacity-0 transition-opacity group-hover:opacity-100"
+										>
+											<X size={14} />
+										</button>
+									</div>
+								) : (
+									<div className="flex h-full items-center justify-center text-sm text-[#b9bbbe]">
+										沒有機器人橫幅
+									</div>
+								)}
+							</div>
+						</div>
+
+						{/* 2. 截圖預覽 */}
+						<div className="space-y-2">
+							<Label>截圖預覽</Label>
+							<div className="min-h-32 rounded-lg border border-white/10 bg-[#36393f] p-4">
+								{media.screenshots.length > 0 ? (
+									<ScreenshotGrid
+										screenshotPreviews={media.screenshots.map(
+											(item) => item.url,
+										)}
+										removeScreenshot={removeScreenshot}
+									/>
+								) : (
+									<div className="flex h-full items-center justify-center pt-8 pb-8 text-sm text-[#b9bbbe]">
+										沒有機器人截圖
+									</div>
+								)}
+							</div>
+						</div>
+
+						{/* 3. Markdown 預覽（加上 flex-1 與 h-0 讓它自動延伸至最底部） */}
+						<div className="flex flex-1 flex-col space-y-2">
+							<Label>Markdown 預覽</Label>
 							<div
 								ref={previewRef}
-								className="mt-4 h-62.5 overflow-auto rounded-md border border-gray-700 bg-[#1e1f22] p-4"
+								className="flex-1 h-0 overflow-y-auto rounded-lg border border-white/10 bg-[#1f2124] p-4"
 							>
 								<ClientOnly>
-									<MarkdownRenderer content={sanitizedMarkdown} />
+									{sanitizedMarkdown.trim() ? (
+										<MarkdownRenderer content={sanitizedMarkdown} />
+									) : (
+										<p className="text-sm text-[#b9bbbe]">
+											在左側輸入詳細介紹後，這裡會同步顯示預覽。
+										</p>
+									)}
 								</ClientOnly>
 							</div>
-
-							<form.Field
-								name="botInvite"
-								validators={{
-									onChange: ({ value }) => validateBotInvite(value),
-								}}
-							>
-								{(field) => {
-									const errorMessage = readFirstError(field.state.meta.errors);
-									return (
-										<div className="space-y-2">
-											<Label htmlFor="botInvite">機器人邀請連結 *</Label>
-											<Input
-												id="botInvite"
-												value={field.state.value ?? ""}
-												onBlur={field.handleBlur}
-												onChange={(event) =>
-													field.handleChange(event.target.value)
-												}
-												placeholder="例如：https://discord.com/oauth2/authorize?client_id=..."
-											/>
-											{errorMessage ? (
-												<p className="text-[#ed4245] text-sm">{errorMessage}</p>
-											) : null}
-										</div>
-									);
-								}}
-							</form.Field>
-
-							<div className="grid grid-cols-1 gap-4 md:grid-cols-2">
-								<form.Field
-									name="botWebsite"
-									validators={{
-										onChange: ({ value }) => validateBotWebsite(value),
-									}}
-								>
-									{(field) => {
-										const errorMessage = readFirstError(
-											field.state.meta.errors,
-										);
-										return (
-											<div className="space-y-2">
-												<Label htmlFor="botWebsite">網站連結</Label>
-												<Input
-													id="botWebsite"
-													value={field.state.value ?? ""}
-													onBlur={field.handleBlur}
-													onChange={(event) =>
-														field.handleChange(event.target.value)
-													}
-													placeholder="例如：https://example.com"
-												/>
-												{errorMessage ? (
-													<p className="text-[#ed4245] text-sm">
-														{errorMessage}
-													</p>
-												) : null}
-											</div>
-										);
-									}}
-								</form.Field>
-
-								<form.Field
-									name="botSupport"
-									validators={{
-										onChange: ({ value }) => validateBotSupport(value),
-									}}
-								>
-									{(field) => {
-										const errorMessage = readFirstError(
-											field.state.meta.errors,
-										);
-										return (
-											<div className="space-y-2">
-												<Label htmlFor="botSupport">支援伺服器連結</Label>
-												<Input
-													id="botSupport"
-													value={field.state.value ?? ""}
-													onBlur={field.handleBlur}
-													onChange={(event) =>
-														field.handleChange(event.target.value)
-													}
-													placeholder="例如：https://discord.gg/example"
-												/>
-												{errorMessage ? (
-													<p className="text-[#ed4245] text-sm">
-														{errorMessage}
-													</p>
-												) : null}
-											</div>
-										);
-									}}
-								</form.Field>
-							</div>
-
-							<form.Field
-								name="developers"
-								validators={{
-									onChange: ({ value }) => validateDevelopers(value),
-								}}
-							>
-								{(field) => <DeveloperListField field={field} />}
-							</form.Field>
-
-							<form.Field
-								name="tags"
-								validators={{ onChange: ({ value }) => validateTags(value) }}
-							>
-								{(field) => (
-									<TagField field={field} categories={botCategories} />
-								)}
-							</form.Field>
-
-							<form.Field
-								name="commands"
-								validators={{
-									onChange: ({ value }) => validateCommands(value),
-								}}
-							>
-								{(field) => <CommandListField field={field} />}
-							</form.Field>
-
-							<div className="space-y-4">
-								<h2 className="font-semibold text-xl">投票通知</h2>
-
-								<form.Field
-									name="secret"
-									validators={{
-										onChange: ({ value }) => validateSecret(value),
-									}}
-								>
-									{(field) => {
-										const errorMessage = readFirstError(
-											field.state.meta.errors,
-										);
-										return (
-											<div className="space-y-2">
-												<Label htmlFor="secret">
-													Secret（觸發投票時，Secret會加到 Auth
-													Header，用來驗證請求是從這裡送出）
-												</Label>
-												<Input
-													id="secret"
-													value={field.state.value ?? ""}
-													onBlur={field.handleBlur}
-													onChange={(event) =>
-														field.handleChange(event.target.value)
-													}
-													placeholder="輸入 Secret"
-												/>
-												{errorMessage ? (
-													<p className="text-[#ed4245] text-sm">
-														{errorMessage}
-													</p>
-												) : null}
-											</div>
-										);
-									}}
-								</form.Field>
-
-								<form.Field
-									name="webhook_url"
-									validators={{
-										onChange: ({ value }) => validateWebhookUrl(value),
-									}}
-								>
-									{(field) => {
-										const errorMessage = readFirstError(
-											field.state.meta.errors,
-										);
-										return (
-											<div className="space-y-2">
-												<Label htmlFor="webhook_url">
-													Webhook URL（輸入 Discord Webhook
-													時會送出美化的投票通知 Embed，自訂 Web Server
-													則會接收到 JSON 格式的資料）
-												</Label>
-												<Input
-													id="webhook_url"
-													value={field.state.value ?? ""}
-													onBlur={field.handleBlur}
-													onChange={(event) =>
-														field.handleChange(event.target.value)
-													}
-													placeholder="https://your-webhook.url"
-												/>
-												{errorMessage ? (
-													<p className="text-[#ed4245] text-sm">
-														{errorMessage}
-													</p>
-												) : null}
-											</div>
-										);
-									}}
-								</form.Field>
-							</div>
-
-							<div className="space-y-4">
-								<h2 className="font-semibold text-xl">圖片上傳</h2>
-
-								<div className="mt-4 space-y-5">
-									<Label htmlFor="bot-banner">機器人橫幅</Label>
-									<div className="flex flex-col gap-3">
-										<ScreenshotGrid
-											screenshotPreviews={
-												media.banner ? [media.banner.url] : []
-											}
-											removeScreenshot={removeBanner}
-										/>
-										{!media.banner && (
-											<div className="flex h-32 items-center justify-center rounded border border-[#4f545c] border-dashed bg-[#36393f]">
-												<Input
-													id="bot-banner"
-													type="file"
-													accept="image/*"
-													className="hidden"
-													onChange={(event) =>
-														handleMediaUpload(event, "banner")
-													}
-												/>
-												<Label
-													htmlFor="bot-banner"
-													className="flex cursor-pointer flex-col items-center text-gray-400 hover:text-white"
-												>
-													{uploading ? (
-														<div className="flex flex-col items-center">
-															<div className="h-6 w-6 animate-spin rounded-full border-white border-b-2" />
-															<span className="mt-2 text-sm">上傳中...</span>
-														</div>
-													) : (
-														<>
-															<Upload size={24} />
-															<span className="mt-2 text-sm">上傳橫幅</span>
-														</>
-													)}
-												</Label>
-											</div>
-										)}
-										<p className="text-gray-400 text-xs">
-											上傳您機器人的自訂橫幅 (如不設置將以機器人橫幅代替)
-										</p>
-									</div>
-								</div>
-
-								<div className="mt-4 space-y-5">
-									<Label htmlFor="bot-screenshots">
-										機器人截圖（最多 5 張）
-									</Label>
-									<div className="flex flex-col gap-3">
-										<ScreenshotGrid
-											screenshotPreviews={media.screenshots.map(
-												(item) => item.url,
-											)}
-											removeScreenshot={removeScreenshot}
-										/>
-										{media.screenshots.length < 5 && (
-											<div className="flex h-32 items-center justify-center rounded border border-[#4f545c] border-dashed bg-[#36393f]">
-												<Input
-													id="bot-screenshots"
-													type="file"
-													accept="image/*"
-													multiple
-													className="hidden"
-													onChange={(event) =>
-														handleMediaUpload(event, "screenshots")
-													}
-												/>
-												<Label
-													htmlFor="bot-screenshots"
-													className="flex cursor-pointer flex-col items-center text-gray-400 hover:text-white"
-												>
-													{uploading ? (
-														<div className="flex flex-col items-center">
-															<div className="h-6 w-6 animate-spin rounded-full border-white border-b-2" />
-															<span className="mt-2 text-sm">上傳中...</span>
-														</div>
-													) : (
-														<>
-															<Upload size={24} />
-															<span className="mt-2 text-sm">上傳截圖</span>
-														</>
-													)}
-												</Label>
-											</div>
-										)}
-										<p className="text-gray-400 text-xs">
-											上傳您機器人的截圖，展示機器人的功能和使用場景
-										</p>
-									</div>
-								</div>
-							</div>
-
-							<div className="flex items-center justify-between border-[#1e1f22] border-t pt-4">
-								<div className="flex items-center justify-between border-[#1e1f22] border-t pt-4">
-									<div className="flex items-start gap-2">
-										<Info size={16} className="mt-0.5 text-[#5865f2]" />
-										<p className="text-gray-400 text-sm">
-											{mode === "edit"
-												? "保存後，變更可能需要一段時間才會套用。"
-												: "提交後，我們將審核您的機器人。審核通常需要 1-2 個工作日。"}
-										</p>
-									</div>
-								</div>
-								<Button
-									type="submit"
-									disabled={loading}
-									className="discord relative flex cursor-pointer items-center justify-center rounded px-4 py-2 text-white disabled:opacity-50"
-								>
-									{loading && (
-										<svg
-											className="mr-2 h-5 w-5 animate-spin text-white"
-											xmlns="http://www.w3.org/2000/svg"
-											fill="none"
-											viewBox="0 0 24 24"
-											aria-hidden="true" /* ✨ 加上這行，就能解決 biomelint/a11y 錯誤 */
-										>
-											<circle
-												className="opacity-25"
-												cx="12"
-												cy="12"
-												r="10"
-												stroke="currentColor"
-												strokeWidth="4"
-											/>
-											<path
-												className="opacity-75"
-												fill="currentColor"
-												d="M4 12a8 8 0 018-8v4a4 4 0 00-4 4H4z"
-											/>
-										</svg>
-									)}
-									{loading
-										? mode === "edit"
-											? "儲存中..."
-											: "提交中..."
-										: mode === "edit"
-											? "保存變更"
-											: "提交機器人"}
-								</Button>
-							</div>
 						</div>
-					</form>
-
-					{success && (
-						<div className="mt-4 rounded border border-green-500 bg-green-100/10 p-3 text-green-500 text-sm">
-							{mode === "create"
-								? "✅ 機器人已成功提交，請等待審核人員審核，審核結果將會在網站的收件匣和官方群組的通知中出現。"
-								: "✅ 機器人已成功保存！"}
-						</div>
-					)}
-				</div>
+					</div>
+				</form>
 			</div>
 		</div>
 	);

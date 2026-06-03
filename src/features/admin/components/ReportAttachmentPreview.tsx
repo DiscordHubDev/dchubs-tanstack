@@ -8,6 +8,7 @@ import {
 	Video,
 } from "lucide-react";
 import { memo, useEffect, useState } from "react";
+import { fetchJsonEffect, runEffect } from "#/lib/effect-utils";
 import type { UploadedFile } from "#/lib/types";
 import type { ReportAttachment } from "#/types/admin";
 
@@ -19,7 +20,9 @@ const useRawAttachment = (
 	url: string,
 	type: UploadedFile["type"] | ReportAttachment["type"],
 ) => {
-	const [content, setContent] = useState<string | null>(null);
+	// 註：因為 fetchJsonEffect 最終解出來的是 JSON 資料（unknown），
+	// 如果你預期它是字串或其他型態，可以根據實際需求調整 useState 的泛型
+	const [content, setContent] = useState<any | null>(null);
 	const [error, setError] = useState<string | null>(null);
 	const [isLoading, setIsLoading] = useState<boolean>(false);
 
@@ -32,11 +35,11 @@ const useRawAttachment = (
 
 		const fetchRawData = async () => {
 			try {
-				const res = await fetchJsonEffect(url, { signal: controller.signal });
-				if (!res.ok) throw new Error("伺服器回應錯誤");
-				const text = await res.text();
-				setContent(text);
+				const effect = fetchJsonEffect(url, { signal: controller.signal });
+				const data = await runEffect(effect);
+				setContent(data);
 			} catch (err: unknown) {
+				// 處理 Effect 失敗（例如：非 HTTPS、請求失敗、JSON 解析失敗等）
 				if (err instanceof Error && err.name !== "AbortError") {
 					setError("無法讀取內容，請稍後再試");
 				}

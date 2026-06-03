@@ -2,7 +2,6 @@ import { desc, eq, gte, sql } from "drizzle-orm";
 import { Effect } from "effect";
 import { db } from "#/drizzle/db";
 import { server, userFavoriteServers } from "#/drizzle/schema";
-import { getSessionUserIdEffect } from "#/lib/edge-context";
 import { runEffect, tryEffectPromise } from "#/lib/effect-utils";
 import type { CategoryType } from "#/lib/types";
 import type {
@@ -110,10 +109,10 @@ function getListOrderBy(category: ServerCategory) {
 
 function listServersPageEffect(
 	input: ServerListQueryInput,
+	userId?: string | null,
 ): Effect.Effect<ServerListQueryResult, Error> {
 	return Effect.gen(function* () {
-		const userId = yield* getSessionUserIdEffect();
-		const favoriteIds = yield* getFavoriteIdsEffect(userId);
+		const favoriteIds = yield* getFavoriteIdsEffect(userId ?? null);
 
 		const whereClause = getListWhere(input.category);
 		const orderBy = getListOrderBy(input.category);
@@ -169,13 +168,11 @@ function listServersPageEffect(
 	});
 }
 
-function listServerFilterBundleEffect(): Effect.Effect<
-	ServerFilterBundle,
-	Error
-> {
+function listServerFilterBundleEffect(
+	userId?: string | null,
+): Effect.Effect<ServerFilterBundle, Error> {
 	return Effect.gen(function* () {
-		const userId = yield* getSessionUserIdEffect();
-		const favoriteIds = yield* getFavoriteIdsEffect(userId);
+		const favoriteIds = yield* getFavoriteIdsEffect(userId ?? null);
 
 		const rows = yield* tryEffectPromise("Failed to load all servers", () =>
 			db
@@ -240,10 +237,13 @@ function listServerFilterBundleEffect(): Effect.Effect<
 
 export async function listServersPage(
 	input: ServerListQueryInput,
+	userId?: string | null,
 ): Promise<ServerListQueryResult> {
-	return runEffect(listServersPageEffect(input));
+	return runEffect(listServersPageEffect(input, userId));
 }
 
-export async function listServerFilterBundle(): Promise<ServerFilterBundle> {
-	return runEffect(listServerFilterBundleEffect());
+export async function listServerFilterBundle(
+	userId?: string | null,
+): Promise<ServerFilterBundle> {
+	return runEffect(listServerFilterBundleEffect(userId));
 }

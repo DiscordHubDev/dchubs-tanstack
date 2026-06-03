@@ -97,23 +97,16 @@ function getGuildMembershipBundleEffect(): Effect.Effect<
 			),
 		]);
 
-		const adminUserGuilds = userGuilds.filter((guild) => {
-			if (guild.owner) return true;
-
-			if (!guild.permissions) return false;
-
-			const permissions = BigInt(guild.permissions);
-			return (permissions & ADMIN_PERMISSION_BIT) === ADMIN_PERMISSION_BIT;
-		});
+		const ownedGuilds = userGuilds.filter((guild) => guild.owner);
 
 		const botGuildIdSet = new Set(botGuilds.map((guild) => guild.id));
 
 		const activeGuilds = sortGuildsByName(
-			adminUserGuilds.filter((guild) => botGuildIdSet.has(guild.id)),
+			ownedGuilds.filter((guild) => botGuildIdSet.has(guild.id)),
 		);
 
 		const inactiveGuilds = sortGuildsByName(
-			adminUserGuilds.filter((guild) => !botGuildIdSet.has(guild.id)),
+			ownedGuilds.filter((guild) => !botGuildIdSet.has(guild.id)),
 		);
 
 		const publishedServerRows =

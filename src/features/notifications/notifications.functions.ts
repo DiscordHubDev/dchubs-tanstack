@@ -1,6 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { Effect } from "effect";
 import type { NotificationFailed } from "#/errors/bot-errors";
+import { adminMiddleware } from "#/lib/auth-middleware";
 import { effectInputValidator } from "#/lib/effect-utils";
 import { SendNotificationSchema } from "./notifications.schemas";
 import { sendNotificationEffect } from "./notifications.server";
@@ -19,6 +20,7 @@ function serializeNotificationError(
 }
 
 export const sendNotificationFn = createServerFn({ method: "POST" })
+	.middleware([adminMiddleware])
 	.inputValidator(effectInputValidator(SendNotificationSchema))
 	.handler(async ({ data }): Promise<SendNotificationResult> => {
 		return Effect.runPromise(
