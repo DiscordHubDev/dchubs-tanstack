@@ -7,6 +7,7 @@ import {
 	bot,
 	botCommand,
 	botDevelopers,
+	notification, // 補上 import
 	report,
 	review,
 	server,
@@ -47,23 +48,31 @@ export const userRelations = relations(user, ({ many }) => ({
 	// ── 原本就有的關聯 ──
 	apiKeys: many(apiKey),
 	votes: many(vote),
+	notifications: many(notification), // 補上 Notification 關聯
 
 	// ── 語意化改名：讓查詢結果更直覺 ──
 	ownedServers: many(server), // 原本是 servers (對應 Server 表的 ownerId)
 	handledBots: many(bot), // 原本是 bots (對應 Bot 表的 handledById)
 
 	// ── 多對多中介表 ──
-	developedBots: many(botDevelopers), // 原本是 botDevelopers
-	administeredServers: many(serverAdmins), // 原本是 serverAdmins
-	favoriteBots: many(userFavoriteBots), // 原本是 userFavoriteBots
-	favoriteServers: many(userFavoriteServers), // 原本是 userFavoriteServers
+	developedBots: many(botDevelopers),
+	administeredServers: many(serverAdmins),
+	favoriteBots: many(userFavoriteBots),
+	favoriteServers: many(userFavoriteServers),
 
-	// ── 檢舉相關 (注意 relationName 必須與 Report 那邊對應) ──
+	// ── 檢舉相關 ──
 	reportsHandled: many(report, {
-		relationName: "handledBy", // 已經幫你簡化命名
+		relationName: "handledBy",
 	}),
 	reportsSubmitted: many(report, {
-		relationName: "reportedBy", // 已經幫你簡化命名
+		relationName: "reportedBy",
+	}),
+}));
+
+export const notificationRelations = relations(notification, ({ one }) => ({
+	user: one(user, {
+		fields: [notification.userId],
+		references: [user.id],
 	}),
 }));
 
@@ -75,12 +84,12 @@ export const botRelations = relations(bot, ({ one, many }) => ({
 	}),
 
 	// 關聯陣列
-	commands: many(botCommand), // 原本是 botCommands
-	reviews: many(review), // 維持不變
-	developers: many(botDevelopers), // 原本是 botDevelopers
+	commands: many(botCommand),
+	reviews: many(review),
+	developers: many(botDevelopers),
 
-	// 被誰收藏 (補回你原本漏掉的)
-	favoritedBy: many(userFavoriteBots), // 原本是 userFavoriteBots
+	// 被誰收藏
+	favoritedBy: many(userFavoriteBots),
 }));
 
 export const botCommandRelations = relations(botCommand, ({ one }) => ({
@@ -94,12 +103,12 @@ export const reportRelations = relations(report, ({ one }) => ({
 	handledBy: one(user, {
 		fields: [report.handledById],
 		references: [user.id],
-		relationName: "handledBy", // 這裡必須跟 user 那邊的字串一模一樣
+		relationName: "handledBy",
 	}),
 	reportedBy: one(user, {
 		fields: [report.reportedById],
 		references: [user.id],
-		relationName: "reportedBy", // 這裡必須跟 user 那邊的字串一模一樣
+		relationName: "reportedBy",
 	}),
 }));
 
@@ -121,6 +130,7 @@ export const serverRelations = relations(server, ({ one, many }) => ({
 	}),
 	admins: many(serverAdmins),
 	reviews: many(review),
+	favoritedBy: many(userFavoriteServers), // 補上反向收藏關聯以保持對稱
 }));
 
 export const voteRelations = relations(vote, ({ one }) => ({

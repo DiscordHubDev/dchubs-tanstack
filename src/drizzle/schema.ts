@@ -16,6 +16,9 @@ import {
 } from "drizzle-orm/pg-core";
 import type { SocialData } from "#/types/social";
 
+// ==========================================
+// 1. ENUMS
+// ==========================================
 export const emailPriority = pgEnum("EmailPriority", [
 	"success",
 	"info",
@@ -37,6 +40,9 @@ export const reportType = pgEnum("ReportType", ["bot", "server"]);
 export const status = pgEnum("Status", ["pending", "approved", "rejected"]);
 export const voteType = pgEnum("VoteType", ["server", "bot"]);
 
+// ==========================================
+// 2. AUTHENTICATION TABLES (BetterAuth / NextAuth)
+// ==========================================
 export const authVerification = pgTable(
 	"auth_verification",
 	{
@@ -74,7 +80,7 @@ export const authUser = pgTable(
 		email: text().notNull(),
 		emailVerified: boolean().default(false).notNull(),
 		image: text(),
-		discordId: text("discordId").notNull(), // 保持必填
+		discordId: text("discordId").notNull(),
 		username: text(),
 		avatar: text(),
 		banner: text(),
@@ -177,69 +183,28 @@ export const jwks = pgTable("jwks", {
 	expiresAt: timestamp({ precision: 3, mode: "string" }),
 });
 
-export const administrators = pgTable("Administrators", {
-	id: text().primaryKey().notNull(),
-});
-
-export const apiToken = pgTable(
-	"ApiToken",
-	{
-		userId: text().primaryKey().notNull(),
-		accessToken: text().notNull(),
-		refreshToken: text().notNull(),
-	},
-	(table) => [
-		uniqueIndex("ApiToken_accessToken_key").using(
-			"btree",
-			table.accessToken.asc().nullsLast().op("text_ops"),
-		),
-		uniqueIndex("ApiToken_refreshToken_key").using(
-			"btree",
-			table.refreshToken.asc().nullsLast().op("text_ops"),
-		),
-	],
-);
-
-export const apiKey = pgTable(
-	"ApiKey",
+// ==========================================
+// 3. CORE APPLICATION TABLES
+// ==========================================
+export const user = pgTable(
+	"User",
 	{
 		id: text().primaryKey().notNull(),
-		userId: text().notNull(),
-		key: text().notNull(),
-		name: text().notNull(),
-		isActive: boolean().default(true).notNull(),
-		createdAt: timestamp({ precision: 3, mode: "string" })
+		username: text().notNull(),
+		avatar: text().notNull(),
+		banner: text(),
+		bannerColor: text("banner_color"),
+		bio: text(),
+		joinedAt: timestamp({ precision: 3, mode: "string" })
 			.default(sql`CURRENT_TIMESTAMP`)
 			.notNull(),
-		lastUsed: timestamp({ precision: 3, mode: "string" })
-			.default(sql`CURRENT_TIMESTAMP`)
-			.notNull(),
-		expiresAt: timestamp({ precision: 3, mode: "string" }),
+		social: jsonb().$type<SocialData>(),
 	},
 	(table) => [
-		index("ApiKey_key_idx").using(
+		index("User_joinedAt_idx").using(
 			"btree",
-			table.key.asc().nullsLast().op("text_ops"),
+			table.joinedAt.asc().nullsLast().op("timestamp_ops"),
 		),
-		uniqueIndex("ApiKey_key_key").using(
-			"btree",
-			table.key.asc().nullsLast().op("text_ops"),
-		),
-		index("ApiKey_userId_idx").using(
-			"btree",
-			table.userId.asc().nullsLast().op("text_ops"),
-		),
-		uniqueIndex("ApiKey_userId_key").using(
-			"btree",
-			table.userId.asc().nullsLast().op("text_ops"),
-		),
-		foreignKey({
-			columns: [table.userId],
-			foreignColumns: [user.id],
-			name: "ApiKey_userId_fkey",
-		})
-			.onUpdate("cascade")
-			.onDelete("cascade"),
 	],
 );
 
@@ -277,6 +242,7 @@ export const bot = pgTable(
 		isAdmin: boolean().default(false).notNull(),
 		pin: boolean().default(false).notNull(),
 		pinExpiry: timestamp({ precision: 3, mode: "string" }),
+		nsfw: boolean().default(false).notNull(), // <- 新增欄位
 	},
 	(table) => [
 		index("Bot_approvedAt_idx").using(
@@ -339,10 +305,97 @@ export const bot = pgTable(
 			table.verified.asc().nullsLast().op("bool_ops"),
 			table.upvotes.asc().nullsLast().op("int4_ops"),
 		),
+		index("Bot_nsfw_idx").using(
+			"btree",
+			table.nsfw.asc().nullsLast().op("bool_ops"),
+		), // <- 為過濾 NSFW 加的索引
 		foreignKey({
 			columns: [table.handledById],
 			foreignColumns: [user.id],
 			name: "Bot_handledById_fkey",
+		})
+			.onUpdate("cascade")
+			.onDelete("set null"),
+	],
+);
+
+export const server = pgTable(
+	"Server",
+	{
+		id: text().primaryKey().notNull(),
+		name: text().notNull(),
+		description: text().notNull(),
+		longDescription: text(),
+		tags: text().array(),
+		members: integer().notNull(),
+		online: integer(),
+		upvotes: integer().notNull(),
+		icon: text(),
+		banner: text(),
+		featured: boolean().default(false).notNull(),
+		createdAt: timestamp({ precision: 3, mode: "string" })
+			.default(sql`CURRENT_TIMESTAMP`)
+			.notNull(),
+		ownerId: text().notNull(),
+		website: text(),
+		inviteUrl: text(),
+		rules: text().array(),
+		features: text().array(),
+		screenshots: text().array(),
+		voteNotificationUrl: text("VoteNotificationURL"),
+		secret: text(),
+		pin: boolean().default(false).notNull(),
+		pinExpiry: timestamp({ precision: 3, mode: "string" }),
+		nsfw: boolean().default(false).notNull(), // <- 新增欄位
+	},
+	(table) => [
+		index("Server_createdAt_idx").using(
+			"btree",
+			table.createdAt.asc().nullsLast().op("timestamp_ops"),
+		),
+		index("Server_createdAt_upvotes_idx").using(
+			"btree",
+			table.createdAt.asc().nullsLast().op("timestamp_ops"),
+			table.upvotes.asc().nullsLast().op("int4_ops"),
+		),
+		index("Server_featured_idx").using(
+			"btree",
+			table.featured.asc().nullsLast().op("bool_ops"),
+		),
+		index("Server_featured_upvotes_idx").using(
+			"btree",
+			table.featured.asc().nullsLast().op("bool_ops"),
+			table.upvotes.asc().nullsLast().op("int4_ops"),
+		),
+		uniqueIndex("Server_id_ownerId_key").using(
+			"btree",
+			table.id.asc().nullsLast().op("text_ops"),
+			table.ownerId.asc().nullsLast().op("text_ops"),
+		),
+		index("Server_members_idx").using(
+			"btree",
+			table.members.asc().nullsLast().op("int4_ops"),
+		),
+		index("Server_ownerId_idx").using(
+			"btree",
+			table.ownerId.asc().nullsLast().op("text_ops"),
+		),
+		index("Server_pin_idx").using(
+			"btree",
+			table.pin.asc().nullsLast().op("bool_ops"),
+		),
+		index("Server_upvotes_idx").using(
+			"btree",
+			table.upvotes.asc().nullsLast().op("int4_ops"),
+		),
+		index("Server_nsfw_idx").using(
+			"btree",
+			table.nsfw.asc().nullsLast().op("bool_ops"),
+		), // <- 為過濾 NSFW 加的索引
+		foreignKey({
+			columns: [table.ownerId],
+			foreignColumns: [user.id],
+			name: "Server_ownerId_fkey",
 		})
 			.onUpdate("cascade")
 			.onDelete("set null"),
@@ -382,40 +435,75 @@ export const botCommand = pgTable(
 	],
 );
 
-export const notification = pgTable(
-	"Notification",
+export const review = pgTable(
+	"Review",
 	{
 		id: text().primaryKey().notNull(),
-		name: text().notNull(),
+		rating: doublePrecision().default(0).notNull(),
+		vote: integer().notNull(),
+		comment: text(),
 		createdAt: timestamp({ precision: 3, mode: "string" })
 			.default(sql`CURRENT_TIMESTAMP`)
 			.notNull(),
-		subject: text().notNull(),
-		teaser: text().notNull(),
-		userId: text(),
-		priority: emailPriority().default("info").notNull(),
-		isSystem: boolean().default(false).notNull(),
-		read: boolean().default(false).notNull(),
-		content: text().notNull(),
+		userId: text().notNull(),
+		botId: text(),
+		serverId: text(),
 	},
 	(table) => [
-		index("Notification_createdAt_idx").using(
+		index("Review_botId_idx").using(
+			"btree",
+			table.botId.asc().nullsLast().op("text_ops"),
+		),
+		index("Review_botId_rating_idx").using(
+			"btree",
+			table.botId.asc().nullsLast().op("text_ops"),
+			table.rating.asc().nullsLast().op("float8_ops"),
+		),
+		index("Review_createdAt_idx").using(
 			"btree",
 			table.createdAt.asc().nullsLast().op("timestamp_ops"),
 		),
-		index("Notification_read_idx").using(
+		index("Review_rating_idx").using(
 			"btree",
-			table.read.asc().nullsLast().op("bool_ops"),
+			table.rating.asc().nullsLast().op("float8_ops"),
 		),
-		index("Notification_userId_idx").using(
+		index("Review_serverId_idx").using(
+			"btree",
+			table.serverId.asc().nullsLast().op("text_ops"),
+		),
+		index("Review_serverId_rating_idx").using(
+			"btree",
+			table.serverId.asc().nullsLast().op("text_ops"),
+			table.rating.asc().nullsLast().op("float8_ops"),
+		),
+		uniqueIndex("Review_userId_botId_key").using(
+			"btree",
+			table.userId.asc().nullsLast().op("text_ops"),
+			table.botId.asc().nullsLast().op("text_ops"),
+		),
+		index("Review_userId_idx").using(
 			"btree",
 			table.userId.asc().nullsLast().op("text_ops"),
 		),
-		index("Notification_userId_read_idx").using(
+		uniqueIndex("Review_userId_serverId_key").using(
 			"btree",
 			table.userId.asc().nullsLast().op("text_ops"),
-			table.read.asc().nullsLast().op("bool_ops"),
+			table.serverId.asc().nullsLast().op("text_ops"),
 		),
+		foreignKey({
+			columns: [table.botId],
+			foreignColumns: [bot.id],
+			name: "Review_botId_fkey",
+		})
+			.onUpdate("cascade")
+			.onDelete("set null"),
+		foreignKey({
+			columns: [table.serverId],
+			foreignColumns: [server.id],
+			name: "Review_serverId_fkey",
+		})
+			.onUpdate("cascade")
+			.onDelete("set null"),
 	],
 );
 
@@ -500,174 +588,39 @@ export const report = pgTable(
 	],
 );
 
-export const review = pgTable(
-	"Review",
-	{
-		id: text().primaryKey().notNull(),
-		rating: doublePrecision().default(0).notNull(),
-		vote: integer().notNull(),
-		comment: text(),
-		createdAt: timestamp({ precision: 3, mode: "string" })
-			.default(sql`CURRENT_TIMESTAMP`)
-			.notNull(),
-		userId: text().notNull(),
-		botId: text(),
-		serverId: text(),
-	},
-	(table) => [
-		index("Review_botId_idx").using(
-			"btree",
-			table.botId.asc().nullsLast().op("text_ops"),
-		),
-		index("Review_botId_rating_idx").using(
-			"btree",
-			table.botId.asc().nullsLast().op("text_ops"),
-			table.rating.asc().nullsLast().op("float8_ops"),
-		),
-		index("Review_createdAt_idx").using(
-			"btree",
-			table.createdAt.asc().nullsLast().op("timestamp_ops"),
-		),
-		index("Review_rating_idx").using(
-			"btree",
-			table.rating.asc().nullsLast().op("float8_ops"),
-		),
-		index("Review_serverId_idx").using(
-			"btree",
-			table.serverId.asc().nullsLast().op("text_ops"),
-		),
-		index("Review_serverId_rating_idx").using(
-			"btree",
-			table.serverId.asc().nullsLast().op("text_ops"),
-			table.rating.asc().nullsLast().op("float8_ops"),
-		),
-		uniqueIndex("Review_userId_botId_key").using(
-			"btree",
-			table.userId.asc().nullsLast().op("text_ops"),
-			table.botId.asc().nullsLast().op("text_ops"),
-		),
-		index("Review_userId_idx").using(
-			"btree",
-			table.userId.asc().nullsLast().op("text_ops"),
-		),
-		uniqueIndex("Review_userId_serverId_key").using(
-			"btree",
-			table.userId.asc().nullsLast().op("text_ops"),
-			table.serverId.asc().nullsLast().op("text_ops"),
-		),
-		foreignKey({
-			columns: [table.botId],
-			foreignColumns: [bot.id],
-			name: "Review_botId_fkey",
-		})
-			.onUpdate("cascade")
-			.onDelete("set null"),
-		foreignKey({
-			columns: [table.serverId],
-			foreignColumns: [server.id],
-			name: "Review_serverId_fkey",
-		})
-			.onUpdate("cascade")
-			.onDelete("set null"),
-	],
-);
-
-export const server = pgTable(
-	"Server",
+export const notification = pgTable(
+	"Notification",
 	{
 		id: text().primaryKey().notNull(),
 		name: text().notNull(),
-		description: text().notNull(),
-		longDescription: text(),
-		tags: text().array(),
-		members: integer().notNull(),
-		online: integer(),
-		upvotes: integer().notNull(),
-		icon: text(),
-		banner: text(),
-		featured: boolean().default(false).notNull(),
 		createdAt: timestamp({ precision: 3, mode: "string" })
 			.default(sql`CURRENT_TIMESTAMP`)
 			.notNull(),
-		ownerId: text().notNull(),
-		website: text(),
-		inviteUrl: text(),
-		rules: text().array(),
-		features: text().array(),
-		screenshots: text().array(),
-		voteNotificationUrl: text("VoteNotificationURL"),
-		secret: text(),
-		pin: boolean().default(false).notNull(),
-		pinExpiry: timestamp({ precision: 3, mode: "string" }),
+		subject: text().notNull(),
+		teaser: text().notNull(),
+		userId: text(),
+		priority: emailPriority().default("info").notNull(),
+		isSystem: boolean().default(false).notNull(),
+		read: boolean().default(false).notNull(),
+		content: text().notNull(),
 	},
 	(table) => [
-		index("Server_createdAt_idx").using(
+		index("Notification_createdAt_idx").using(
 			"btree",
 			table.createdAt.asc().nullsLast().op("timestamp_ops"),
 		),
-		index("Server_createdAt_upvotes_idx").using(
+		index("Notification_read_idx").using(
 			"btree",
-			table.createdAt.asc().nullsLast().op("timestamp_ops"),
-			table.upvotes.asc().nullsLast().op("int4_ops"),
+			table.read.asc().nullsLast().op("bool_ops"),
 		),
-		index("Server_featured_idx").using(
+		index("Notification_userId_idx").using(
 			"btree",
-			table.featured.asc().nullsLast().op("bool_ops"),
+			table.userId.asc().nullsLast().op("text_ops"),
 		),
-		index("Server_featured_upvotes_idx").using(
+		index("Notification_userId_read_idx").using(
 			"btree",
-			table.featured.asc().nullsLast().op("bool_ops"),
-			table.upvotes.asc().nullsLast().op("int4_ops"),
-		),
-		uniqueIndex("Server_id_ownerId_key").using(
-			"btree",
-			table.id.asc().nullsLast().op("text_ops"),
-			table.ownerId.asc().nullsLast().op("text_ops"),
-		),
-		index("Server_members_idx").using(
-			"btree",
-			table.members.asc().nullsLast().op("int4_ops"),
-		),
-		index("Server_ownerId_idx").using(
-			"btree",
-			table.ownerId.asc().nullsLast().op("text_ops"),
-		),
-		index("Server_pin_idx").using(
-			"btree",
-			table.pin.asc().nullsLast().op("bool_ops"),
-		),
-		index("Server_upvotes_idx").using(
-			"btree",
-			table.upvotes.asc().nullsLast().op("int4_ops"),
-		),
-		foreignKey({
-			columns: [table.ownerId],
-			foreignColumns: [user.id],
-			name: "Server_ownerId_fkey",
-		})
-			.onUpdate("cascade")
-			.onDelete("set null"),
-	],
-);
-
-export const user = pgTable(
-	"User",
-	{
-		id: text().primaryKey().notNull(),
-		username: text().notNull(),
-		avatar: text().notNull(),
-		banner: text(),
-		bannerColor: text("banner_color"),
-		bio: text(),
-		joinedAt: timestamp({ precision: 3, mode: "string" })
-			.default(sql`CURRENT_TIMESTAMP`)
-			.notNull(),
-		social: jsonb().$type<SocialData>(),
-	},
-	(table) => [
-		index("User_joinedAt_idx").using(
-			"btree",
-			table.joinedAt.asc().nullsLast().op("timestamp_ops"),
+			table.userId.asc().nullsLast().op("text_ops"),
+			table.read.asc().nullsLast().op("bool_ops"),
 		),
 	],
 );
@@ -716,6 +669,75 @@ export const vote = pgTable(
 	],
 );
 
+export const apiKey = pgTable(
+	"ApiKey",
+	{
+		id: text().primaryKey().notNull(),
+		userId: text().notNull(),
+		key: text().notNull(),
+		name: text().notNull(),
+		isActive: boolean().default(true).notNull(),
+		createdAt: timestamp({ precision: 3, mode: "string" })
+			.default(sql`CURRENT_TIMESTAMP`)
+			.notNull(),
+		lastUsed: timestamp({ precision: 3, mode: "string" })
+			.default(sql`CURRENT_TIMESTAMP`)
+			.notNull(),
+		expiresAt: timestamp({ precision: 3, mode: "string" }),
+	},
+	(table) => [
+		index("ApiKey_key_idx").using(
+			"btree",
+			table.key.asc().nullsLast().op("text_ops"),
+		),
+		uniqueIndex("ApiKey_key_key").using(
+			"btree",
+			table.key.asc().nullsLast().op("text_ops"),
+		),
+		index("ApiKey_userId_idx").using(
+			"btree",
+			table.userId.asc().nullsLast().op("text_ops"),
+		),
+		uniqueIndex("ApiKey_userId_key").using(
+			"btree",
+			table.userId.asc().nullsLast().op("text_ops"),
+		),
+		foreignKey({
+			columns: [table.userId],
+			foreignColumns: [user.id],
+			name: "ApiKey_userId_fkey",
+		})
+			.onUpdate("cascade")
+			.onDelete("cascade"),
+	],
+);
+
+export const apiToken = pgTable(
+	"ApiToken",
+	{
+		userId: text().primaryKey().notNull(),
+		accessToken: text().notNull(),
+		refreshToken: text().notNull(),
+	},
+	(table) => [
+		uniqueIndex("ApiToken_accessToken_key").using(
+			"btree",
+			table.accessToken.asc().nullsLast().op("text_ops"),
+		),
+		uniqueIndex("ApiToken_refreshToken_key").using(
+			"btree",
+			table.refreshToken.asc().nullsLast().op("text_ops"),
+		),
+	],
+);
+
+export const administrators = pgTable("Administrators", {
+	id: text().primaryKey().notNull(),
+});
+
+// ==========================================
+// 4. MIGRATION & JUNCTION TABLES (Many-to-Many)
+// ==========================================
 export const prismaMigrations = pgTable("_prisma_migrations", {
 	id: varchar({ length: 36 }).primaryKey().notNull(),
 	checksum: varchar({ length: 64 }).notNull(),
