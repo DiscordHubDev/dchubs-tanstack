@@ -1,5 +1,5 @@
-import { useState } from "react";
 import { SlidersHorizontal } from "lucide-react";
+import { useState } from "react";
 import { Button } from "#/components/ui/button";
 import type { CategoryType } from "#/lib/types";
 import CategorySearch from "./category-search";

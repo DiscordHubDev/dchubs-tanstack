@@ -5,7 +5,7 @@ const authClient = createAuthClient();
 export type LegacyDiscordProfile = {
 	id: string;
 	username: string;
-	global_name: string;
+	name: string;
 	image_url: string;
 	avatar: string;
 	banner_url: string | null;
@@ -53,7 +53,7 @@ function withDiscordProfile(
 		discordProfile: {
 			id,
 			username: user?.username || "",
-			global_name: user?.name || "",
+			name: user?.name || "",
 			image_url: user?.image || "",
 			avatar: user?.image || "",
 			banner_url: null,

@@ -1,9 +1,20 @@
 import { type AnyFieldApi, useForm, useStore } from "@tanstack/react-form";
-
+import { useQuery } from "@tanstack/react-query";
+import { useNavigate } from "@tanstack/react-router";
 import { Effect, Schema } from "effect";
-import { AlertTriangle, Info, Plus, Trash2, X } from "lucide-react";
+import {
+	AlertTriangle,
+	Info,
+	Loader2,
+	Plus,
+	Search,
+	Trash2,
+	UserPlus,
+	X,
+} from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "react-toastify";
+import Swal from "sweetalert2";
 import MarkdownRenderer from "#/components/MarkdownRenderer";
 import { Button } from "#/components/ui/button";
 import { Input } from "#/components/ui/input";
@@ -32,6 +43,8 @@ import type {
 	SubmitBotResult,
 } from "#/features/bots/bot-submit.types";
 import { effectValidator } from "#/features/servers/server-publish.validators";
+import { userGetBaseProfileByNameOrIdQueryOptions } from "#/features/users/users.query";
+import type { DevUser } from "#/features/users/users.types";
 import { toErrorMessage } from "#/lib/effect-utils";
 import type { CategoryType, Screenshot } from "#/lib/types";
 import { Checkbox } from "../ui/checkbox";
@@ -83,7 +96,7 @@ type ValidationResult = {
 };
 
 type CommandItem = BotFormData["commands"][number];
-type DeveloperItem = BotFormData["developers"][number];
+type BaseDeveloperItem = BotFormData["developers"][number];
 
 function readFirstError(errors: unknown[] | undefined): string | null {
 	if (!Array.isArray(errors) || errors.length === 0) {
@@ -512,80 +525,198 @@ function CommandListField({ field }: CommandListFieldProps) {
 	);
 }
 
-type DeveloperListFieldProps = {
+type DeveloperItem = BaseDeveloperItem & {
+	_displayUsername?: string;
+	_avatarUrl?: string | null;
+};
+
+export type DeveloperListFieldProps = {
 	field: AnyFieldApi;
 };
 
-function DeveloperListField({ field }: DeveloperListFieldProps) {
+export function DeveloperListField({ field }: DeveloperListFieldProps) {
 	const developers = Array.isArray(field.state.value)
 		? (field.state.value as DeveloperItem[])
 		: [];
 	const errorMessage = readFirstError(field.state.meta.errors);
 
-	const [developerKeys, setDeveloperKeys] = useState<string[]>(() =>
-		developers.map(() => crypto.randomUUID()),
-	);
+	const [searchTerm, setSearchTerm] = useState("");
+	const [debouncedTerm, setDebouncedTerm] = useState("");
+	const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+	const dropdownRef = useRef<HTMLDivElement>(null);
 
-	const addDeveloper = () => {
-		field.handleChange([...developers, { name: "" }]);
-		setDeveloperKeys((prev) => [...prev, crypto.randomUUID()]);
-	};
+	// 防抖
+	useEffect(() => {
+		const timer = setTimeout(() => {
+			setDebouncedTerm(searchTerm.trim());
+		}, 300);
+		return () => clearTimeout(timer);
+	}, [searchTerm]);
 
-	const updateDeveloper = (index: number, name: string) => {
-		field.handleChange(
-			developers.map((developer, currentIndex) =>
-				currentIndex === index ? { ...developer, name } : developer,
-			),
-		);
-	};
+	// 獲取搜尋結果
+	const { data: searchResult = null, isFetching } = useQuery({
+		...userGetBaseProfileByNameOrIdQueryOptions(debouncedTerm),
+		enabled: debouncedTerm.length > 0,
+	});
+
+	// 點擊外部關閉
+	useEffect(() => {
+		const handleClickOutside = (event: MouseEvent) => {
+			if (
+				dropdownRef.current &&
+				!dropdownRef.current.contains(event.target as Node)
+			) {
+				setIsDropdownOpen(false);
+			}
+		};
+		document.addEventListener("mousedown", handleClickOutside);
+		return () => document.removeEventListener("mousedown", handleClickOutside);
+	}, []);
 
 	const removeDeveloper = (index: number) => {
 		const nextDevelopers = developers.filter((_, i) => i !== index);
 		field.handleChange(nextDevelopers);
-		setDeveloperKeys((prev) => prev.filter((_, i) => i !== index));
+	};
+
+	const selectDeveloper = (user: DevUser) => {
+		// 檢查重複 (依賴 user.id)
+		const isDuplicate = developers.some(
+			(dev) => dev.name === user.id, // 這裡你的資料結構似乎把 id 存在 dev.name 裡
+		);
+
+		if (!isDuplicate) {
+			// 處理顯示名稱：優先使用 name，如果沒有才退回使用 username
+			const displayName =
+				user.name && user.name.trim() !== "" ? user.name : user.username;
+
+			field.handleChange([
+				...developers,
+				{
+					name: user.id, // 依照你原本的 BaseDeveloperItem 設定
+					_displayUsername: displayName,
+					_avatarUrl: user.avatar, // 轉換成完整網址
+				},
+			]);
+		}
+
+		setSearchTerm("");
+		setIsDropdownOpen(false);
 	};
 
 	return (
-		<div className="space-y-3">
-			<div className="flex items-center justify-between">
-				<Label>開發者列表</Label>
-				<Button
-					type="button"
-					onClick={addDeveloper}
-					size="sm"
-					className="bg-[#5865f2] text-white hover:bg-[#4752c4]"
-				>
-					<Plus className="h-4 w-4" />
-					新增開發者
-				</Button>
-			</div>
+		<div className="space-y-4">
+			<Label>開發者列表</Label>
 
+			{/* 1. 已選擇的開發者展示區 */}
 			{developers.length === 0 ? (
 				<p className="rounded-md border border-dashed border-white/10 px-3 py-3 text-sm text-[#b9bbbe]">
 					尚未新增任何開發者。
 				</p>
 			) : (
-				<div className="space-y-3">
-					{developers.map((developer, index) => (
-						<div key={developerKeys[index]} className="flex items-center gap-2">
-							<Input
-								value={developer.name}
-								onBlur={field.handleBlur}
-								onChange={(event) => updateDeveloper(index, event.target.value)}
-								placeholder="輸入 Discord 使用者名稱或 ID"
-							/>
-							<Button
-								type="button"
-								onClick={() => removeDeveloper(index)}
-								className="bg-[#ed4245] text-white hover:bg-[#c93b3e]"
-								size="icon"
+				<div className="flex flex-wrap gap-2">
+					{developers.map((developer, index) => {
+						// 確保正確顯示優先名稱
+						const displayName = developer._displayUsername || developer.name;
+
+						return (
+							<div
+								key={developer.name} // 這裡的 name 其實是 id
+								className="flex items-center gap-2 rounded-md border border-white/10 bg-[#2b2d31] pl-3 pr-1 py-1"
 							>
-								<Trash2 className="h-4 w-4" />
-							</Button>
-						</div>
-					))}
+								{developer._avatarUrl ? (
+									<img
+										src={developer._avatarUrl}
+										alt="avatar"
+										className="h-5 w-5 rounded-full object-cover"
+									/>
+								) : (
+									<div className="flex h-5 w-5 items-center justify-center rounded-full bg-[#1e1f22]">
+										<Search className="h-3 w-3 text-muted-foreground" />
+									</div>
+								)}
+								<span className="text-sm font-medium">{displayName}</span>
+								<Button
+									type="button"
+									onClick={() => removeDeveloper(index)}
+									variant="ghost"
+									size="icon"
+									className="h-6 w-6 rounded-full hover:bg-[#ed4245] hover:text-white"
+								>
+									<X className="h-3 w-3" />
+								</Button>
+							</div>
+						);
+					})}
 				</div>
 			)}
+
+			{/* 2. 搜尋輸入框與下拉選單 */}
+			<div className="relative" ref={dropdownRef}>
+				<div className="relative">
+					<Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+					<Input
+						value={searchTerm}
+						onChange={(e) => {
+							setSearchTerm(e.target.value);
+							setIsDropdownOpen(true);
+						}}
+						onFocus={() => setIsDropdownOpen(true)}
+						placeholder="搜尋 Discord ID 或是 名稱..."
+						className="pl-9"
+					/>
+					{isFetching && (
+						<Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />
+					)}
+				</div>
+
+				{/* 下拉選單結果 */}
+				{isDropdownOpen && searchTerm.length > 0 && (
+					<div className="absolute top-full z-50 mt-1 max-h-60 w-full overflow-y-auto rounded-md border border-white/10 bg-[#2b2d31] p-1 shadow-lg">
+						{isFetching ? (
+							<div className="p-3 text-center text-sm text-[#b9bbbe]">
+								搜尋中...
+							</div>
+						) : !searchResult ? (
+							<div className="p-3 text-center text-sm text-[#b9bbbe]">
+								找不到使用者
+							</div>
+						) : (
+							<button
+								key={searchResult.id}
+								type="button"
+								onClick={() => selectDeveloper(searchResult)}
+								className="flex w-full items-center gap-3 rounded-sm px-2 py-2 text-left hover:bg-[#404249] transition-colors"
+							>
+								{/* 這裡同樣使用轉換後的 Avatar URL */}
+								{searchResult.avatar ? (
+									<img
+										src={searchResult.avatar}
+										alt="avatar"
+										className="h-8 w-8 rounded-full object-cover"
+									/>
+								) : (
+									<div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#1e1f22]">
+										<UserPlus className="h-4 w-4 text-muted-foreground" />
+									</div>
+								)}
+								<div className="flex flex-col">
+									<span className="text-sm font-medium">
+										{/* 確保下拉選單也優先顯示 name */}
+										{searchResult.name && searchResult.name.trim() !== ""
+											? searchResult.name
+											: searchResult.username}
+									</span>
+									<span className="text-xs text-[#b9bbbe]">
+										{searchResult.id}
+									</span>
+								</div>
+							</button>
+						)}
+					</div>
+				)}
+			</div>
+
+			{/* 錯誤訊息 */}
 			{errorMessage ? (
 				<p className="text-sm text-[#ed4245]">{errorMessage}</p>
 			) : null}
@@ -597,6 +728,7 @@ export default function BotForm({
 	mode = "create",
 	defaultValues,
 }: BotFormProps) {
+	const navigate = useNavigate();
 	const persisted = useMemo(() => readPersistedFields(), []);
 
 	const objectUrlsRef = useRef<Set<string>>(new Set());
@@ -614,8 +746,8 @@ export default function BotForm({
 		defaultValues: {
 			botName: "",
 			botPrefix: "",
-			botDescription: persisted.botDescription,
-			botLongDescription: persisted.botLongDescription,
+			botDescription: "",
+			botLongDescription: "",
 			botInvite: "",
 			botWebsite: "",
 			botSupport: "",
@@ -624,6 +756,7 @@ export default function BotForm({
 			tags: [],
 			secret: "",
 			webhook_url: "",
+			nsfw: false,
 			...(defaultValues || {}),
 		},
 		validators: {
@@ -700,7 +833,12 @@ export default function BotForm({
 				);
 
 				if (!response.success) {
-					toast.error(getSubmitErrorMessage(response.error));
+					await Swal.fire({
+						icon: "error",
+						title: "儲存失敗",
+						text: getSubmitErrorMessage(response.error),
+						confirmButtonText: "重新嘗試",
+					});
 					setLoading(false);
 					return;
 				}
@@ -715,10 +853,25 @@ export default function BotForm({
 				}
 
 				if (mode === "edit") {
-					toast.success("編輯成功");
+					await Swal.fire({
+						icon: "success",
+						title: "儲存成功",
+						text: "機器人資料已成功儲存。",
+						confirmButtonText: "前往機器人頁面",
+					}).then(() => {
+						void navigate({
+							to: "/bots/$botId", // 替換成你想去的路由路徑
+							params: { botId: response.botId }, // 如果路徑有動態參數再帶入，沒有的話可省略 params
+						});
+					});
 				}
 			} catch (error) {
-				toast.error(`圖片上傳失敗：${toErrorMessage(error)}`);
+				await Swal.fire({
+					icon: "error",
+					title: "儲存失敗",
+					text: `機器人資料儲存失敗，錯誤：${toErrorMessage(error)}`,
+					confirmButtonText: "重新嘗試",
+				});
 			} finally {
 				setLoading(false);
 			}
@@ -807,6 +960,14 @@ export default function BotForm({
 				label: "機器人前綴",
 				required: "機器人前綴不可為空",
 				maxLength: { value: 10, message: "機器人前綴最多 10 字" },
+			}),
+		[],
+	);
+	const validateisNsfw = useMemo(
+		() =>
+			effectValidator(Schema.Boolean, {
+				label: "NSFW",
+				required: "請選擇是否為 NSFW 伺服器",
 			}),
 		[],
 	);
@@ -1163,13 +1324,16 @@ export default function BotForm({
 							}}
 						</form.Field>
 
-						<form.Field name="isNsfw">
+						<form.Field
+							name="nsfw"
+							validators={{ onChange: ({ value }) => validateisNsfw(value) }}
+						>
 							{(field) => {
 								const errorMessage = readFirstError(field.state.meta.errors);
 								return (
 									<div className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 shadow-sm">
 										<Checkbox
-											id="isNsfw"
+											id="nsfw"
 											checked={field.state.value ?? false}
 											onCheckedChange={(checked) => {
 												field.handleChange(checked === true);
@@ -1178,7 +1342,7 @@ export default function BotForm({
 										<div className="space-y-1 leading-none">
 											{/* 新加入的警告元件 */}
 											<div className="space-y-1 leading-none">
-												<Label htmlFor="isNsfw" className="cursor-pointer">
+												<Label htmlFor="nsfw" className="cursor-pointer">
 													NSFW 機器人
 												</Label>
 												<p className="text-sm text-muted-foreground">

@@ -103,6 +103,18 @@ function ServerList({
 							</div>
 
 							<div className="mt-3 flex flex-wrap gap-2">
+								{item.nsfw && (
+									<Badge
+										variant="destructive" /* 這裡使用 shadcn 的 destructive 通常預設就是紅色，或者用 className 自訂 */
+										className="relative z-20 bg-red-600 hover:bg-red-700 text-white cursor-default font-bold"
+									>
+										<span className="mr-1">🔞</span>{" "}
+										{/* 你可以使用 Emoji 或是你的 Icon 組件 */}
+										NSFW
+									</Badge>
+								)}
+
+								{/* 原有的 tags 渲染 */}
 								{item.tags.slice(0, 5).map((tag) => (
 									<Badge
 										key={tag}

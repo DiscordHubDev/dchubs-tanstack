@@ -11,6 +11,8 @@ export const queryKeys = {
 
 		// --- 新增拆分後的 Query Keys ---
 		profile: (userId: string) => [...usersRoot, "profile", userId] as const,
+		profileByNameOrId: (query: string) =>
+			[...usersRoot, "profile-by-name-or-id", query] as const,
 		servers: (userId: string) => [...usersRoot, "servers", userId] as const,
 		bots: (userId: string) => [...usersRoot, "bots", userId] as const,
 		favorites: (userId: string) => [...usersRoot, "favorites", userId] as const,
@@ -46,5 +48,6 @@ export const queryKeys = {
 		servers: () => [...adminRoot, "servers"] as const,
 		reports: () => [...adminRoot, "reports"] as const,
 		dashboardCounts: () => [...adminRoot, "dashboard-counts"] as const,
+		users: () => [...adminRoot, "users"] as const,
 	},
 } as const;

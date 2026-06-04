@@ -1,6 +1,6 @@
 export type UserProfile = {
 	username: string;
-	global_name: string;
+	name: string;
 	avatar_url: string;
 	banner_url: string | null;
 	accent_color: string | null;
@@ -44,8 +44,8 @@ export type EmailPriority = "success" | "info" | "warning" | "danger";
 // types/discord.ts
 
 export type BotInfo = {
+	name: string;
 	username: string;
-	global_name: string;
 	avatar_url: string;
 	banner_url: string;
 	accent_color: string;

@@ -47,7 +47,7 @@ export const BotFormSchema = Schema.Struct({
 	tags: BotTagsSchema,
 	secret: BotSecretSchema,
 	webhook_url: BotWebhookUrlSchema,
-	isNsfw: Schema.Boolean,
+	nsfw: Schema.Boolean,
 });
 
 export type BotFormData = Schema.Schema.Type<typeof BotFormSchema>;

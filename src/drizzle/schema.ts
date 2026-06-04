@@ -43,134 +43,101 @@ export const voteType = pgEnum("VoteType", ["server", "bot"]);
 // ==========================================
 // 2. AUTHENTICATION TABLES (BetterAuth / NextAuth)
 // ==========================================
-export const authVerification = pgTable(
-	"auth_verification",
-	{
-		id: text().primaryKey().notNull(),
-		identifier: text().notNull(),
-		value: text().notNull(),
-		expiresAt: timestamp({ precision: 3, mode: "string" }).notNull(),
-		createdAt: timestamp({ precision: 3, mode: "string" })
-			.default(sql`CURRENT_TIMESTAMP`)
-			.notNull(),
-		updatedAt: timestamp({ precision: 3, mode: "string" }).notNull(),
-	},
-	(table) => [
-		index("auth_verification_expiresAt_idx").using(
-			"btree",
-			table.expiresAt.asc().nullsLast().op("timestamp_ops"),
-		),
-		index("auth_verification_identifier_idx").using(
-			"btree",
-			table.identifier.asc().nullsLast().op("text_ops"),
-		),
-		uniqueIndex("auth_verification_identifier_value_key").using(
-			"btree",
-			table.identifier.asc().nullsLast().op("text_ops"),
-			table.value.asc().nullsLast().op("text_ops"),
-		),
-	],
-);
-
-export const authUser = pgTable(
+export const user = pgTable(
 	"auth_user",
 	{
-		id: text().primaryKey().notNull(),
-		name: text(),
-		email: text().notNull(),
-		emailVerified: boolean().default(false).notNull(),
-		image: text(),
-		discordId: text("discordId").notNull(),
-		username: text(),
-		avatar: text(),
-		banner: text(),
-		bannerColor: text(),
-		createdAt: timestamp({ precision: 3, mode: "string" })
-			.default(sql`CURRENT_TIMESTAMP`)
+		id: text("id").primaryKey(),
+		name: text("name").notNull(),
+		email: text("email").notNull().unique(),
+		emailVerified: boolean("email_verified").default(false).notNull(),
+		image: text("image"),
+		createdAt: text("created_at").default(sql`(now())`).notNull(),
+		updatedAt: text("updated_at")
+			.default(sql`(now())`)
+			.$onUpdate(() => new Date().toISOString())
 			.notNull(),
-		updatedAt: timestamp({ precision: 3, mode: "string" }).notNull(),
+		role: text("role"),
+		banned: boolean("banned").default(false),
+		banReason: text("ban_reason"),
+		banExpires: timestamp("ban_expires"),
+		discordId: text("discord_id").unique(),
+		username: text("username").default("未知使用者").notNull(),
+		avatar: text("avatar")
+			.default("https://cdn.discordapp.com/embed/avatars/0.png")
+			.notNull(),
+		banner: text("banner"),
+		bannerColor: text("banner_color"),
+		bio: text("bio"),
+		social: jsonb().$type<SocialData>(),
 	},
 	(table) => [
-		uniqueIndex("auth_user_discordId_key").on(table.discordId),
-		uniqueIndex("auth_user_email_key").on(table.email),
+		// 3. 建立時間索引 (之前加過的)
+		// 加速「最新加入的使用者」或後台分頁排序的查詢
+		index("auth_user_created_at_idx").using(
+			"btree",
+			table.createdAt.asc().nullsLast(),
+		),
 	],
 );
 
 export const authSession = pgTable(
 	"auth_session",
 	{
-		id: text().primaryKey().notNull(),
-		userId: text().notNull(),
-		token: text().notNull(),
-		expiresAt: timestamp({ precision: 3, mode: "string" }).notNull(),
-		ipAddress: text(),
-		userAgent: text(),
-		createdAt: timestamp({ precision: 3, mode: "string" })
-			.default(sql`CURRENT_TIMESTAMP`)
+		id: text("id").primaryKey(),
+		expiresAt: timestamp("expires_at").notNull(),
+		token: text("token").notNull().unique(),
+		createdAt: timestamp("created_at").notNull(),
+		updatedAt: timestamp("updated_at")
+			.$onUpdate(() => new Date())
 			.notNull(),
-		updatedAt: timestamp({ precision: 3, mode: "string" }).notNull(),
+		ipAddress: text("ip_address"),
+		userAgent: text("user_agent"),
+		userId: text("user_id")
+			.notNull()
+			.references(() => user.id, { onDelete: "cascade" }),
+		impersonatedBy: text("impersonated_by"),
 	},
-	(table) => [
-		uniqueIndex("auth_session_token_key").using(
-			"btree",
-			table.token.asc().nullsLast().op("text_ops"),
-		),
-		index("auth_session_userId_idx").using(
-			"btree",
-			table.userId.asc().nullsLast().op("text_ops"),
-		),
-		foreignKey({
-			columns: [table.userId],
-			foreignColumns: [authUser.id],
-			name: "auth_session_userId_fkey",
-		})
-			.onUpdate("cascade")
-			.onDelete("cascade"),
-	],
+	(table) => [index("authSession_userId_idx").on(table.userId)],
 );
 
 export const authAccount = pgTable(
 	"auth_account",
 	{
-		id: text().primaryKey().notNull(),
-		userId: text().notNull(),
-		accountId: text().notNull(),
-		providerId: text().notNull(),
-		accessToken: text(),
-		refreshToken: text(),
-		accessTokenExpiresAt: timestamp({ precision: 3, mode: "string" }),
-		refreshTokenExpiresAt: timestamp({ precision: 3, mode: "string" }),
-		scope: text(),
-		idToken: text(),
-		password: text(),
-		createdAt: timestamp({ precision: 3, mode: "string" })
-			.default(sql`CURRENT_TIMESTAMP`)
+		id: text("id").primaryKey(),
+		accountId: text("account_id").notNull(),
+		providerId: text("provider_id").notNull(),
+		userId: text("user_id")
+			.notNull()
+			.references(() => user.id, { onDelete: "cascade" }),
+		accessToken: text("access_token"),
+		refreshToken: text("refresh_token"),
+		idToken: text("id_token"),
+		accessTokenExpiresAt: timestamp("access_token_expires_at"),
+		refreshTokenExpiresAt: timestamp("refresh_token_expires_at"),
+		scope: text("scope"),
+		password: text("password"),
+		createdAt: timestamp("created_at").notNull(),
+		updatedAt: timestamp("updated_at")
+			.$onUpdate(() => new Date())
 			.notNull(),
-		updatedAt: timestamp({ precision: 3, mode: "string" }).notNull(),
+		profile: jsonb("profile"),
 	},
-	(table) => [
-		index("auth_account_providerId_accountId_idx").using(
-			"btree",
-			table.providerId.asc().nullsLast().op("text_ops"),
-			table.accountId.asc().nullsLast().op("text_ops"),
-		),
-		uniqueIndex("auth_account_providerId_accountId_key").using(
-			"btree",
-			table.providerId.asc().nullsLast().op("text_ops"),
-			table.accountId.asc().nullsLast().op("text_ops"),
-		),
-		index("auth_account_userId_idx").using(
-			"btree",
-			table.userId.asc().nullsLast().op("text_ops"),
-		),
-		foreignKey({
-			columns: [table.userId],
-			foreignColumns: [authUser.id],
-			name: "auth_account_userId_fkey",
-		})
-			.onUpdate("cascade")
-			.onDelete("cascade"),
-	],
+	(table) => [index("authAccount_userId_idx").on(table.userId)],
+);
+
+export const authVerification = pgTable(
+	"auth_verification",
+	{
+		id: text("id").primaryKey(),
+		identifier: text("identifier").notNull(),
+		value: text("value").notNull(),
+		expiresAt: timestamp("expires_at").notNull(),
+		createdAt: timestamp("created_at").notNull(),
+		updatedAt: timestamp("updated_at")
+			.$onUpdate(() => new Date())
+			.notNull(),
+	},
+	(table) => [index("authVerification_identifier_idx").on(table.identifier)],
 );
 
 export const jwks = pgTable("jwks", {
@@ -186,27 +153,6 @@ export const jwks = pgTable("jwks", {
 // ==========================================
 // 3. CORE APPLICATION TABLES
 // ==========================================
-export const user = pgTable(
-	"User",
-	{
-		id: text().primaryKey().notNull(),
-		username: text().notNull(),
-		avatar: text().notNull(),
-		banner: text(),
-		bannerColor: text("banner_color"),
-		bio: text(),
-		joinedAt: timestamp({ precision: 3, mode: "string" })
-			.default(sql`CURRENT_TIMESTAMP`)
-			.notNull(),
-		social: jsonb().$type<SocialData>(),
-	},
-	(table) => [
-		index("User_joinedAt_idx").using(
-			"btree",
-			table.joinedAt.asc().nullsLast().op("timestamp_ops"),
-		),
-	],
-);
 
 export const bot = pgTable(
 	"Bot",

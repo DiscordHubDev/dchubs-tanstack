@@ -678,11 +678,23 @@ function BotDetailPage() {
 				</div>
 
 				<div className="mt-6 flex flex-wrap gap-2">
-					{detail.tags.map((tag) => (
+					{detail.nsfw && (
+						<Badge
+							variant="destructive" /* 這裡使用 shadcn 的 destructive 通常預設就是紅色，或者用 className 自訂 */
+							className="relative z-20 bg-red-600 hover:bg-red-700 text-white cursor-default font-bold"
+						>
+							<span className="mr-1">🔞</span>{" "}
+							{/* 你可以使用 Emoji 或是你的 Icon 組件 */}
+							NSFW
+						</Badge>
+					)}
+
+					{/* 原有的 tags 渲染 */}
+					{detail.tags.slice(0, 5).map((tag) => (
 						<Badge
 							key={tag}
 							variant="secondary"
-							className="bg-[#36393f] text-gray-300 hover:bg-[#4f545c]"
+							className="relative z-20 bg-[#36393f] hover:bg-[#4f545c] text-gray-300 cursor-default"
 						>
 							{tag}
 						</Badge>

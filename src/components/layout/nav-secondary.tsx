@@ -1,11 +1,11 @@
-import type * as React from "react";
 import type { LucideIcon } from "lucide-react";
+import type * as React from "react";
 import {
 	SidebarGroup,
 	SidebarGroupContent,
 	SidebarMenu,
-	SidebarMenuItem,
 	SidebarMenuButton,
+	SidebarMenuItem,
 } from "../ui/sidebar";
 
 export function NavSecondary({

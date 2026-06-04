@@ -6,6 +6,7 @@ import {
 	adminGetAllServersFn,
 	adminGetDashboardCountsFn,
 	getReportsFn,
+	getUsersFn,
 } from "./admin.functions";
 
 // 這裡只放 GET 請求的 queryOptions
@@ -31,4 +32,10 @@ export const adminDashboardCountsQueryOptions = () =>
 	queryOptions({
 		queryKey: queryKeys.admin.dashboardCounts(), // 👈 使用全域 queryKeys
 		queryFn: () => adminGetDashboardCountsFn(),
+	});
+
+export const adminUsersQueryOptions = () =>
+	queryOptions({
+		queryKey: queryKeys.admin.users(),
+		queryFn: () => getUsersFn(),
 	});

@@ -1,93 +1,59 @@
 // src/lib/auth.functions.ts
 import { createServerFn } from "@tanstack/react-start";
+import { getRequest } from "@tanstack/react-start/server";
+import { Effect } from "effect";
+import { auth } from "./auth";
 import { getResolvedEdgeContext, requireDomainUser } from "./edge-context";
+import { runEffect } from "./effect-utils";
+import { syncToCloudflareKV } from "./kv-sync";
 
-type SessionUserLike = {
-	id?: string;
-	discordId?: string;
-	name?: string;
-	image?: string;
-	username?: string;
-	avatar?: string;
-	banner?: string | null;
-	bannerColor?: string | null;
-};
-
-export type NormalizedDiscordProfile = {
-	id: string;
-	username: string;
-	global_name: string;
-	image_url: string;
-	avatar: string;
-	banner_url: string | null;
-	banner_color: string | null;
-};
-
-export type SessionLike = {
-	user?: SessionUserLike | null;
-	discordProfile?: Partial<NormalizedDiscordProfile> | null;
-	error?: string | null;
-} | null;
-
-export type NormalizedSession = NonNullable<SessionLike> & {
-	discordProfile?: NormalizedDiscordProfile;
-};
-
-export function withDiscordProfile(session: null): null;
-export function withDiscordProfile(
-	session: NonNullable<SessionLike>,
-): NormalizedSession;
-export function withDiscordProfile(
-	session: SessionLike,
-): NormalizedSession | null;
-export function withDiscordProfile(
-	session: SessionLike,
-): NormalizedSession | null {
-	if (!session) return null;
-
-	if (session.discordProfile?.id) return session as NormalizedSession;
-
-	const user = session.user;
-	const id = user?.discordId || user?.id;
-	if (!id) return session as NormalizedSession;
-
-	return {
-		...session,
-		discordProfile: {
-			id,
-			username: user?.username || user?.name || "",
-			global_name: user?.name || "",
-			image_url: user?.avatar || user?.image || "",
-			avatar: user?.avatar || user?.image || "",
-			banner_url: user?.banner || null,
-			banner_color: user?.bannerColor || null,
-		},
-		error: session.error ?? null,
-	};
+interface BanUserPayload {
+	targetUserId: string;
+	reason?: string;
 }
 
+export type SessionUserLike = {
+	id: string; // Better Auth 產生的 UUID
+	discordId: string; // Discord 的 ID
+	name: string; // 預設 fallback 用的 name (來自 name 或 username)
+	username: string;
+	avatar: string; // 已經組裝好的 avatar URL，不會是 null
+	banner: string | null;
+	bannerColor: string | null;
+};
+
+export type NormalizedSession = {
+	user: SessionUserLike;
+	// 如果你前端有依賴 discordProfile 這個屬性，可以保留，否則建議平坦化放在 user 裡即可
+	discordProfile?: SessionUserLike;
+	error?: string | null;
+};
+
 export const getSession = createServerFn({ method: "GET" }).handler(
-	async () => {
+	async (): Promise<NormalizedSession | null> => {
 		try {
-			// 使用你的 Edge Context 獲取資料庫內的完整用戶資料
+			// requireDomainUser 保證回傳的 context.user 是有值的 DomainUser
 			const { user } = await requireDomainUser();
 
-			// 手動組裝回前端需要的 Session 結構
-			const sessionData: SessionLike = {
-				user: {
-					id: user.betterAuthId,
-					discordId: user.discordId,
-					username: user.username || "",
-					avatar:
-						user.avatar || "https://cdn.discordapp.com/embed/avatars/0.png",
-					banner: user.banner,
-					bannerColor: user.bannerColor,
-				},
+			// 如果 requireDomainUser 成功，user 絕對不會是 null
+			const sessionUser: SessionUserLike = {
+				id: user.betterAuthId,
+				discordId: user.discordId,
+				username: user.username || "未知使用者",
+				name: user.name || "未知使用者",
+				avatar: user.avatar || "https://cdn.discordapp.com/embed/avatars/0.png",
+				banner: user.banner,
+				bannerColor: user.bannerColor,
 			};
 
-			return withDiscordProfile(sessionData);
+			return {
+				user: sessionUser,
+				// 如果你的前端還依賴 discordProfile 這個巢狀結構，可以在這裡複製一份給它
+				discordProfile: sessionUser,
+				error: null,
+			};
 		} catch (error) {
-			// requireDomainUser 如果找不到 trusted context 會拋錯，這裡接住並回傳 null
+			// requireDomainUser 如果找不到 trusted context 會拋錯
 			return null;
 		}
 	},
@@ -123,3 +89,45 @@ export const checkAuthServerFn = createServerFn({ method: "GET" }).handler(
 		}
 	},
 );
+
+export const banUserFn = createServerFn({ method: "POST" })
+	.inputValidator((data: BanUserPayload) => data)
+	.handler(async ({ data }) => {
+		// 1. 取得原始 Request (以便將 headers 傳給 Better Auth 驗證管理員身分)
+		const request = getRequest();
+
+		// 2. 定義更新資料庫的 Effect (呼叫 Better Auth API)
+		const banDbEffect = Effect.tryPromise({
+			try: () =>
+				auth.api.banUser({
+					body: {
+						userId: data.targetUserId,
+						banReason: data.reason,
+						// 可以自行決定是否傳入 banExpiresIn
+					},
+					headers: request.headers,
+				}),
+			catch: (error) => new Error(`Better Auth 封鎖失敗: ${error}`),
+		});
+
+		// 3. 組合主邏輯
+		const program = Effect.gen(function* () {
+			// 步驟一：先更新 Better Auth 資料庫（如果這步失敗，因為 Effect.gen 的特性，會直接跳到錯誤處理，不會執行步驟二）
+			yield* banDbEffect;
+
+			// 步驟二：同步到 Cloudflare KV
+			yield* syncToCloudflareKV(data.targetUserId, true);
+
+			// 回傳成功結果
+			return { success: true, message: "用戶已成功封鎖" };
+		});
+
+		// 4. 執行 Effect 並且將錯誤拋給 TanStack Router 處理
+		return await runEffect(program).catch((error) => {
+			// 這裡可以接上你的 logger (例如 Sentry)
+			console.error("[Admin Ban Error]:", error);
+
+			// 拋出標準 Error 讓前端的 useServerFn 或是 Action 捕捉到
+			throw new Error(error.message);
+		});
+	});

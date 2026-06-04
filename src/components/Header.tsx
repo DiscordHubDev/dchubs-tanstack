@@ -42,7 +42,7 @@ export default function Header() {
 	const isSignedIn = Boolean(session?.user) && !error;
 
 	const handleDiscordSignIn = () => {
-		void signIn();
+		void signIn("/");
 	};
 
 	const handleSignOut = () => {

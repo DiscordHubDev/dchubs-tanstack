@@ -195,7 +195,7 @@ export function UserProfilePage({
 
 			navigationRef.current = true;
 			navigate({
-				to: "/servers/$serverId",
+				to: "/servers/$serverId/publish",
 				params: { serverId },
 			});
 
@@ -214,7 +214,7 @@ export function UserProfilePage({
 
 			navigationRef.current = true;
 			navigate({
-				to: "/bots/$botId",
+				to: "/protected/bots/$botId/edit",
 				params: { botId },
 			});
 
@@ -1085,14 +1085,14 @@ const UserHeader = memo(({ user }: { user: UserBaseProfile }) => {
 
 					<div className="flex flex-col">
 						<h1 className="font-bold text-2xl text-white md:text-3xl">
-							{user.username}
+							{user.name || user.username}
 						</h1>
 						<div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-gray-300 text-sm">
 							<div className="flex items-center">
 								<Calendar size={16} className="mr-1" />
 								<span>
 									加入於{" "}
-									{formatDistanceToNow(new Date(user.joinedAt), {
+									{formatDistanceToNow(new Date(user.createdAt), {
 										addSuffix: true,
 										locale: zhTW,
 									})}
@@ -1213,7 +1213,7 @@ function UserSettingsForm({ user }: { user: UserSettings }) {
 							用戶名
 							<input
 								type="text"
-								value={user.username}
+								value={user.name || user.username}
 								disabled
 								className="w-full cursor-not-allowed rounded-md border border-[#1e1f22] bg-[#36393f] px-3 py-2 text-white opacity-50"
 							/>

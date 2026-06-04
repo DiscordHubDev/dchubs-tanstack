@@ -21,8 +21,8 @@ function getErrorPriority(error: unknown): "normal" | "critical" {
 	return "normal";
 }
 
-export function getContext() {
-	const queryClient = new QueryClient({
+export function getQueryClient() {
+	return new QueryClient({
 		queryCache: new QueryCache({
 			onError: (error, query) => {
 				if (query.meta?.suppressErrorAlert) return;
@@ -36,9 +36,5 @@ export function getContext() {
 			},
 		}),
 	});
-
-	return {
-		queryClient,
-	};
 }
 export default function TanstackQueryProvider() {}

@@ -2,7 +2,7 @@ import { v2 as cloudinary } from "cloudinary";
 import { and, eq } from "drizzle-orm";
 import { Effect } from "effect";
 import { db } from "#/drizzle/db";
-import { authAccount, server } from "#/drizzle/schema";
+import { authAccount, server, serverAdmins } from "#/drizzle/schema";
 import { getSessionUserIdEffect } from "#/lib/edge-context";
 import { runEffect, tryEffectPromise } from "#/lib/effect-utils";
 import { fetchDiscordGuilds } from "./add-server.api";
@@ -295,12 +295,56 @@ function checkBotInGuildEffect(serverId: string, botToken: string) {
 	});
 }
 
-function getServerPublishBundleEffect(
+export async function enforceServerOwner(serverId: string, userId: string) {
+	const isOwner = await checkIsServerOwner(serverId, userId);
+	if (!isOwner) {
+		throw new Error("Forbidden: You are not the owner of this server");
+	}
+}
+
+function enforceServerOwnerEffect(serverId: string, userId: string) {
+	return Effect.tryPromise({
+		try: () => enforceServerOwner(serverId, userId),
+		// 將原本拋出的 Error 傳遞給 Effect 的錯誤通道
+		catch: (error) =>
+			error instanceof Error ? error : new Error(String(error)),
+	});
+}
+
+export function getServerPublishBundleEffect(
+	userId: string,
 	serverId: string,
 ): Effect.Effect<ServerPublishBundle, Error> {
 	return Effect.gen(function* () {
-		const { guild } = yield* getAccessibleGuildEffect(serverId);
+		// 1. 執行權限與 Guild 檢查
+		const { guild } = yield* enforceServerOwnerEffect(serverId, userId).pipe(
+			Effect.andThen(() => getAccessibleGuildEffect(serverId)),
 
+			// 🎯 關鍵修正點：當任何一個權限檢查失敗時
+			Effect.catchAll((originalError) =>
+				tryEffectPromise(
+					"Failed to remove user from serverAdmins relation",
+					async () => {
+						if (userId) {
+							await db
+								.delete(serverAdmins)
+								.where(
+									and(eq(serverAdmins.a, serverId), eq(serverAdmins.b, userId)),
+								);
+							console.log(`[自動清理] 已成功移除不合規管理員: ${userId}`);
+						}
+					},
+				).pipe(
+					// 💡 移除關聯後，絕對不要忽略錯誤！
+					// 我們使用 andThen 強制讓這個錯誤通道「回歸」成原本的 Forbidden 錯誤
+					Effect.andThen(() => Effect.fail(originalError)),
+					// 如果移除關聯的 DB 操作本身失敗了，也一樣維持拋出原本的權限錯誤
+					Effect.catchAll(() => Effect.fail(originalError)),
+				),
+			),
+		);
+
+		// 2. 獲取資料庫中的發布資料
 		const rows = yield* tryEffectPromise(
 			"Failed to fetch published server",
 			() =>
@@ -318,6 +362,7 @@ function getServerPublishBundleEffect(
 						voteNotificationUrl: server.voteNotificationUrl,
 						icon: server.icon,
 						banner: server.banner,
+						nsfw: server.nsfw,
 					})
 					.from(server)
 					.where(eq(server.id, serverId))
@@ -342,6 +387,7 @@ function getServerPublishBundleEffect(
 				tags: normalizeList(current?.tags),
 				secret: current?.secret ?? "",
 				webhook_url: current?.voteNotificationUrl ?? "",
+				nsfw: current?.nsfw ?? false,
 			},
 		};
 	});
@@ -410,6 +456,7 @@ function upsertServerPublishEffect(
 						upvotes: 0,
 						features: [],
 						screenshots: [],
+						nsfw: input.form.nsfw,
 					})
 					.onConflictDoUpdate({
 						target: server.id,
@@ -425,6 +472,7 @@ function upsertServerPublishEffect(
 							voteNotificationUrl: webhookUrl,
 							icon: iconUrl,
 							banner: bannerUrl,
+							nsfw: input.form.nsfw,
 						},
 					}),
 			);
@@ -456,6 +504,7 @@ function upsertServerPublishEffect(
 				screenshots: [],
 				voteNotificationUrl: webhookUrl,
 				secret,
+				nsfw: input.form.nsfw,
 			}),
 		);
 
@@ -612,9 +661,10 @@ const checkIsServerOwnerEffect = (serverId: string, userId: string) =>
 	);
 
 export function getServerPublishBundleById(
+	userId: string,
 	serverId: string,
 ): Promise<ServerPublishBundle> {
-	return runEffect(getServerPublishBundleEffect(serverId));
+	return runEffect(getServerPublishBundleEffect(userId, serverId));
 }
 
 export function upsertServerPublish(

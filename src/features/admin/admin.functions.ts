@@ -1,16 +1,19 @@
 // admin.functions.ts
 
 import { createServerFn } from "@tanstack/react-start";
+import { getRequest } from "@tanstack/react-start/server";
 import { desc, eq } from "drizzle-orm";
 import { Effect, pipe } from "effect";
 import { db } from "#/drizzle/db";
-import { bot, notification, report, server } from "#/drizzle/schema";
+import { bot, notification, report, server, user } from "#/drizzle/schema";
+import { auth } from "#/lib/auth";
 import { adminMiddleware } from "#/lib/auth-middleware";
 import {
 	effectInputValidator,
 	fetchJsonEffect,
 	runEffect,
 } from "#/lib/effect-utils";
+import { syncToCloudflareKV } from "#/lib/kv-sync";
 import type { ActionResult, ReportStatus } from "#/types/admin";
 import { sendDiscordWebhookFn } from "../webhook/webhook.functions";
 import {
@@ -490,4 +493,78 @@ export const resolveReportServerFn = createServerFn({ method: "POST" })
 			...updated,
 			attachments: updated.attachments as string[],
 		};
+	});
+
+// User Management Functions
+export const getUsersFn = createServerFn({ method: "GET" })
+	.middleware([adminMiddleware])
+	.handler(async () => {
+		const program = Effect.tryPromise({
+			try: () =>
+				// 依照 createdAt 降序排列，最新加入的在前面
+				db.select().from(user).orderBy(desc(user.createdAt)),
+			catch: (error) => new Error(`獲取使用者失敗: ${error}`),
+		});
+
+		return await Effect.runPromise(program).catch((error) => {
+			console.error("[Fetch Users Error]:", error);
+			throw new Error(error.message);
+		});
+	});
+
+// 定義前端傳入的參數型別
+interface ToggleBanPayload {
+	targetUserId: string;
+	isBanned: boolean;
+	reason?: string;
+}
+
+// 封鎖/解封使用者 (整合 Better Auth + KV + Effect)
+export const toggleUserBanFn = createServerFn({ method: "POST" })
+	.inputValidator((data: ToggleBanPayload) => data)
+	.handler(async ({ data }) => {
+		const request = getRequest();
+
+		// 更新資料庫的 Effect (呼叫 Better Auth API)
+		const toggleDbEffect = Effect.tryPromise({
+			try: () => {
+				if (data.isBanned) {
+					return auth.api.banUser({
+						body: {
+							userId: data.targetUserId,
+							banReason: data.reason,
+						},
+						headers: request.headers,
+					});
+				} else {
+					return auth.api.unbanUser({
+						body: {
+							userId: data.targetUserId,
+						},
+						headers: request.headers,
+					});
+				}
+			},
+			catch: (error) => new Error(`Better Auth 狀態更新失敗: ${error}`),
+		});
+
+		// 組合主邏輯
+		const program = Effect.gen(function* () {
+			// 步驟一：先更新 Better Auth 資料庫
+			yield* toggleDbEffect;
+
+			// 步驟二：同步到 Cloudflare KV
+			yield* syncToCloudflareKV(data.targetUserId, data.isBanned);
+
+			// 回傳成功結果
+			return {
+				success: true,
+				message: data.isBanned ? "用戶已成功封鎖" : "用戶已成功解封",
+			};
+		});
+
+		return await Effect.runPromise(program).catch((error) => {
+			console.error("[Admin Ban Toggle Error]:", error);
+			throw new Error(error.message);
+		});
 	});

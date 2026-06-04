@@ -17,6 +17,7 @@ export type PublicServer = {
 	pin: boolean;
 	pinExpiry: string | null;
 	isFavorite: boolean;
+	nsfw: boolean;
 };
 
 export type ServerListQueryInput = {

@@ -3,7 +3,6 @@ import {
 	apiKey,
 	authAccount,
 	authSession,
-	authUser,
 	bot,
 	botCommand,
 	botDevelopers,
@@ -19,21 +18,16 @@ import {
 } from "./schema";
 
 export const authSessionRelations = relations(authSession, ({ one }) => ({
-	authUser: one(authUser, {
+	user: one(user, {
 		fields: [authSession.userId],
-		references: [authUser.id],
+		references: [user.id],
 	}),
 }));
 
-export const authUserRelations = relations(authUser, ({ many }) => ({
-	authSessions: many(authSession),
-	authAccounts: many(authAccount),
-}));
-
 export const authAccountRelations = relations(authAccount, ({ one }) => ({
-	authUser: one(authUser, {
+	user: one(user, {
 		fields: [authAccount.userId],
-		references: [authUser.id],
+		references: [user.id],
 	}),
 }));
 
@@ -67,6 +61,10 @@ export const userRelations = relations(user, ({ many }) => ({
 	reportsSubmitted: many(report, {
 		relationName: "reportedBy",
 	}),
+
+	// ── 驗證相關 ──
+	authSessions: many(authSession),
+	authAccounts: many(authAccount),
 }));
 
 export const notificationRelations = relations(notification, ({ one }) => ({

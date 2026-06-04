@@ -2,7 +2,6 @@ import { and, desc, eq, gte, sql } from "drizzle-orm";
 import { Effect } from "effect";
 import { db } from "#/drizzle/db";
 import { bot, botDevelopers, userFavoriteBots } from "#/drizzle/schema";
-import { getSessionUserIdEffect } from "#/lib/edge-context";
 import { runEffect, tryEffectPromise } from "#/lib/effect-utils";
 import type { CategoryType } from "#/lib/types";
 import type {
@@ -48,6 +47,7 @@ function mapRowToPublicBot(
 		pinExpiry: string | null;
 		verified: boolean;
 		isAdmin: boolean;
+		nsfw: boolean;
 	},
 	favoriteIds: Set<string>,
 ): PublicBot {
@@ -64,12 +64,13 @@ function mapRowToPublicBot(
 		inviteUrl: row.inviteUrl,
 		website: row.website,
 		supportServer: row.supportServer,
-		approvedAt: row.approvedAt,
+		approvedAt: row.approvedAt || new Date().toISOString(),
 		pin: row.pin,
 		pinExpiry: row.pinExpiry,
 		verified: row.verified,
 		isFavorite: favoriteIds.has(row.id),
 		isAdmin: row.isAdmin,
+		nsfw: row.nsfw,
 	};
 }
 
@@ -164,6 +165,7 @@ function listBotsPageEffect(
 						pinExpiry: bot.pinExpiry,
 						verified: bot.verified,
 						isAdmin: bot.isAdmin,
+						nsfw: bot.nsfw,
 					})
 					.from(bot)
 					.where(whereClause)
@@ -212,6 +214,7 @@ function listBotFilterBundleEffect(
 					pinExpiry: bot.pinExpiry,
 					verified: bot.verified,
 					isAdmin: bot.isAdmin,
+					nsfw: bot.nsfw,
 				})
 				.from(bot)
 				.where(eq(bot.status, "approved")),

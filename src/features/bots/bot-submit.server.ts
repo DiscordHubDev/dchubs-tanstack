@@ -53,6 +53,7 @@ type BotPayload = {
 		longDescription: string;
 		prefix: string;
 		inviteUrl: string;
+		nsfw: boolean;
 		website: string | null;
 		supportServer: string | null;
 		tags: string[];
@@ -155,7 +156,7 @@ function parseClientId(inviteUrl: string) {
 type DiscordUserResponse = {
 	id: string;
 	username: string;
-	global_name?: string | null;
+	name?: string | null;
 	avatar?: string | null;
 	banner?: string | null;
 	accent_color?: number | null;
@@ -212,7 +213,7 @@ function fetchDiscordUserEffect(
 
 		return {
 			username: payload.username ?? "",
-			global_name: payload.global_name ?? payload.username ?? "",
+			name: payload.name ?? payload.username ?? "",
 			avatar_url: buildAvatarUrl(payload) ?? "",
 			banner_url: buildBannerUrl(payload) ?? "",
 			accent_color: String(payload.accent_color ?? ""),
@@ -264,6 +265,7 @@ function buildBotPayload(
 			banner: bannerUrl,
 			voteNotificationUrl: normalizeOptionalString(input.form.webhook_url),
 			secret: normalizeOptionalString(input.form.secret),
+			nsfw: input.form.nsfw,
 		},
 		commands,
 		developerNames,
@@ -313,6 +315,7 @@ function persistBotEffect(
 						banner: payload.botRow.banner,
 						voteNotificationUrl: payload.botRow.voteNotificationUrl,
 						secret: payload.botRow.secret,
+						nsfw: payload.botRow.nsfw,
 					})
 					.where(eq(bot.id, payload.botId));
 			} else {
@@ -336,6 +339,7 @@ function persistBotEffect(
 					users: 0,
 					upvotes: 0,
 					status: "pending",
+					nsfw: payload.botRow.nsfw,
 				});
 			}
 
@@ -437,6 +441,7 @@ function submitPipeline(
 	| NotificationFailed
 > {
 	return Effect.gen(function* () {
+		console.log("🔥 收到前端的 developers:", input.form.developers);
 		const botId = yield* parseClientId(input.form.botInvite);
 		const exists = yield* getExistingBotEffect(botId);
 		if ((input.mode ?? "create") === "create" && exists) {

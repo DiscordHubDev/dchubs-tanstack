@@ -5,6 +5,7 @@ import {
 	useSuspenseQuery,
 } from "@tanstack/react-query";
 import { ClientOnly, useNavigate } from "@tanstack/react-router";
+import { Schema } from "effect";
 import { AlertTriangle } from "lucide-react";
 import { type ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import Swal from "sweetalert2";
@@ -277,6 +278,14 @@ export function ServerPublishPage({ serverId }: ServerPublishPageProps) {
 			}),
 		[],
 	);
+	const validateisNsfw = useMemo(
+		() =>
+			effectValidator(Schema.Boolean, {
+				label: "NSFW",
+				required: "請選擇是否為 NSFW 伺服器",
+			}),
+		[],
+	);
 	const validateTags = useMemo(
 		() =>
 			effectValidator(TagsSchema, {
@@ -341,6 +350,7 @@ export function ServerPublishPage({ serverId }: ServerPublishPageProps) {
 						tags: payload.form.tags, // 對應 tags
 						secret: payload.form.secret, // 對應 secret
 						voteNotificationUrl: payload.form.webhook_url, // 對應 webhook_url
+						nsfw: payload.form.nsfw, // 對應 nsfw
 					};
 				},
 			);
@@ -434,7 +444,10 @@ export function ServerPublishPage({ serverId }: ServerPublishPageProps) {
 	});
 
 	const form = useForm({
-		defaultValues: bundle.formValues,
+		defaultValues: {
+			...bundle.formValues,
+			nsfw: bundle.formValues?.nsfw ?? false,
+		},
 		validators: {
 			onSubmit: ({ value }) => validateForm(value),
 		},
@@ -660,13 +673,16 @@ export function ServerPublishPage({ serverId }: ServerPublishPageProps) {
 							}}
 						</form.Field>
 
-						<form.Field name="isNsfw">
+						<form.Field
+							name="nsfw"
+							validators={{ onChange: ({ value }) => validateisNsfw(value) }}
+						>
 							{(field) => {
 								const errorMessage = readFirstError(field.state.meta.errors);
 								return (
 									<div className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 shadow-sm">
 										<Checkbox
-											id="isNsfw"
+											id="NFW"
 											checked={field.state.value ?? false}
 											onCheckedChange={(checked) => {
 												field.handleChange(checked === true);
@@ -675,7 +691,7 @@ export function ServerPublishPage({ serverId }: ServerPublishPageProps) {
 										<div className="space-y-1 leading-none">
 											{/* 新加入的警告元件 */}
 											<div className="space-y-1 leading-none">
-												<Label htmlFor="isNsfw" className="cursor-pointer">
+												<Label htmlFor="nsfw" className="cursor-pointer">
 													NSFW 伺服器
 												</Label>
 												<p className="text-sm text-muted-foreground">
@@ -929,25 +945,27 @@ export function ServerPublishPage({ serverId }: ServerPublishPageProps) {
 							})}
 						>
 							{({ canSubmit, isSubmitting, hasRequiredFields }) => (
-								<Button
-									type="submit"
-									disabled={
-										!hasRequiredFields ||
-										!canSubmit ||
-										isSubmitting ||
-										saveMutation.isPending ||
-										isUploading
-									}
-									className="w-full bg-[#5865f2] text-white hover:bg-[#4752c4] disabled:cursor-not-allowed disabled:bg-[#5865f2]/70"
-								>
-									{bannerUploadMutation.isPending
-										? "圖片上傳中..."
-										: saveMutation.isPending || isSubmitting
-											? "儲存中..."
-											: bundle.isPublished
-												? "更新伺服器"
-												: "發布伺服器"}
-								</Button>
+								<div className="w-full space-y-4">
+									<Button
+										type="submit"
+										disabled={
+											!hasRequiredFields ||
+											!canSubmit ||
+											isSubmitting ||
+											saveMutation.isPending ||
+											isUploading
+										}
+										className="w-full bg-[#5865f2] text-white hover:bg-[#4752c4] disabled:cursor-not-allowed disabled:bg-[#5865f2]/70"
+									>
+										{bannerUploadMutation.isPending
+											? "圖片上傳中..."
+											: saveMutation.isPending || isSubmitting
+												? "儲存中..."
+												: bundle.isPublished
+													? "更新伺服器"
+													: "發布伺服器"}
+									</Button>
+								</div>
 							)}
 						</form.Subscribe>
 					</div>

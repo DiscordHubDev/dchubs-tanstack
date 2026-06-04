@@ -55,6 +55,7 @@ function mapRowToPublicServer(
 		createdAt: string;
 		pin: boolean;
 		pinExpiry: string | null;
+		nsfw: boolean;
 	},
 	favoriteIds: Set<string>,
 ): PublicServer {
@@ -73,6 +74,7 @@ function mapRowToPublicServer(
 		pin: row.pin,
 		pinExpiry: row.pinExpiry,
 		isFavorite: favoriteIds.has(row.id),
+		nsfw: row.nsfw,
 	};
 }
 
@@ -162,6 +164,7 @@ function getServerDetailEffect(
 							screenshots: server.screenshots,
 							pin: server.pin,
 							pinExpiry: server.pinExpiry,
+							nsfw: server.nsfw,
 						})
 						.from(server)
 						.where(eq(server.id, serverId))
@@ -227,6 +230,7 @@ function getServerDetailEffect(
 								createdAt: server.createdAt,
 								pin: server.pin,
 								pinExpiry: server.pinExpiry,
+								nsfw: server.nsfw,
 							})
 							.from(server)
 							.where(ne(server.id, serverId))
@@ -270,6 +274,7 @@ function getServerDetailEffect(
 			rules: cleanStringArray(currentServer.rules),
 			features: cleanStringArray(currentServer.features),
 			screenshots: cleanStringArray(currentServer.screenshots),
+			nsfw: currentServer.nsfw,
 			owner: ownerRows[0] ?? null, // 優化：利用 Nullish Coalescing 直接賦值
 			reviews,
 			currentRating,

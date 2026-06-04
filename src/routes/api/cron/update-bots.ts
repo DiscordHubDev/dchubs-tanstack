@@ -34,7 +34,7 @@ const sleep = (ms: number) =>
 	new Promise<void>((resolve) => setTimeout(resolve, ms));
 
 async function fetchUpdatedBotInfo(botId: string): Promise<{
-	global_name: string | null;
+	name: string | null;
 	avatar_url: string | null;
 	banner_url: string | null;
 	verified: boolean;
@@ -46,7 +46,7 @@ async function fetchUpdatedBotInfo(botId: string): Promise<{
 			return null;
 		}
 		return {
-			global_name: typeof data.name === "string" ? data.name : null,
+			name: typeof data.name === "string" ? data.name : null,
 			avatar_url:
 				typeof data.member.avatarUrl === "string"
 					? data.member.avatarUrl
@@ -126,7 +126,7 @@ function buildUpdateData(
 
 	if (info) {
 		// Only overwrite when the API gave us a non-null value; fall back to DB row
-		data.name = info.global_name ?? current.name;
+		data.name = info.name ?? current.name;
 		data.icon = info.avatar_url ?? current.icon;
 		data.banner = info.banner_url ?? current.banner;
 		data.verified = info.verified;

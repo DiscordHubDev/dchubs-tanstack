@@ -52,6 +52,7 @@ function mapRowToPublicBot(
 		pinExpiry: string | null;
 		verified: boolean;
 		isAdmin: boolean;
+		nsfw: boolean;
 	},
 	favoriteIds: Set<string>,
 ): PublicBot {
@@ -68,12 +69,13 @@ function mapRowToPublicBot(
 		inviteUrl: row.inviteUrl,
 		website: row.website,
 		supportServer: row.supportServer,
-		approvedAt: row.approvedAt,
+		approvedAt: row.approvedAt || new Date().toISOString(),
 		pin: row.pin,
 		pinExpiry: row.pinExpiry,
 		verified: row.verified,
 		isFavorite: favoriteIds.has(row.id),
 		isAdmin: row.isAdmin,
+		nsfw: row.nsfw,
 	};
 }
 
@@ -163,6 +165,7 @@ function getBotDetailEffect(
 					prefix: bot.prefix,
 					features: bot.features,
 					screenshots: bot.screenshots,
+					nsfw: bot.nsfw,
 				})
 				.from(bot)
 				.where(and(eq(bot.id, botId), eq(bot.status, "approved")))
@@ -239,6 +242,7 @@ function getBotDetailEffect(
 						pinExpiry: bot.pinExpiry,
 						verified: bot.verified,
 						isAdmin: bot.isAdmin,
+						nsfw: bot.nsfw,
 					})
 					.from(bot)
 					.where(and(eq(bot.status, "approved"), ne(bot.id, botId)))

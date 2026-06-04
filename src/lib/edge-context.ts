@@ -1,6 +1,6 @@
 // src/lib/edge-context.ts
 import { getRequest } from "@tanstack/react-start/server";
-import { eq } from "drizzle-orm";
+import { and, eq, or } from "drizzle-orm";
 import { Effect } from "effect";
 import { cache } from "react";
 import { db } from "#/drizzle/db";
@@ -15,25 +15,22 @@ export type DomainUser = {
 	avatar: string | null;
 	banner: string | null;
 	bannerColor: string | null;
+	name: string | null;
 };
 
 // 保持原樣：只讀 headers，不做任何 DB 查詢，不對外暴露
 function getRawEdgeContext() {
 	const req = getRequest();
-
 	const gatewaySecret = req.headers.get("x-gateway-secret");
+
 	if (gatewaySecret !== GATEWAY_SECRET) {
 		return { userId: null, sessionId: null, isAdmin: false, trusted: false };
 	}
 
-	const userId = req.headers.get("x-edge-user-id");
-	const sessionId = req.headers.get("x-edge-session-id");
-	const isAdmin = req.headers.get("x-edge-is-admin") === "true";
-
 	return {
-		userId: userId || null,
-		sessionId: sessionId || null,
-		isAdmin,
+		userId: req.headers.get("x-edge-user-id") || null,
+		sessionId: req.headers.get("x-edge-session-id") || null,
+		isAdmin: req.headers.get("x-edge-is-admin") === "true",
 		trusted: true,
 	};
 }
@@ -43,66 +40,66 @@ export const getDomainUser = cache(
 		if (!edgeUserId) return null;
 
 		const isDiscordId = /^\d+$/.test(edgeUserId);
-		const queryCondition = isDiscordId
-			? eq(schema.authUser.discordId, edgeUserId)
-			: eq(schema.authUser.id, edgeUserId);
-
 		const result = await db
 			.select({
-				betterAuthId: schema.authUser.id,
-				discordId: schema.authUser.discordId,
-				authUsername: schema.authUser.username,
-				authAvatar: schema.authUser.avatar,
-				authName: schema.authUser.name,
-				authImage: schema.authUser.image,
-				authBanner: schema.authUser.banner,
-				authBannerColor: schema.authUser.bannerColor,
-				legacyUsername: schema.user.username,
-				legacyAvatar: schema.user.avatar,
-				legacyBanner: schema.user.banner,
-				legacyBannerColor: schema.user.bannerColor,
+				id: schema.user.id,
+				discordId: schema.user.discordId,
+				accountId: schema.authAccount.accountId,
+				username: schema.user.username,
+				name: schema.user.name,
+				avatar: schema.user.avatar,
+				image: schema.user.image,
+				banner: schema.user.banner,
+				bannerColor: schema.user.bannerColor,
 			})
-			.from(schema.authUser)
-			.leftJoin(schema.user, eq(schema.authUser.discordId, schema.user.id))
-			.where(queryCondition)
+			.from(schema.user)
+			.leftJoin(
+				schema.authAccount,
+				and(
+					eq(schema.authAccount.userId, schema.user.id),
+					eq(schema.authAccount.providerId, "discord"),
+				),
+			)
+			.where(
+				isDiscordId
+					? or(
+							eq(schema.user.discordId, edgeUserId),
+							eq(schema.authAccount.accountId, edgeUserId), // 👈 補上這行，相容 Better-Auth 預設儲存位置
+						)
+					: eq(schema.user.id, edgeUserId),
+			)
 			.limit(1);
 
 		const userRow = result[0] ?? null;
-		if (!userRow) return null;
 
-		if (!userRow.legacyUsername && userRow.discordId) {
-			await db.insert(schema.user).values({
-				id: userRow.discordId,
-				username: userRow.authUsername ?? userRow.authName ?? "Unknown User",
-				avatar:
-					userRow.authAvatar ??
-					userRow.authImage ??
-					"https://cdn.discordapp.com/embed/avatars/0.png",
-				banner: userRow.authBanner,
-				bannerColor: userRow.authBannerColor,
-				joinedAt: new Date().toISOString(),
-			});
-			return getDomainUser(edgeUserId);
-		}
+		console.log("[Debug] userRow:", userRow);
+
+		const actualDiscordId = userRow?.discordId || userRow?.accountId;
+
+		if (!userRow || !actualDiscordId) return null;
+
+		// 處理 Fallback 邏輯
+		const username = userRow.username ?? userRow.name ?? "Unknown User";
+		const avatar =
+			userRow.avatar ??
+			userRow.image ??
+			"https://cdn.discordapp.com/embed/avatars/0.png";
+		const banner = userRow.banner ?? null;
+		const bannerColor = userRow.bannerColor ?? null;
+		const name = userRow.name ?? username;
 
 		return {
-			betterAuthId: userRow.betterAuthId,
-			discordId: userRow.discordId,
-			username:
-				userRow.legacyUsername ??
-				userRow.authUsername ??
-				userRow.authName ??
-				null,
-			avatar:
-				userRow.legacyAvatar ?? userRow.authAvatar ?? userRow.authImage ?? null,
-			banner: userRow.legacyBanner ?? null,
-			bannerColor: userRow.legacyBannerColor ?? null,
+			betterAuthId: userRow.id,
+			discordId: actualDiscordId,
+			username,
+			avatar,
+			banner,
+			bannerColor,
+			name,
 		};
 	},
 );
 
-// ✅ 核心修復：這是整個 App 唯一的 Context 來源
-// cache() 確保同一 Request 生命週期內只執行一次，所有呼叫者共享同一個物件
 export const getResolvedEdgeContext = cache(async () => {
 	const raw = getRawEdgeContext();
 
@@ -111,7 +108,7 @@ export const getResolvedEdgeContext = cache(async () => {
 			trusted: raw.trusted,
 			isAdmin: raw.isAdmin,
 			sessionId: raw.sessionId,
-			userId: null as string | null, // Discord ID or null
+			userId: null as string | null,
 			user: null as DomainUser | null,
 		};
 	}
@@ -122,24 +119,21 @@ export const getResolvedEdgeContext = cache(async () => {
 		trusted: raw.trusted,
 		isAdmin: raw.isAdmin,
 		sessionId: raw.sessionId,
-		userId: user?.discordId ?? null, // ← 永遠是 Discord ID
+		userId: user?.discordId ?? null, // 永遠確保對外暴露的是 Discord ID
 		user,
 	};
 });
 
-// 對外提供同步版（只讀原始 header，用於非 async 場合）
-// 注意：此版本的 userId 可能仍是 UUID，盡量避免直接使用 userId
 export function getEdgeContext() {
 	return getRawEdgeContext();
 }
 
 export async function requireDomainUser() {
-	// ✅ 改用 getResolvedEdgeContext，不再手動覆寫
 	const context = await getResolvedEdgeContext();
 
 	if (!context.trusted) throw new Error("No trusted context");
-	if (!context.userId) throw new Error("No user ID in context");
-	if (!context.user) throw new Error("User profile not found");
+	if (!context.userId || !context.user)
+		throw new Error("User profile not found");
 
 	return { context, user: context.user };
 }
@@ -148,7 +142,10 @@ export function getSessionUserIdEffect(): Effect.Effect<string, Error> {
 	return Effect.gen(function* () {
 		const { user } = yield* Effect.tryPromise({
 			try: () => requireDomainUser(),
-			catch: (error) => new Error(`驗證失敗: ${error}`),
+			catch: (error) =>
+				new Error(
+					`驗證失敗: ${error instanceof Error ? error.message : String(error)}`,
+				),
 		});
 
 		if (!user?.discordId) {

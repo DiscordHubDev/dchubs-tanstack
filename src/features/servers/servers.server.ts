@@ -43,6 +43,7 @@ function mapRowToPublicServer(
 		createdAt: string;
 		pin: boolean;
 		pinExpiry: string | null;
+		nsfw: boolean;
 	},
 	favoriteIds: Set<string>,
 ): PublicServer {
@@ -61,6 +62,7 @@ function mapRowToPublicServer(
 		pin: row.pin,
 		pinExpiry: row.pinExpiry,
 		isFavorite: favoriteIds.has(row.id),
+		nsfw: row.nsfw,
 	};
 }
 
@@ -134,6 +136,7 @@ function listServersPageEffect(
 				createdAt: server.createdAt,
 				pin: server.pin,
 				pinExpiry: server.pinExpiry,
+				nsfw: server.nsfw,
 			})
 			.from(server);
 
@@ -190,6 +193,7 @@ function listServerFilterBundleEffect(
 					createdAt: server.createdAt,
 					pin: server.pin,
 					pinExpiry: server.pinExpiry,
+					nsfw: server.nsfw,
 				})
 				.from(server),
 		);

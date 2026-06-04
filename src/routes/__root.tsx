@@ -16,9 +16,11 @@ import appCss from "../styles.css?url";
 import "react-toastify/dist/ReactToastify.css";
 import React, { Suspense } from "react";
 import { ErrorState } from "#/components/ErrorState";
+import { getSession, type NormalizedSession } from "#/lib/auth.functions";
 
 interface MyRouterContext {
 	queryClient: QueryClient;
+	session: NormalizedSession | null;
 }
 
 declare module "@tanstack/react-router" {
@@ -59,6 +61,10 @@ const jsonLd = {
 };
 
 export const Route = createRootRouteWithContext<MyRouterContext>()({
+	beforeLoad: async () => {
+		const session = await getSession();
+		return { session };
+	},
 	head: ({ matches }) => {
 		// ==========================================
 		// 1. 動態計算全域麵包屑 (Breadcrumb) 邏輯

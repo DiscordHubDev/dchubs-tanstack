@@ -3,11 +3,12 @@ import type { ApiJwtPayloadSchema } from "./users.schemas";
 
 export type JWTDiscordProfile = {
 	id: string;
-	global_name?: string;
+	name?: string;
 	image_url?: string;
 	banner_url?: string | null;
 	banner_color?: string | null;
 	username?: string;
+	email: string;
 };
 
 export type LegacyCompatibleSession = {
@@ -39,6 +40,7 @@ export type UserSummary = {
 export type UserDeveloperSummary = {
 	id: string;
 	username: string;
+	name: string | null;
 	avatar: string;
 };
 
@@ -49,6 +51,7 @@ export type UserDevelopedBot = UserSummary & {
 export type UserDetail = {
 	id: string;
 	username: string;
+	name: string | null;
 	avatar: string;
 	banner: string | null;
 	bannerColor: string | null;
@@ -65,19 +68,28 @@ export type UserDetail = {
 export type UserBaseProfile = {
 	id: string;
 	username: string;
+	name: string | null;
 	avatar: string;
 	banner: string | null;
 	bannerColor: string | null;
 	bio: string | null;
 	social: Record<string, string>;
-	joinedAt: string;
+	createdAt: string;
 };
 
 export type UserSettings = {
 	id: string;
 	username: string;
+	name: string | null;
 	bio: string | null;
 	social: Record<string, string>;
+};
+
+export type DevUser = {
+	id: string;
+	username: string;
+	name: string | null;
+	avatar: string;
 };
 
 export type ToggleFavoriteParams = {

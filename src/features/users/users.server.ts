@@ -1,4 +1,4 @@
-import { and, eq, inArray } from "drizzle-orm";
+import { and, eq, ilike, inArray, or } from "drizzle-orm";
 import { Effect, Either, Schema } from "effect";
 import { SignJWT } from "jose";
 import { db } from "#/drizzle/db";
@@ -17,6 +17,7 @@ import { runEffect, tryEffectPromise } from "#/lib/effect-utils";
 import { ApiJwtPayloadSchema } from "./users.schemas";
 import type {
 	ApiTokenPair,
+	DevUser,
 	JWTDiscordProfile,
 	LegacyCompatibleSession,
 	ToggleFavoriteParams,
@@ -281,12 +282,13 @@ export function getUserBaseProfileEffect(
 				columns: {
 					id: true,
 					username: true,
+					name: true,
 					avatar: true,
 					banner: true,
 					bannerColor: true,
 					bio: true,
 					social: true,
-					joinedAt: true,
+					createdAt: true,
 				},
 			}),
 		);
@@ -377,6 +379,7 @@ export function getUserBotsEffect(id: string) {
 								botId: botDevelopers.a,
 								id: user.id,
 								username: user.username,
+								name: user.name,
 								avatar: user.avatar,
 							})
 							.from(botDevelopers)
@@ -390,6 +393,7 @@ export function getUserBotsEffect(id: string) {
 			entries.push({
 				id: developer.id,
 				username: developer.username,
+				name: developer.name,
 				avatar: developer.avatar,
 			});
 			developersByBotId.set(developer.botId, entries);
@@ -461,6 +465,7 @@ export function getUserSettingsEffect(id: string) {
 				columns: {
 					id: true,
 					username: true,
+					name: true,
 					bio: true,
 					social: true,
 				},
@@ -482,6 +487,27 @@ export function getUserSettingsEffect(id: string) {
 	});
 }
 
+export function getUserByIdOrNameEffect(
+	query: string,
+): Effect.Effect<DevUser | null, Error> {
+	return Effect.gen(function* () {
+		if (!query) return null;
+
+		// 💡 Drizzle 的 or() 語法：同時去對比 ID 或 名稱
+		const whereClause = or(
+			eq(user.id, query),
+			ilike(user.username, `%${query}%`),
+			ilike(user.name, `%${query}%`),
+		);
+
+		const currentUser = yield* dbEffect("Failed to load user", () =>
+			db.query.user.findFirst({ where: whereClause /* ...columns */ }),
+		);
+
+		return currentUser ?? null;
+	});
+}
+
 function getUserByIdEffect(
 	id: string,
 ): Effect.Effect<UserDetail | null, Error> {
@@ -494,12 +520,13 @@ function getUserByIdEffect(
 				columns: {
 					id: true,
 					username: true,
+					name: true,
 					avatar: true,
 					banner: true,
 					bannerColor: true,
 					bio: true,
 					social: true,
-					joinedAt: true,
+					createdAt: true,
 				},
 			}),
 		);
@@ -520,6 +547,7 @@ function getUserByIdEffect(
 						name: server.name,
 						icon: server.icon,
 						description: server.description,
+
 						tags: server.tags,
 						members: server.members,
 						ownerId: server.ownerId,
@@ -602,6 +630,7 @@ function getUserByIdEffect(
 								botId: botDevelopers.a,
 								id: user.id,
 								username: user.username,
+								name: user.name,
 								avatar: user.avatar,
 							})
 							.from(botDevelopers)
@@ -615,6 +644,7 @@ function getUserByIdEffect(
 			entries.push({
 				id: developer.id,
 				username: developer.username,
+				name: developer.name,
 				avatar: developer.avatar,
 			});
 			developersByBotId.set(developer.botId, entries);
@@ -623,12 +653,13 @@ function getUserByIdEffect(
 		return {
 			id: currentUser.id,
 			username: currentUser.username,
+			name: currentUser.name,
 			avatar: currentUser.avatar,
 			banner: currentUser.banner,
 			bannerColor: currentUser.bannerColor,
 			bio: currentUser.bio,
 			social: normalizeSocial(currentUser.social),
-			joinedAt: currentUser.joinedAt,
+			joinedAt: currentUser.createdAt,
 			favoriteServers: favoriteServersRaw.map(toServerSummary),
 			favoriteBots: favoriteBotsRaw.map(toBotSummary),
 			ownedServers: ownedServersRaw.map(toServerSummary),
@@ -647,7 +678,7 @@ function upsertUserFromSessionEffect(
 	return Effect.gen(function* () {
 		if (!profile?.id) return null;
 
-		const nextUsername = profile.global_name ?? profile.username ?? "";
+		const nextUsername = profile.name ?? profile.username ?? "";
 		const nextAvatar = profile.image_url ?? getFallbackAvatar();
 		const nextBanner = profile.banner_url ?? null;
 		const nextBannerColor = profile.banner_color ?? null;
@@ -673,6 +704,8 @@ function upsertUserFromSessionEffect(
 				.insert(user)
 				.values({
 					id: profile.id,
+					name: profile.name || profile.username || "未知使用者",
+					email: profile.email,
 					username: nextUsername,
 					avatar: nextAvatar,
 					banner: nextBanner,

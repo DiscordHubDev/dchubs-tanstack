@@ -15,12 +15,13 @@ export type PublicBot = {
 	inviteUrl: string | null;
 	website: string | null;
 	supportServer: string | null;
-	approvedAt: string;
+	approvedAt: string | null;
 	pin: boolean;
 	pinExpiry: string | null;
 	verified: boolean;
 	isFavorite: boolean;
 	isAdmin: boolean;
+	nsfw: boolean;
 };
 
 export type BotListQueryInput = {

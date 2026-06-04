@@ -3,8 +3,8 @@ import {
 	FaDiscord,
 	FaGithub,
 	FaGlobe,
-	FaYoutube,
 	FaInstagram,
+	FaYoutube,
 } from "react-icons/fa";
 import { FaFacebook, FaThreads, FaX } from "react-icons/fa6";
 

@@ -1,7 +1,7 @@
-import { useState } from "react";
-import { Menu, X } from "lucide-react";
-import { Button } from "../ui/button";
 import { Link } from "@tanstack/react-router";
+import { Menu, X } from "lucide-react";
+import { useState } from "react";
+import { Button } from "../ui/button";
 
 export default function MobileMenu() {
 	const [isOpen, setIsOpen] = useState(false);

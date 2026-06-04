@@ -6,6 +6,7 @@ import {
 	getUserBaseProfileFn,
 	getUserBotsFn,
 	getUserByIdFn,
+	getUserByIdOrNameFn,
 	getUserFavoritesFn,
 	getUserServersFn,
 	getUserSettingsFn,
@@ -110,6 +111,19 @@ export function userBaseProfileQueryOptions(userId: string) {
 			runEffect(
 				tryEffectPromise("Failed to fetch user base profile", () =>
 					getUserBaseProfileFn({ data: { id: userId } }),
+				),
+			),
+		staleTime: 10 * 60 * 1000,
+	});
+}
+
+export function userGetBaseProfileByNameOrIdQueryOptions(query: string) {
+	return queryOptions({
+		queryKey: queryKeys.users.profileByNameOrId(query),
+		queryFn: () =>
+			runEffect(
+				tryEffectPromise("Failed to fetch user profile by name or ID", () =>
+					getUserByIdOrNameFn({ data: { query } }),
 				),
 			),
 		staleTime: 10 * 60 * 1000,

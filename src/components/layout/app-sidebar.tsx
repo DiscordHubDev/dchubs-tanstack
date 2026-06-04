@@ -1,4 +1,5 @@
 import { Separator } from "@radix-ui/react-separator";
+import { useRouteContext } from "@tanstack/react-router";
 import {
 	BookCheckIcon,
 	BookOpen,
@@ -113,9 +114,11 @@ export function DiscordUser(session?: LegacySessionData) {
 }
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
-	const { data: session, status } = useSession();
+	const { session } = useRouteContext({ from: "__root__" });
 	const isMobile = useIsMobile();
 	const { setOpenMobile } = useSidebar();
+
+	const status = session ? "authenticated" : "unauthenticated";
 
 	useEffect(() => {
 		if (isMobile) setOpenMobile(true);
@@ -145,28 +148,21 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 		},
 	];
 
-	const user =
-		session?.user && !session?.error
-			? {
-					display_name:
-						session.user.name ??
-						session.discordProfile?.global_name ??
-						session.discordProfile?.username ??
-						"未登入",
-					username: session.discordProfile?.username ?? "未登入",
-					avatar:
-						session.user.image ??
-						(session.discordProfile?.id && session.discordProfile?.avatar
-							? `https://cdn.discordapp.com/avatars/${session.discordProfile.id}/${session.discordProfile.avatar}.png`
-							: "https://cdn.discordapp.com/embed/avatars/0.png"),
-					id: session.user.id ?? session.discordProfile?.id,
-				}
-			: {
-					display_name: "未登入",
-					username: "未登入",
-					avatar: "https://cdn.discordapp.com/embed/avatars/0.png",
-					id: undefined,
-				};
+	const user = session
+		? {
+				display_name: session.user.name ?? "未知使用者", // 假設你的 NormalizedSession 已經處理好這層映射
+				username: session.user.username ?? "未知使用者",
+				avatar:
+					session.user.avatar ??
+					"https://cdn.discordapp.com/embed/avatars/0.png",
+				id: session.user.id, // 或者 discordId，看你 NormalizedSession 怎麼定義
+			}
+		: {
+				display_name: "未登入",
+				username: "未登入",
+				avatar: "https://cdn.discordapp.com/embed/avatars/0.png",
+				id: undefined,
+			};
 
 	// 💡 取得精確的 Discord ID，避免與資料庫 UUID 混淆
 	const currentDiscordId =

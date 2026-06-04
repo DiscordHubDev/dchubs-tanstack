@@ -69,6 +69,7 @@ function getBotEditBundleEffect(
 						banner: bot.banner,
 						secret: bot.secret,
 						voteNotificationUrl: bot.voteNotificationUrl,
+						nsfw: bot.nsfw,
 					},
 					hasAccess: sql<boolean>`count(${botDevelopers.b}) FILTER (WHERE ${botDevelopers.b} = ${userId}) > 0`,
 				})
@@ -141,6 +142,7 @@ function getBotEditBundleEffect(
 			webhook_url: normalizeOptionalString(currentBot.voteNotificationUrl),
 			screenshots: normalizeList(currentBot.screenshots),
 			banner: currentBot.banner ?? null,
+			nsfw: currentBot.nsfw ?? false,
 		};
 
 		return {

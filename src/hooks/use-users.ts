@@ -1,6 +1,4 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { runEffect, tryEffectPromise } from "#/lib/effect-utils";
-import { queryKeys } from "#/lib/query-keys";
 import { toggleFavoriteFn } from "#/features/users/users.functions";
 import {
 	currentUserQueryOptions,
@@ -12,6 +10,8 @@ import type {
 	UserDetail,
 	UserSummary,
 } from "#/features/users/users.types";
+import { runEffect, tryEffectPromise } from "#/lib/effect-utils";
+import { queryKeys } from "#/lib/query-keys";
 
 export function useCurrentUser() {
 	return useQuery(currentUserQueryOptions());

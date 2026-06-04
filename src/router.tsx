@@ -1,17 +1,21 @@
 import { createRouter as createTanStackRouter } from "@tanstack/react-router";
 import { setupRouterSsrQueryIntegration } from "@tanstack/react-router-ssr-query";
 import { ErrorState } from "./components/ErrorState";
-import { getContext } from "./integrations/tanstack-query/root-provider";
+import { getQueryClient } from "./integrations/tanstack-query/root-provider";
 import { routeTree } from "./routeTree.gen";
 
 export function getRouter() {
-	const context = getContext();
+	// 1. 先實例化一個獨立的 QueryClient
+	const queryClient = getQueryClient();
 
 	const router = createTanStackRouter({
 		routeTree,
-		context,
+		// 2. 在這裡正式宣告初始的 Context
+		context: {
+			queryClient,
+			session: null, // 給予 session 一個預設值，這會滿足你 Root Route 的型別要求
+		},
 		scrollRestoration: true,
-		defaultPreload: "intent",
 		defaultPreloadStaleTime: 30000,
 		defaultPendingComponent: () => (
 			<div className="flex min-h-screen flex-col items-center justify-center space-y-4 bg-[#1e1f22] text-white">
@@ -22,7 +26,8 @@ export function getRouter() {
 		defaultErrorComponent: ({ error }) => <ErrorState error={error} />,
 	});
 
-	setupRouterSsrQueryIntegration({ router, queryClient: context.queryClient });
+	// 3. SSR 整合使用剛才建立的 queryClient
+	setupRouterSsrQueryIntegration({ router, queryClient });
 
 	return router;
 }

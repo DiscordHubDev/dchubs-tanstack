@@ -11,6 +11,7 @@ import {
 	updateUserSettingsInputEffectSchema,
 	upsertUserFromSessionInputEffectSchema,
 	userByIdInputEffectSchema,
+	userByIdOrNameInputEffectSchema,
 } from "./users.schemas";
 import {
 	createOrRegenerateApiTokenForCurrentUser,
@@ -18,6 +19,7 @@ import {
 	getUserBaseProfileEffect,
 	getUserBotsEffect,
 	getUserById,
+	getUserByIdOrNameEffect,
 	getUserFavoritesEffect,
 	getUserServersEffect,
 	getUserSettingsEffect,
@@ -61,25 +63,33 @@ export const getUserBotsFn = createServerFn({ method: "GET" })
 	});
 
 export const getUserServersFn = createServerFn({ method: "GET" })
-	.middleware([authMiddleware])
 	.inputValidator(effectInputValidator(userByIdInputEffectSchema))
+	.middleware([authMiddleware])
 	.handler(async ({ data }) => {
 		return await runEffect(getUserServersEffect(data.id));
 	});
 
 export const getUserBaseProfileFn = createServerFn({ method: "GET" })
-	.middleware([authMiddleware])
 	.inputValidator(effectInputValidator(userByIdInputEffectSchema))
+	.middleware([authMiddleware])
 	.handler(async ({ data }) => {
 		return await runEffect(getUserBaseProfileEffect(data.id));
 	});
 
 // 2. 取得特定使用者：公開讀取
 export const getUserByIdFn = createServerFn({ method: "GET" })
-	.middleware([authMiddleware])
 	.inputValidator(effectInputValidator(userByIdInputEffectSchema))
+	.middleware([authMiddleware])
 	.handler(async ({ data }) => {
 		return getUserById(data.id);
+	});
+
+export const getUserByIdOrNameFn = createServerFn({ method: "GET" })
+	.inputValidator(effectInputValidator(userByIdOrNameInputEffectSchema))
+	.middleware([authMiddleware])
+	.handler(async ({ data }) => {
+		const program = getUserByIdOrNameEffect(data.query);
+		return await runEffect(program);
 	});
 
 export const upsertUserFromSessionFn = createServerFn({ method: "POST" })

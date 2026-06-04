@@ -6,6 +6,11 @@ export const userByIdInputEffectSchema = Schema.Struct({
 	id: NonEmptyString,
 });
 
+export const userByIdOrNameInputEffectSchema = Schema.Struct({
+	// 允許傳入字串，或者是 null (也可以視需求改為 Schema.optional(Schema.String))
+	query: Schema.String,
+});
+
 export const toggleFavoriteInputEffectSchema = Schema.Struct({
 	target: Schema.Literal("server", "bot"),
 	id: NonEmptyString,
@@ -21,11 +26,12 @@ export const updateUserSettingsInputEffectSchema = Schema.Struct({
 
 export const upsertUserFromSessionInputEffectSchema = Schema.Struct({
 	id: NonEmptyString,
-	global_name: Schema.optional(Schema.String),
+	name: Schema.optional(Schema.String),
 	image_url: Schema.optional(Schema.String),
 	banner_url: Schema.optional(Schema.NullOr(Schema.String)),
 	banner_color: Schema.optional(Schema.NullOr(Schema.String)),
 	username: Schema.optional(Schema.String),
+	email: Schema.String,
 });
 
 export const ApiJwtPayloadSchema = Schema.Struct({
