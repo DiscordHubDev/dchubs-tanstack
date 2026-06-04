@@ -1,8 +1,6 @@
 import { Effect } from "effect";
-import { db } from "#/drizzle/db";
-import { notification } from "#/drizzle/schema";
 import { NotificationFailed } from "#/errors/bot-errors";
-import { getDomainUser, getEdgeContext } from "#/lib/edge-context";
+import { getResolvedEdgeContext } from "#/lib/edge-context";
 import { sendNotification } from "../admin/admin.functions";
 import type { SendNotificationInput } from "./notifications.schemas";
 
@@ -14,23 +12,17 @@ function resolveUserIdEffect(
 	}
 
 	return Effect.gen(function* () {
-		const { userId } = getEdgeContext();
-		if (!userId) {
-			return yield* Effect.fail(new NotificationFailed({}));
-		}
-
-		const domainUser = yield* Effect.tryPromise({
-			try: () => getDomainUser(userId),
+		const ctx = yield* Effect.tryPromise({
+			try: () => getResolvedEdgeContext(),
 			catch: () => new NotificationFailed({}),
 		});
 
-		const resolvedId = domainUser?.discordId;
-
-		if (!resolvedId) {
+		// getResolvedEdgeContext 已保證 userId 是 Discord ID
+		if (!ctx.userId || !ctx.user) {
 			return yield* Effect.fail(new NotificationFailed({}));
 		}
 
-		return resolvedId;
+		return ctx.user.discordId;
 	});
 }
 

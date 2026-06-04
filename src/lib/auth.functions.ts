@@ -1,6 +1,6 @@
+// src/lib/auth.functions.ts
 import { createServerFn } from "@tanstack/react-start";
-import { Schema } from "effect";
-import { getEdgeContext, requireDomainUser } from "./edge-context";
+import { getResolvedEdgeContext, requireDomainUser } from "./edge-context";
 
 type SessionUserLike = {
 	id?: string;
@@ -31,12 +31,6 @@ export type SessionLike = {
 
 export type NormalizedSession = NonNullable<SessionLike> & {
 	discordProfile?: NormalizedDiscordProfile;
-};
-
-const emptySchema = Schema.Struct({});
-const strictValidator = (input: any) => {
-	Schema.decodeUnknownSync(emptySchema)(input || {});
-	return {};
 };
 
 export function withDiscordProfile(session: null): null;
@@ -113,24 +107,19 @@ export const ensureSession = createServerFn({ method: "GET" }).handler(
 export const checkAuthServerFn = createServerFn({ method: "GET" }).handler(
 	async () => {
 		try {
-			// 直接讀取 Edge 傳遞過來的 Context，完全不碰資料庫！
-			const context = getEdgeContext();
+			// ✅ 改用 getResolvedEdgeContext，userId 保證是 Discord ID
+			const context = await getResolvedEdgeContext();
 
-			// 檢查 Gateway 密鑰與 UserId
 			if (!context.trusted || !context.userId) {
 				return { isAuthenticated: false, userId: null };
 			}
 
 			return {
 				isAuthenticated: true,
-				userId: context.userId, // 這裡已經是安全的 Edge User ID
+				userId: context.userId, // 此時已是 Discord ID
 			};
-		} catch (error) {
-			return {
-				isAuthenticated: false,
-				userId: null,
-				error: error instanceof Error ? error.message : "Unknown error",
-			};
+		} catch {
+			return { isAuthenticated: false, userId: null };
 		}
 	},
 );

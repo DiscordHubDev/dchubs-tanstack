@@ -1,3 +1,4 @@
+// src/lib/edge-context.ts
 import { getRequest } from "@tanstack/react-start/server";
 import { eq } from "drizzle-orm";
 import { Effect } from "effect";
@@ -16,7 +17,8 @@ export type DomainUser = {
 	bannerColor: string | null;
 };
 
-export function getEdgeContext() {
+// 保持原樣：只讀 headers，不做任何 DB 查詢，不對外暴露
+function getRawEdgeContext() {
 	const req = getRequest();
 
 	const gatewaySecret = req.headers.get("x-gateway-secret");
@@ -36,7 +38,6 @@ export function getEdgeContext() {
 	};
 }
 
-// 2. 加上 : Promise<DomainUser | null> 型別註解
 export const getDomainUser = cache(
 	async (edgeUserId: string): Promise<DomainUser | null> => {
 		if (!edgeUserId) return null;
@@ -67,14 +68,9 @@ export const getDomainUser = cache(
 			.limit(1);
 
 		const userRow = result[0] ?? null;
-
 		if (!userRow) return null;
 
 		if (!userRow.legacyUsername && userRow.discordId) {
-			console.log(
-				`💡 全新用戶 (Discord: ${userRow.discordId})，正在自動初始化舊 User 表...`,
-			);
-
 			await db.insert(schema.user).values({
 				id: userRow.discordId,
 				username: userRow.authUsername ?? userRow.authName ?? "Unknown User",
@@ -86,8 +82,6 @@ export const getDomainUser = cache(
 				bannerColor: userRow.authBannerColor,
 				joinedAt: new Date().toISOString(),
 			});
-
-			// 加上型別註解後，這裡的遞迴呼叫就不會再報錯了
 			return getDomainUser(edgeUserId);
 		}
 
@@ -107,25 +101,47 @@ export const getDomainUser = cache(
 	},
 );
 
+// ✅ 核心修復：這是整個 App 唯一的 Context 來源
+// cache() 確保同一 Request 生命週期內只執行一次，所有呼叫者共享同一個物件
+export const getResolvedEdgeContext = cache(async () => {
+	const raw = getRawEdgeContext();
+
+	if (!raw.trusted || !raw.userId) {
+		return {
+			trusted: raw.trusted,
+			isAdmin: raw.isAdmin,
+			sessionId: raw.sessionId,
+			userId: null as string | null, // Discord ID or null
+			user: null as DomainUser | null,
+		};
+	}
+
+	const user = await getDomainUser(raw.userId);
+
+	return {
+		trusted: raw.trusted,
+		isAdmin: raw.isAdmin,
+		sessionId: raw.sessionId,
+		userId: user?.discordId ?? null, // ← 永遠是 Discord ID
+		user,
+	};
+});
+
+// 對外提供同步版（只讀原始 header，用於非 async 場合）
+// 注意：此版本的 userId 可能仍是 UUID，盡量避免直接使用 userId
+export function getEdgeContext() {
+	return getRawEdgeContext();
+}
+
 export async function requireDomainUser() {
-	const context = getEdgeContext();
+	// ✅ 改用 getResolvedEdgeContext，不再手動覆寫
+	const context = await getResolvedEdgeContext();
 
 	if (!context.trusted) throw new Error("No trusted context");
 	if (!context.userId) throw new Error("No user ID in context");
+	if (!context.user) throw new Error("User profile not found");
 
-	// 💡 新增這行來檢查
-	console.log(
-		"🔍 [requireDomainUser] Looking up DB for userId:",
-		context.userId,
-	);
-
-	const user = await getDomainUser(context.userId);
-
-	if (!user) {
-		throw new Error("User profile not found");
-	}
-
-	return { context, user };
+	return { context, user: context.user };
 }
 
 export function getSessionUserIdEffect(): Effect.Effect<string, Error> {
@@ -135,7 +151,7 @@ export function getSessionUserIdEffect(): Effect.Effect<string, Error> {
 			catch: (error) => new Error(`驗證失敗: ${error}`),
 		});
 
-		if (!user || !user.discordId) {
+		if (!user?.discordId) {
 			return yield* Effect.fail(new Error("請先登入 Discord 帳號"));
 		}
 
