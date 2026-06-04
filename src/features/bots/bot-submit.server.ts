@@ -15,8 +15,8 @@ import {
 import { fetchJsonEffect, runEffect, toErrorMessage } from "#/lib/effect-utils";
 import type { BotInfo } from "#/lib/types";
 import { fetchBotRpcEffect } from "#/utils/fetch-rpc";
-import { sendDiscordWebhookEffect } from "../admin/webhook.server";
 import { sendNotificationEffect } from "../notifications/notifications.server";
+import { sendDiscordWebhookEffect } from "../webhook/webhook.server";
 import type {
 	DeleteBotImageInput,
 	SendPendingWebhookInput,
@@ -183,7 +183,7 @@ function buildAvatarUrl(user: DiscordUserResponse): string | null {
 
 function buildBannerUrl(user: DiscordUserResponse): string | null {
 	if (!user.banner) return null;
-	return `https://cdn.discordapp.com/banners/${user.id}/${user.banner}.png?size=600`;
+	return `https://cdn.discordapp.com/banners/${user.id}/${user.banner}.png?size=4096`;
 }
 
 function fetchDiscordUserEffect(
@@ -452,17 +452,18 @@ function submitPipeline(
 		yield* persistBotEffect(payload, developerIds);
 		yield* notifyDevelopersEffect(input);
 
-		yield* sendDiscordWebhookEffect({
-			_tag: "pendingBot",
-			avatarUrl:
-				payload.botRow.icon || "https://cdn.discordapp.com/embed/avatars/0.png",
-			data: {
-				botName: payload.botRow.name,
-				botPrefix: payload.botRow.prefix || "",
-				botDescription: payload.botRow.description || "",
-				tags: payload.botRow.tags || [],
-			},
-		});
+		// TODO: 生產環境時取消註解
+		// yield* sendDiscordWebhookEffect({
+		// 	_tag: "pendingBot",
+		// 	avatarUrl:
+		// 		payload.botRow.icon || "https://cdn.discordapp.com/embed/avatars/0.png",
+		// 	data: {
+		// 		botName: payload.botRow.name,
+		// 		botPrefix: payload.botRow.prefix || "",
+		// 		botDescription: payload.botRow.description || "",
+		// 		tags: payload.botRow.tags || [],
+		// 	},
+		// });
 
 		return botId;
 	}).pipe(Effect.tapError((error) => Effect.sync(() => console.error(error))));

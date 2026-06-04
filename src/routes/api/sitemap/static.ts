@@ -16,14 +16,11 @@ export const Route = createFileRoute("/api/sitemap/static")({
 				const nowIso = new Date().toISOString();
 				const routes = [
 					"/",
-					"/help",
+					"/tutorial",
 					"/bots",
-					"/servers",
-					"/sign-in",
+					"/login",
 					"/terms",
 					"/privacy",
-					"/protected/add-bot",
-					"/protected/add-server",
 				];
 
 				const fields: SitemapField[] = routes.map((route) => ({

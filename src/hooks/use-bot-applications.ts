@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
-import { reviewBot } from "#/features/admin/admin.functions";
+import { reviewBotFn } from "#/features/admin/admin.functions";
 import type { Bot, BotStatus } from "#/types/admin";
 
 interface UseBotApplicationsOptions {
@@ -37,7 +37,7 @@ export function useBotApplications({
 		}) => {
 			try {
 				// 直接 await，不用檢查 success
-				await reviewBot({
+				await reviewBotFn({
 					data: { id, status, rejectionReason: reason },
 				});
 

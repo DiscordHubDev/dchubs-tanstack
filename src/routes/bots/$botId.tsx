@@ -131,7 +131,7 @@ function createBotHead(detail: BotDetail | null, botId: string) {
 				userInteractionCount: detail.servers,
 			},
 		],
-	});
+	}).replace(/</g, "\\u003c");
 
 	let previewImage: string | undefined;
 	let twitterCard: "summary" | "summary_large_image" = "summary";

@@ -1,4 +1,8 @@
-import { useSuspenseQuery } from "@tanstack/react-query";
+import {
+	useQuery,
+	useQueryClient,
+	useSuspenseQuery,
+} from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { Image } from "@unpic/react";
 import { Search } from "lucide-react";
@@ -13,7 +17,18 @@ import {
 } from "react";
 
 const Pagination = lazy(() => import("#/components/feedback/Pagination"));
+const BotList = lazy(() => import("#/features/bots/components/bot-list"));
+const LazyCategorySearch = lazy(
+	() => import("#/features/servers/components/category-search"),
+);
+const LazyMobileCategoryFilter = lazy(
+	() => import("#/features/servers/components/mobile-category-filter"),
+);
+const LazyBotsAddCta = lazy(
+	() => import("#/features/bots/components/bots-add-cta"),
+);
 
+import { motion } from "framer-motion";
 import { Input } from "#/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "#/components/ui/tabs";
 import {
@@ -28,30 +43,22 @@ import {
 	paginateBots,
 	sortBotsByCategory,
 } from "#/features/bots/bots.utils";
-
-const BotList = lazy(() => import("#/features/bots/components/bot-list"));
-
-import { motion } from "framer-motion";
 import type { CategoryType } from "#/lib/types";
 
+// ─── 分類設定：單一來源，TabsTrigger / label / prefetch 全部從這裡取 ────────────
 const DEFAULT_CATEGORY: BotCategory = "popular";
-const BOT_CATEGORIES: readonly BotCategory[] = [
-	"popular",
-	"featured",
-	"new",
-	"verified",
-	"voted",
-];
-const LazyCategorySearch = lazy(
-	() => import("#/features/servers/components/category-search"),
-);
-const LazyMobileCategoryFilter = lazy(
-	() => import("#/features/servers/components/mobile-category-filter"),
-);
-const LazyBotsAddCta = lazy(
-	() => import("#/features/bots/components/bots-add-cta"),
-);
 
+const BOT_CATEGORY_CONFIG = [
+	{ id: "popular" as BotCategory, label: "熱門機器人" },
+	{ id: "featured" as BotCategory, label: "精選機器人" },
+	{ id: "new" as BotCategory, label: "最新機器人" },
+	{ id: "verified" as BotCategory, label: "已驗證機器人" },
+	{ id: "voted" as BotCategory, label: "票選機器人" },
+] as const;
+
+const BOT_CATEGORIES = BOT_CATEGORY_CONFIG.map((c) => c.id) as BotCategory[];
+
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 function parseBotCategory(value: unknown): BotCategory | undefined {
 	if (typeof value !== "string") return undefined;
 	return BOT_CATEGORIES.includes(value as BotCategory)
@@ -67,10 +74,7 @@ function parsePositiveIntLike(value: unknown): number | undefined {
 				? Number(value)
 				: Number.NaN;
 
-	if (!Number.isInteger(parsed) || parsed < 1) {
-		return undefined;
-	}
-
+	if (!Number.isInteger(parsed) || parsed < 1) return undefined;
 	return parsed;
 }
 
@@ -91,6 +95,7 @@ function validateSearch(search: Record<string, unknown>): BotHomeSearch {
 	};
 }
 
+// ─── Route ────────────────────────────────────────────────────────────────────
 export const Route = createFileRoute("/bots/")({
 	validateSearch,
 	loaderDeps: ({ search }) => ({
@@ -98,23 +103,64 @@ export const Route = createFileRoute("/bots/")({
 		page: search.page ?? 1,
 	}),
 	loader: async ({ context, deps }) => {
-		await Promise.all([
-			context.queryClient.ensureQueryData(
-				botsListQueryOptions({
-					category: deps.category,
-					page: deps.page,
-					limit: ITEMS_PER_PAGE,
-				}),
-			),
-			context.queryClient.ensureQueryData(botFilterBundleQueryOptions()),
-		]);
+		// 只 await 首屏關鍵資料，確保路由跳轉速度 = botList 的請求時間
+		await context.queryClient.ensureQueryData(
+			botsListQueryOptions({
+				category: deps.category,
+				page: deps.page,
+				limit: ITEMS_PER_PAGE,
+			}),
+		);
+
+		// filterBundle（含全量 allBots）改為 fire-and-forget：
+		// 不阻塞路由，背景預熱後由 useQuery 自動取用快取
+		void context.queryClient.prefetchQuery(botFilterBundleQueryOptions());
 	},
 	component: BotsPage,
 });
 
+// ─── BotTabTrigger ────────────────────────────────────────────────────────────
+// 抽出獨立元件後，5 個 TabsTrigger 的重複結構消失，
+// 並在 onMouseEnter 時統一觸發 prefetch
+type BotTabTriggerProps = {
+	category: BotCategory;
+	label: string;
+	activeTab: BotCategory;
+	isPending: boolean;
+	onHover: (category: BotCategory) => void;
+};
+
+function BotTabTrigger({
+	category,
+	label,
+	activeTab,
+	isPending,
+	onHover,
+}: BotTabTriggerProps) {
+	return (
+		<TabsTrigger
+			value={category}
+			disabled={isPending}
+			onMouseEnter={() => onHover(category)}
+			className="relative z-10 bg-transparent transition-none data-[state=active]:bg-transparent data-[state=active]:text-white"
+		>
+			<span className="relative z-20">{label}</span>
+			{activeTab === category && (
+				<motion.div
+					layoutId="robot-tabs-indicator"
+					className="absolute inset-0 z-10 rounded-md bg-[#36393f]"
+					transition={{ type: "spring", stiffness: 380, damping: 30 }}
+				/>
+			)}
+		</TabsTrigger>
+	);
+}
+
+// ─── BotsPage ─────────────────────────────────────────────────────────────────
 function BotsPage() {
 	const navigate = Route.useNavigate();
 	const search = Route.useSearch();
+	const queryClient = useQueryClient();
 	const [isPending, startTransition] = useTransition();
 
 	const activeTab = (search.tab ?? DEFAULT_CATEGORY) as BotCategory;
@@ -123,7 +169,6 @@ function BotsPage() {
 
 	const selectedCategoryIds = useMemo(() => {
 		if (!search.categories) return [];
-
 		return search.categories
 			.split(",")
 			.map((item) => item.trim())
@@ -131,7 +176,6 @@ function BotsPage() {
 	}, [search.categories]);
 
 	const [isComposing, setIsComposing] = useState(false);
-	const [isSearching, setIsSearching] = useState(false);
 	const [inputValue, setInputValue] = useState(searchQuery);
 	const [customCategories, setCustomCategories] = useState<CategoryType[]>([]);
 
@@ -139,6 +183,7 @@ function BotsPage() {
 		setInputValue(searchQuery);
 	}, [searchQuery]);
 
+	// botList：loader 保證 ensureQueryData，這裡不會真正 suspend
 	const botList = useSuspenseQuery(
 		botsListQueryOptions({
 			category: activeTab,
@@ -147,21 +192,20 @@ function BotsPage() {
 		}),
 	);
 
-	const filterBundle = useSuspenseQuery(botFilterBundleQueryOptions());
+	// filterBundle：loader 改為 fire-and-forget，改用 useQuery 配合 optional chaining
+	// 快取命中時立即同步取得，尚未載入時為 undefined（各消費端有安全 fallback）
+	const filterBundle = useQuery(botFilterBundleQueryOptions());
 
 	const mergedCategories = useMemo(() => {
 		const map = new Map<string, CategoryType>();
-
-		for (const item of filterBundle.data.categories) {
+		for (const item of filterBundle.data?.categories ?? []) {
 			map.set(item.id, item);
 		}
-
 		for (const item of customCategories) {
 			map.set(item.id, item);
 		}
-
 		return [...map.values()];
-	}, [filterBundle.data.categories, customCategories]);
+	}, [filterBundle.data?.categories, customCategories]);
 
 	const useClientSideFiltering = Boolean(
 		searchQuery.trim() || selectedCategoryIds.length,
@@ -170,18 +214,18 @@ function BotsPage() {
 	const clientFiltered = useMemo(() => {
 		if (!useClientSideFiltering) return [];
 
-		let filtered = filterBundle.data.allBots;
+		let filtered = filterBundle.data?.allBots ?? [];
 
 		if (selectedCategoryIds.length > 0) {
 			const selectedNames = mergedCategories
 				.filter((item) => selectedCategoryIds.includes(item.id))
 				.map((item) => item.name.toLowerCase());
 
-			filtered = filtered.filter((item) => {
-				return item.tags.some((tag) =>
+			filtered = filtered.filter((item) =>
+				item.tags.some((tag) =>
 					selectedNames.some((name) => tag.toLowerCase().includes(name)),
-				);
-			});
+				),
+			);
 		}
 
 		return filterBotsBySearch(
@@ -190,7 +234,7 @@ function BotsPage() {
 		);
 	}, [
 		useClientSideFiltering,
-		filterBundle.data.allBots,
+		filterBundle.data?.allBots,
 		selectedCategoryIds,
 		mergedCategories,
 		activeTab,
@@ -201,7 +245,6 @@ function BotsPage() {
 		if (useClientSideFiltering) {
 			return paginateBots(clientFiltered, currentPage, ITEMS_PER_PAGE);
 		}
-
 		return {
 			bots: botList.data.bots,
 			total: botList.data.total,
@@ -210,26 +253,20 @@ function BotsPage() {
 		};
 	}, [useClientSideFiltering, clientFiltered, currentPage, botList.data]);
 
-	const shouldShowSkeleton = botList.isFetching || isSearching || isPending;
+	// isPending 覆蓋 useTransition 的過渡期（tab 切換 / 搜尋提交）
+	// isFetching 覆蓋 useSuspenseQuery 的背景請求期
+	// 原本的 isSearching + setTimeout 已完全由兩者取代，可刪除
+	const shouldShowSkeleton = botList.isFetching || isPending;
 
 	const updateSearch = useCallback(
-		(
-			patch: Partial<BotHomeSearch>,
-			options?: {
-				resetScroll?: boolean;
-			},
-		) => {
+		(patch: Partial<BotHomeSearch>, options?: { resetScroll?: boolean }) => {
 			startTransition(() => {
 				navigate({
 					to: "/bots",
 					replace: true,
 					resetScroll: options?.resetScroll,
 					search: (previous) => {
-						const next = {
-							...previous,
-							...patch,
-						};
-
+						const next = { ...previous, ...patch };
 						return {
 							tab: next.tab,
 							page: next.page,
@@ -242,6 +279,18 @@ function BotsPage() {
 			});
 		},
 		[navigate],
+	);
+
+	// 游標移入非 active tab 時，預先 prefetch 該 tab 第 1 頁資料
+	// 點擊時快取已就緒，切換體感近乎即時
+	const handleTabMouseEnter = useCallback(
+		(category: BotCategory) => {
+			if (category === activeTab) return;
+			void queryClient.prefetchQuery(
+				botsListQueryOptions({ category, page: 1, limit: ITEMS_PER_PAGE }),
+			);
+		},
+		[queryClient, activeTab],
 	);
 
 	const handlePageChange = useCallback(
@@ -257,12 +306,7 @@ function BotsPage() {
 				});
 			});
 
-			updateSearch(
-				{ page },
-				{
-					resetScroll: false,
-				},
-			);
+			updateSearch({ page }, { resetScroll: false });
 		},
 		[updateSearch],
 	);
@@ -271,13 +315,8 @@ function BotsPage() {
 		(value: string) => {
 			const parsed = parseBotCategory(value);
 			if (!parsed) return;
-
-			setIsSearching(true);
+			// useTransition 的 isPending 會立即為 true，無需額外的 isSearching state
 			updateSearch({ tab: parsed, page: 1 });
-
-			window.setTimeout(() => {
-				setIsSearching(false);
-			}, 200);
 		},
 		[updateSearch],
 	);
@@ -285,15 +324,7 @@ function BotsPage() {
 	const commitSearch = useCallback(
 		(value: string) => {
 			const trimmed = value.trim();
-
-			setIsSearching(Boolean(trimmed));
 			updateSearch({ search: trimmed || undefined, page: 1 });
-
-			if (trimmed) {
-				window.setTimeout(() => {
-					setIsSearching(false);
-				}, 300);
-			}
 		},
 		[updateSearch],
 	);
@@ -302,10 +333,7 @@ function BotsPage() {
 		(event: React.ChangeEvent<HTMLInputElement>) => {
 			const value = event.target.value;
 			setInputValue(value);
-
-			if (!isComposing) {
-				commitSearch(value);
-			}
+			if (!isComposing) commitSearch(value);
 		},
 		[commitSearch, isComposing],
 	);
@@ -341,6 +369,9 @@ function BotsPage() {
 		},
 		[mergedCategories, handleCategoryChange, selectedCategoryIds],
 	);
+
+	const activeCategoryLabel =
+		BOT_CATEGORY_CONFIG.find((c) => c.id === activeTab)?.label ?? "";
 
 	return (
 		<div className="min-h-screen bg-[#1e1f22] text-white">
@@ -394,7 +425,7 @@ function BotsPage() {
 							className="absolute top-1/2 left-3 -translate-y-1/2 text-white/60"
 							size={20}
 						/>
-						{(isSearching || isPending) && (
+						{isPending && (
 							<div className="absolute top-1/2 right-3 -translate-y-1/2">
 								<div className="h-5 w-5 animate-spin rounded-full border-white border-b-2" />
 							</div>
@@ -461,153 +492,59 @@ function BotsPage() {
 							onValueChange={handleTabChange}
 						>
 							<TabsList className="relative h-full w-full border-b border-[#1e1f22] bg-[#2b2d31] p-1">
-								{/* ----- 熱門機器人 ----- */}
-								<TabsTrigger
-									value="popular"
-									disabled={isPending}
-									className="relative z-10 bg-transparent data-[state=active]:bg-transparent data-[state=active]:text-white"
-								>
-									<span className="relative z-20">熱門機器人</span>
-									{activeTab === "popular" && (
-										<motion.div
-											layoutId="robot-tabs-indicator" // 注意：如果同一頁有兩個 Tabs，layoutId 名字要跟伺服器的分開
-											className="absolute inset-0 z-10 rounded-md bg-[#36393f]"
-											transition={{
-												type: "spring",
-												stiffness: 380,
-												damping: 30,
-											}}
-										/>
-									)}
-								</TabsTrigger>
-
-								{/* ----- 精選機器人 ----- */}
-								<TabsTrigger
-									value="featured"
-									disabled={isPending}
-									className="relative z-10 bg-transparent transition-none data-[state=active]:bg-transparent data-[state=active]:text-white"
-								>
-									<span className="relative z-20">精選機器人</span>
-									{activeTab === "featured" && (
-										<motion.div
-											layoutId="robot-tabs-indicator"
-											className="absolute inset-0 z-10 rounded-md bg-[#36393f]"
-											transition={{
-												type: "spring",
-												stiffness: 380,
-												damping: 30,
-											}}
-										/>
-									)}
-								</TabsTrigger>
-
-								{/* ----- 最新機器人 ----- */}
-								<TabsTrigger
-									value="new"
-									disabled={isPending}
-									className="relative z-10 bg-transparent transition-none data-[state=active]:bg-transparent data-[state=active]:text-white"
-								>
-									<span className="relative z-20">最新機器人</span>
-									{activeTab === "new" && (
-										<motion.div
-											layoutId="robot-tabs-indicator"
-											className="absolute inset-0 z-10 rounded-md bg-[#36393f]"
-											transition={{
-												type: "spring",
-												stiffness: 380,
-												damping: 30,
-											}}
-										/>
-									)}
-								</TabsTrigger>
-
-								{/* ----- 已驗證機器人 ----- */}
-								<TabsTrigger
-									value="verified"
-									disabled={isPending}
-									className="relative z-10 bg-transparent transition-none data-[state=active]:bg-transparent data-[state=active]:text-white"
-								>
-									<span className="relative z-20">已驗證機器人</span>
-									{activeTab === "verified" && (
-										<motion.div
-											layoutId="robot-tabs-indicator"
-											className="absolute inset-0 z-10 rounded-md bg-[#36393f]"
-											transition={{
-												type: "spring",
-												stiffness: 380,
-												damping: 30,
-											}}
-										/>
-									)}
-								</TabsTrigger>
-
-								{/* ----- 票選機器人 ----- */}
-								<TabsTrigger
-									value="voted"
-									disabled={isPending}
-									className="relative z-10 bg-transparent transition-none data-[state=active]:bg-transparent data-[state=active]:text-white"
-								>
-									<span className="relative z-20">票選機器人</span>
-									{activeTab === "voted" && (
-										<motion.div
-											layoutId="robot-tabs-indicator"
-											className="absolute inset-0 z-10 rounded-md bg-[#36393f]"
-											transition={{
-												type: "spring",
-												stiffness: 380,
-												damping: 30,
-											}}
-										/>
-									)}
-								</TabsTrigger>
+								{BOT_CATEGORY_CONFIG.map(({ id, label }) => (
+									<BotTabTrigger
+										key={id}
+										category={id}
+										label={label}
+										activeTab={activeTab}
+										isPending={isPending}
+										onHover={handleTabMouseEnter}
+									/>
+								))}
 							</TabsList>
 
-							{(
-								[
-									{ key: "featured", label: "精選機器人" },
-									{ key: "popular", label: "熱門機器人" },
-									{ key: "new", label: "最新機器人" },
-									{ key: "verified", label: "驗證機器人" },
-									{ key: "voted", label: "票選機器人" },
-								] as const
-							).map((tab) => (
-								<TabsContent key={tab.key} value={tab.key} className="mt-6">
-									<div className="mb-4 flex items-center justify-between">
-										<h2 className="font-bold text-2xl">{tab.label}</h2>
-										{!shouldShowSkeleton && displayData.total > 0 && (
-											<div className="text-gray-400 text-sm">
-												第 {displayData.page} 頁，共 {displayData.totalPages} 頁
-											</div>
-										)}
-									</div>
-
-									<Suspense
-										fallback={<div className="h-40 rounded-lg bg-[#2b2d31]" />}
-									>
-										<BotList
-											bots={displayData.bots}
-											isLoading={shouldShowSkeleton}
-											skeletonCount={ITEMS_PER_PAGE}
-										/>
-									</Suspense>
-
-									{!shouldShowSkeleton && displayData.totalPages > 1 && (
-										<div className="mt-6">
-											<Suspense
-												fallback={
-													<div className="h-10 rounded-md bg-[#1f2125]" />
-												}
-											>
-												<Pagination
-													currentPage={displayData.page}
-													totalPages={displayData.totalPages}
-													onPageChange={handlePageChange}
-												/>
-											</Suspense>
+							{/*
+							 * 單一動態 TabsContent：value 永遠 === activeTab，
+							 * 所以 Radix 永遠顯示它，React 只 reconcile 一份結構。
+							 * 切換 tab 時內容（label / bots）靠 prop 更新，不觸發 unmount。
+							 */}
+							<TabsContent value={activeTab} className="mt-6">
+								<div className="mb-4 flex items-center justify-between">
+									<h2 className="font-bold text-2xl">{activeCategoryLabel}</h2>
+									{!shouldShowSkeleton && displayData.total > 0 && (
+										<div className="text-gray-400 text-sm">
+											第 {displayData.page} 頁，共 {displayData.totalPages} 頁
 										</div>
 									)}
-								</TabsContent>
-							))}
+								</div>
+
+								<Suspense
+									fallback={<div className="h-40 rounded-lg bg-[#2b2d31]" />}
+								>
+									<BotList
+										bots={displayData.bots}
+										isLoading={shouldShowSkeleton}
+										skeletonCount={ITEMS_PER_PAGE}
+									/>
+								</Suspense>
+
+								{!shouldShowSkeleton && displayData.totalPages > 1 && (
+									<div className="mt-6">
+										<Suspense
+											fallback={
+												<div className="h-10 rounded-md bg-[#1f2125]" />
+											}
+										>
+											<Pagination
+												currentPage={displayData.page}
+												totalPages={displayData.totalPages}
+												onPageChange={handlePageChange}
+											/>
+										</Suspense>
+									</div>
+								)}
+							</TabsContent>
 						</Tabs>
 					</div>
 
@@ -632,19 +569,19 @@ function BotsPage() {
 								<div className="flex items-center justify-between">
 									<span className="text-gray-300">總機器人數</span>
 									<span className="font-medium">
-										{filterBundle.data.stats.totalBots}
+										{filterBundle.data?.stats.totalBots ?? 0}
 									</span>
 								</div>
 								<div className="flex items-center justify-between">
 									<span className="text-gray-300">已驗證機器人</span>
 									<span className="font-medium">
-										{filterBundle.data.stats.verifiedBots}
+										{filterBundle.data?.stats.verifiedBots ?? 0}
 									</span>
 								</div>
 								<div className="flex items-center justify-between">
 									<span className="text-gray-300">目前已使用分類數</span>
 									<span className="font-medium">
-										{filterBundle.data.stats.totalTags}
+										{filterBundle.data?.stats.totalTags ?? 0}
 									</span>
 								</div>
 							</div>

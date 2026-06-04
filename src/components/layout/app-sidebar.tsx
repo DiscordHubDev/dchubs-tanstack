@@ -71,7 +71,7 @@ const data = {
 			items: [
 				{
 					title: "開發者文檔",
-					url: "#",
+					url: "https://docs.dchubs.org",
 				},
 			],
 		},
@@ -130,7 +130,7 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 		},
 		{
 			title: "教學頁面",
-			url: "/help",
+			url: "/tutorial",
 			icon: BookOpen,
 		},
 		{

@@ -104,6 +104,7 @@ export const ServerFormSchema = Schema.Struct({
 	tags: TagsSchema,
 	secret: SecretSchema,
 	webhook_url: WebhookUrlSchema,
+	isNsfw: Schema.Boolean,
 });
 
 const NullableUrlSchema = Schema.Union(

@@ -1,7 +1,7 @@
 import { type AnyFieldApi, useForm, useStore } from "@tanstack/react-form";
-import { useNavigate } from "@tanstack/react-router";
+
 import { Effect, Schema } from "effect";
-import { Info, Plus, Trash2, X } from "lucide-react";
+import { AlertTriangle, Info, Plus, Trash2, X } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "react-toastify";
 import MarkdownRenderer from "#/components/MarkdownRenderer";
@@ -9,7 +9,7 @@ import { Button } from "#/components/ui/button";
 import { Input } from "#/components/ui/input";
 import { Label } from "#/components/ui/label";
 import { Textarea } from "#/components/ui/textarea";
-import { ImageUploadFailed, SubmitBotFailed } from "#/errors/bot-errors";
+import { SubmitBotFailed } from "#/errors/bot-errors";
 import {
 	BotCommandsSchema,
 	BotDescriptionSchema,
@@ -34,6 +34,7 @@ import type {
 import { effectValidator } from "#/features/servers/server-publish.validators";
 import { toErrorMessage } from "#/lib/effect-utils";
 import type { CategoryType, Screenshot } from "#/lib/types";
+import { Checkbox } from "../ui/checkbox";
 
 type BotFormDefaultValues = Partial<BotFormData> & {
 	screenshots?: string[];
@@ -1157,6 +1158,62 @@ export default function BotForm({
 										{errorMessage ? (
 											<p className="text-sm text-[#ed4245]">{errorMessage}</p>
 										) : null}
+									</div>
+								);
+							}}
+						</form.Field>
+
+						<form.Field name="isNsfw">
+							{(field) => {
+								const errorMessage = readFirstError(field.state.meta.errors);
+								return (
+									<div className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 shadow-sm">
+										<Checkbox
+											id="isNsfw"
+											checked={field.state.value ?? false}
+											onCheckedChange={(checked) => {
+												field.handleChange(checked === true);
+											}}
+										/>
+										<div className="space-y-1 leading-none">
+											{/* 新加入的警告元件 */}
+											<div className="space-y-1 leading-none">
+												<Label htmlFor="isNsfw" className="cursor-pointer">
+													NSFW 機器人
+												</Label>
+												<p className="text-sm text-muted-foreground">
+													如果你的機器人包含成人或敏感內容，請勾選此項。
+												</p>
+
+												{/* 警告元件：套用黃色樣式與 text-xs text-yellow-700 */}
+												<div className="max-w-sm rounded-md border border-yellow-400 bg-yellow-100 px-3 py-2 text-xs text-yellow-700 mt-2 flex gap-2 items-start">
+													<div className="relative z-20 cursor-pointer text-yellow-600 hover:text-yellow-500">
+														<AlertTriangle className="h-5 w-5" />
+													</div>
+													<div className="space-y-0.5">
+														<p className="font-semibold text-yellow-900">
+															警告：誠實申報
+														</p>
+														<p className="leading-relaxed">
+															未能如實標註您的機器人內容類型可能會導致嚴重後果。如果我們發現您的機器人未正確標註為
+															NSFW，可能會導致其遭到系統強制移除，並且不另行通知。請確保遵循相關社群準則。
+														</p>
+													</div>
+												</div>
+
+												{errorMessage ? (
+													<p className="text-sm text-[#ed4245] mt-1">
+														{errorMessage}
+													</p>
+												) : null}
+											</div>
+
+											{errorMessage ? (
+												<p className="text-sm text-[#ed4245] mt-1">
+													{errorMessage}
+												</p>
+											) : null}
+										</div>
 									</div>
 								);
 							}}

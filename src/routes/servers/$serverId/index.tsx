@@ -101,7 +101,7 @@ function createServerHead(detail: ServerDetail | null, serverId: string) {
 				userInteractionCount: detail.members,
 			},
 		],
-	});
+	}).replace(/</g, "\\u003c");
 
 	return {
 		meta: [
@@ -142,7 +142,9 @@ function validateSearch(search: Record<string, unknown>): ServerDetailSearch {
 
 export const Route = createFileRoute("/servers/$serverId/")({
 	validateSearch,
+
 	head: ({ loaderData, params, match }) => {
+		// 1. 處理子路徑 (/publish) 的靜態 Meta
 		if (match.pathname.endsWith("/publish")) {
 			const publishTitle = "發布伺服器 | DiscordHubs";
 			const publishCanonical = new URL(match.pathname, siteUrl).toString();
@@ -154,19 +156,25 @@ export const Route = createFileRoute("/servers/$serverId/")({
 					{ property: "og:url", content: publishCanonical },
 				],
 				links: [{ rel: "canonical", href: publishCanonical }],
+				// 如果發布頁面需要，可以加上靜態麵包屑識別
+				// staticData: { breadcrumb: "發布伺服器" } <- 搭配我們先前在 __root 的實作
 			};
 		}
 
+		// 2. 取得伺服器詳細資料
 		const detail =
 			(loaderData as { detail: ServerDetail | null } | undefined)?.detail ??
 			null;
+
+		// 3. 直接回傳 createServerHead 的結果！
+		// 因為你修改後的 createServerHead 已經完美包含了 Meta, Links 以及 JSON-LD Scripts
 		return createServerHead(detail, params.serverId);
 	},
+
 	loader: async ({ context, params }) => {
 		const detail = await context.queryClient.ensureQueryData(
 			serverDetailQueryOptions(params.serverId),
 		);
-
 		return { detail };
 	},
 	component: RouteComponent,

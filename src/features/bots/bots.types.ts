@@ -15,7 +15,7 @@ export type PublicBot = {
 	inviteUrl: string | null;
 	website: string | null;
 	supportServer: string | null;
-	approvedAt: string | null;
+	approvedAt: string;
 	pin: boolean;
 	pinExpiry: string | null;
 	verified: boolean;

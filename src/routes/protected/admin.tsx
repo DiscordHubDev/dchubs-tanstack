@@ -6,10 +6,10 @@ import { Await, createFileRoute, defer } from "@tanstack/react-router";
 import { lazy, Suspense, useEffect, useMemo, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "#/components/ui/tabs";
 import {
-	adminGetAllBots,
-	adminGetAllServers,
-	adminGetDashboardCounts,
-	getReports,
+	adminGetAllBotsFn,
+	adminGetAllServersFn,
+	adminGetDashboardCountsFn,
+	getReportsFn,
 } from "#/features/admin/admin.functions";
 import type { Bot, DiscordServer, Report } from "#/types/admin";
 
@@ -24,23 +24,23 @@ const ReportInbox = lazy(
 	() => import("../../features/admin/components/report-inbox"),
 );
 
-type BotResult = Awaited<ReturnType<typeof adminGetAllBots>>;
-type ServerResult = Awaited<ReturnType<typeof adminGetAllServers>>;
-type ReportResult = Awaited<ReturnType<typeof getReports>>;
+type BotResult = Awaited<ReturnType<typeof adminGetAllBotsFn>>;
+type ServerResult = Awaited<ReturnType<typeof adminGetAllServersFn>>;
+type ReportResult = Awaited<ReturnType<typeof getReportsFn>>;
 
 export const Route = createFileRoute("/protected/admin")({
 	loader: async () => {
 		// Eagerly await: small query, needed for badge SSR hydration
-		const counts = await adminGetDashboardCounts();
+		const counts = await adminGetDashboardCountsFn();
 
 		// Deferred: full list queries — streamed after shell paint
 		return {
 			counts: counts.success
 				? counts.data
 				: { pendingBots: 0, pendingReports: 0 },
-			botsPromise: defer(adminGetAllBots()),
-			serversPromise: defer(adminGetAllServers()),
-			reportsPromise: defer(getReports()),
+			botsPromise: defer(adminGetAllBotsFn()),
+			serversPromise: defer(adminGetAllServersFn()),
+			reportsPromise: defer(getReportsFn()),
 		};
 	},
 	component: AdminDashboard,

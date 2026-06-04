@@ -1,5 +1,4 @@
 const usersRoot = ["users"] as const;
-const inboxRoot = ["inbox"] as const;
 const serversRoot = ["servers"] as const;
 const botsRoot = ["bots"] as const;
 const adminRoot = ["admin"] as const;
@@ -16,11 +15,6 @@ export const queryKeys = {
 		bots: (userId: string) => [...usersRoot, "bots", userId] as const,
 		favorites: (userId: string) => [...usersRoot, "favorites", userId] as const,
 		settings: (userId: string) => [...usersRoot, "settings", userId] as const,
-	},
-	inbox: {
-		all: inboxRoot,
-		list: (userId: string) => [...inboxRoot, "list", userId] as const,
-		detail: (mailId: string) => [...inboxRoot, "detail", mailId] as const,
 	},
 	servers: {
 		all: serversRoot,

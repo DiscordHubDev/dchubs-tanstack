@@ -2,7 +2,7 @@
 // hooks/use-management.ts
 // ============================================================
 import { useCallback, useMemo, useState } from "react";
-import { deleteBot, deleteServer } from "#/features/admin/admin.functions";
+import { deleteBotFn, deleteServerFn } from "#/features/admin/admin.functions";
 import type { Bot, DiscordServer, ManagedItem } from "#/types/admin";
 
 interface UseManagementOptions {
@@ -47,14 +47,14 @@ export function useManagement({
 	const remove = useCallback(
 		async (item: ManagedItem) => {
 			if (item.kind === "bot") {
-				const result = await deleteBot({ data: { id: item.id } });
+				const result = await deleteBotFn({ data: { id: item.id } });
 				if (!result.success) {
 					onError?.(result.error ?? "刪除機器人失敗");
 					return false;
 				}
 				setBots((prev) => prev.filter((b) => b.id !== item.id));
 			} else {
-				const result = await deleteServer({ data: { guildId: item.id } });
+				const result = await deleteServerFn({ data: { guildId: item.id } });
 				if (!result.success) {
 					onError?.(result.error ?? "刪除伺服器失敗");
 					return false;

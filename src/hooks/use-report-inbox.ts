@@ -1,5 +1,5 @@
 import { useCallback, useMemo, useState } from "react";
-import { updateReport } from "#/features/admin/admin.functions";
+import { updateReportFn } from "#/features/admin/admin.functions";
 import type { Report, ReportSeverity, ReportStatus } from "#/types/admin";
 
 interface UseReportInboxOptions {
@@ -38,7 +38,7 @@ export function useReportInbox({ initial, onError }: UseReportInboxOptions) {
 
 	const changeStatus = useCallback(
 		async (reportId: string, status: ReportStatus) => {
-			const result = await updateReport({ data: { reportId, status } });
+			const result = await updateReportFn({ data: { reportId, status } });
 			if (!result.success) {
 				onError?.(result.error ?? "更新狀態失敗");
 				return false;
@@ -53,7 +53,7 @@ export function useReportInbox({ initial, onError }: UseReportInboxOptions) {
 
 	const changeSeverity = useCallback(
 		async (reportId: string, severity: ReportSeverity) => {
-			const result = await updateReport({ data: { reportId, severity } });
+			const result = await updateReportFn({ data: { reportId, severity } });
 			if (!result.success) {
 				onError?.(result.error ?? "更新嚴重程度失敗");
 				return false;

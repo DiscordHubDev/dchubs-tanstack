@@ -94,7 +94,20 @@ export default defineConfig({
 
 		devtools(),
 		tailwindcss(),
-		tanstackStart(),
+		tanstackStart({
+			prerender: {
+				enabled: true,
+				crawlLinks: false,
+				filter: ({ path }) => {
+					const exactDynamicRoutes = ["/"];
+					if (exactDynamicRoutes.includes(path)) return false;
+					if (path.startsWith("/servers/")) return false;
+					if (path.startsWith("/bots/")) return false;
+					if (path.startsWith("/protected/")) return false;
+					return true;
+				},
+			},
+		}),
 		nitro({ preset: "bun" }),
 		viteReact(),
 		babel({ presets: [reactCompilerPreset()] }),

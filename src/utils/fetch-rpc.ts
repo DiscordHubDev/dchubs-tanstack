@@ -56,7 +56,7 @@ export function fetchUserEffect(userId: string) {
 
 			// 拼接 Banner URL
 			const bannerUrl = userData.banner
-				? `https://cdn.discordapp.com/banners/${userData.id}/${userData.banner}.${isBannerGif ? "gif" : "png"}?size=1024`
+				? `https://cdn.discordapp.com/banners/${userData.id}/${userData.banner}.${isBannerGif ? "gif" : "png"}?size=4096`
 				: null;
 
 			// 計算 Accent Color

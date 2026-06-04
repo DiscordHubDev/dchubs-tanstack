@@ -149,7 +149,7 @@ const upsertServerDb = (guild: DiscordGuildWithCounts, ownerId: string) =>
 				? `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png`
 				: null;
 			const bannerUrl = guild.banner
-				? `https://cdn.discordapp.com/banners/${guild.id}/${guild.banner}.png`
+				? `https://cdn.discordapp.com/banners/${guild.id}/${guild.banner}.png?size=4096`
 				: null;
 
 			const [upserted] = await db
@@ -199,7 +199,7 @@ const upsertUserDb = (member: DiscordGuildMember) =>
 				: "https://cdn.discordapp.com/embed/avatars/0.png";
 
 			const bannerUrl = discordUser.banner
-				? `https://cdn.discordapp.com/banners/${discordUser.id}/${discordUser.banner}.png`
+				? `https://cdn.discordapp.com/banners/${discordUser.id}/${discordUser.banner}.png?size=4096`
 				: null;
 
 			const [upserted] = await db

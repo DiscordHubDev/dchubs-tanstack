@@ -9,7 +9,10 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as TutorialRouteImport } from './routes/tutorial'
+import { Route as TermsRouteImport } from './routes/terms'
 import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
+import { Route as PrivacyRouteImport } from './routes/privacy'
 import { Route as AboutRouteImport } from './routes/about'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as BotsIndexRouteImport } from './routes/bots/index'
@@ -31,9 +34,24 @@ import { Route as ApiCronCheckServerRouteImport } from './routes/api/cron/check-
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as ProtectedBotsBotIdEditRouteImport } from './routes/protected/bots/$botId.edit'
 
+const TutorialRoute = TutorialRouteImport.update({
+  id: '/tutorial',
+  path: '/tutorial',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const TermsRoute = TermsRouteImport.update({
+  id: '/terms',
+  path: '/terms',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
   id: '/sitemap.xml',
   path: '/sitemap.xml',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const PrivacyRoute = PrivacyRouteImport.update({
+  id: '/privacy',
+  path: '/privacy',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AboutRoute = AboutRouteImport.update({
@@ -140,7 +158,10 @@ const ProtectedBotsBotIdEditRoute = ProtectedBotsBotIdEditRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/privacy': typeof PrivacyRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/terms': typeof TermsRoute
+  '/tutorial': typeof TutorialRoute
   '/servers/$serverId': typeof ServersServerIdRouteRouteWithChildren
   '/bots/$botId': typeof BotsBotIdRoute
   '/protected/add-bot': typeof ProtectedAddBotRoute
@@ -163,7 +184,10 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/privacy': typeof PrivacyRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/terms': typeof TermsRoute
+  '/tutorial': typeof TutorialRoute
   '/bots/$botId': typeof BotsBotIdRoute
   '/protected/add-bot': typeof ProtectedAddBotRoute
   '/protected/add-server': typeof ProtectedAddServerRoute
@@ -186,7 +210,10 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/about': typeof AboutRoute
+  '/privacy': typeof PrivacyRoute
   '/sitemap.xml': typeof SitemapDotxmlRoute
+  '/terms': typeof TermsRoute
+  '/tutorial': typeof TutorialRoute
   '/servers/$serverId': typeof ServersServerIdRouteRouteWithChildren
   '/bots/$botId': typeof BotsBotIdRoute
   '/protected/add-bot': typeof ProtectedAddBotRoute
@@ -211,7 +238,10 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/about'
+    | '/privacy'
     | '/sitemap.xml'
+    | '/terms'
+    | '/tutorial'
     | '/servers/$serverId'
     | '/bots/$botId'
     | '/protected/add-bot'
@@ -234,7 +264,10 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/about'
+    | '/privacy'
     | '/sitemap.xml'
+    | '/terms'
+    | '/tutorial'
     | '/bots/$botId'
     | '/protected/add-bot'
     | '/protected/add-server'
@@ -256,7 +289,10 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/about'
+    | '/privacy'
     | '/sitemap.xml'
+    | '/terms'
+    | '/tutorial'
     | '/servers/$serverId'
     | '/bots/$botId'
     | '/protected/add-bot'
@@ -280,7 +316,10 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AboutRoute: typeof AboutRoute
+  PrivacyRoute: typeof PrivacyRoute
   SitemapDotxmlRoute: typeof SitemapDotxmlRoute
+  TermsRoute: typeof TermsRoute
+  TutorialRoute: typeof TutorialRoute
   ServersServerIdRouteRoute: typeof ServersServerIdRouteRouteWithChildren
   BotsBotIdRoute: typeof BotsBotIdRoute
   ProtectedAddBotRoute: typeof ProtectedAddBotRoute
@@ -301,11 +340,32 @@ export interface RootRouteChildren {
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/tutorial': {
+      id: '/tutorial'
+      path: '/tutorial'
+      fullPath: '/tutorial'
+      preLoaderRoute: typeof TutorialRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/terms': {
+      id: '/terms'
+      path: '/terms'
+      fullPath: '/terms'
+      preLoaderRoute: typeof TermsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/sitemap.xml': {
       id: '/sitemap.xml'
       path: '/sitemap.xml'
       fullPath: '/sitemap.xml'
       preLoaderRoute: typeof SitemapDotxmlRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/privacy': {
+      id: '/privacy'
+      path: '/privacy'
+      fullPath: '/privacy'
+      preLoaderRoute: typeof PrivacyRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/about': {
@@ -467,7 +527,10 @@ const ServersServerIdRouteRouteWithChildren =
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AboutRoute: AboutRoute,
+  PrivacyRoute: PrivacyRoute,
   SitemapDotxmlRoute: SitemapDotxmlRoute,
+  TermsRoute: TermsRoute,
+  TutorialRoute: TutorialRoute,
   ServersServerIdRouteRoute: ServersServerIdRouteRouteWithChildren,
   BotsBotIdRoute: BotsBotIdRoute,
   ProtectedAddBotRoute: ProtectedAddBotRoute,

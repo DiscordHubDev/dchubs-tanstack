@@ -1,10 +1,11 @@
 import { Link } from "@tanstack/react-router";
 import { Image } from "@unpic/react";
-import { ArrowUp, BadgeCheck, Pin, Users } from "lucide-react";
+import { ArrowUp, BadgeCheck, Clock, Pin, Users } from "lucide-react";
 import { memo } from "react";
 import ListSkeleton from "#/components/list-skeleton";
 import { Badge } from "#/components/ui/badge";
 import { Button } from "#/components/ui/button";
+import { formatTime } from "#/utils/time";
 import type { PublicServer } from "../servers.types";
 
 type ServerListProps = {
@@ -76,9 +77,11 @@ function ServerList({
 								)}
 							</div>
 
-							<p className="line-clamp-2 text-sm text-gray-300">
-								{item.description}
-							</p>
+							{item.description && (
+								<p className="line-clamp-2 text-sm text-gray-300">
+									{item.description}
+								</p>
+							)}
 
 							<div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-gray-400">
 								<span className="inline-flex items-center gap-1">
@@ -92,6 +95,10 @@ function ServerList({
 								<span className="inline-flex items-center gap-1">
 									<div className="w-2 h-2 rounded-full bg-green-500 mr-1" />
 									{item.online || "0"} 在線
+								</span>
+								<span className="inline-flex items-center gap-1">
+									<Clock className="h-4 w-4" />
+									{formatTime(item.createdAt)}
 								</span>
 							</div>
 

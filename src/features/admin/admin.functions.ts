@@ -12,6 +12,7 @@ import {
 	runEffect,
 } from "#/lib/effect-utils";
 import type { ActionResult, ReportStatus } from "#/types/admin";
+import { sendDiscordWebhookFn } from "../webhook/webhook.functions";
 import {
 	BotIdSchema,
 	RejectBotSchema,
@@ -24,7 +25,6 @@ import {
 	fromDrizzle,
 	toResult,
 } from "./admin.server";
-import { sendDiscordWebhookFn } from "./webhook.functions";
 
 export interface SendNotificationParams {
 	subject: string;
@@ -158,7 +158,7 @@ export const updateBotServerCountBackgroundFn = createServerFn({
 		return { success: true, message: "已在背景處理" };
 	});
 
-export const adminGetAllBots = createServerFn({ method: "GET" })
+export const adminGetAllBotsFn = createServerFn({ method: "GET" })
 	.middleware([adminMiddleware])
 	.handler(() =>
 		toResult(
@@ -172,7 +172,7 @@ export const adminGetAllBots = createServerFn({ method: "GET" })
 	);
 
 /** Fetch all servers */
-export const adminGetAllServers = createServerFn({ method: "GET" })
+export const adminGetAllServersFn = createServerFn({ method: "GET" })
 	.middleware([adminMiddleware])
 	.handler(() =>
 		toResult(
@@ -186,7 +186,7 @@ export const adminGetAllServers = createServerFn({ method: "GET" })
 	);
 
 /** Fetch all reports */
-export const getReports = createServerFn({ method: "GET" })
+export const getReportsFn = createServerFn({ method: "GET" })
 	.middleware([adminMiddleware])
 	.handler(() =>
 		toResult(
@@ -203,7 +203,7 @@ export const getReports = createServerFn({ method: "GET" })
 	);
 
 /** Approve or reject a bot application */
-export const reviewBot = createServerFn({ method: "POST" })
+export const reviewBotFn = createServerFn({ method: "POST" })
 	.middleware([adminMiddleware])
 	.inputValidator(effectInputValidator(ReviewBotSchema))
 	.handler(async ({ data }) => {
@@ -256,37 +256,38 @@ export const reviewBot = createServerFn({ method: "POST" })
 				console.error(`[Discord 私訊通知失敗] BotID: ${app.id}, Error:`, e),
 			);
 
+			// TODO: 生產環境時取消註解
 			// B. 發送 Discord 群組 Webhook 通知
-			sendDiscordWebhookFn({
-				data: {
-					_tag: "approvedBot",
-					bot: {
-						id: app.id,
-						name: app.name,
-						prefix: app.prefix,
-						description: app.description ?? "",
-						inviteUrl: app.inviteUrl ?? "",
-						tags: app.tags ?? [],
-						icon: app.icon,
-						banner: app.banner,
-						developers: developersList.map((d) => ({
-							id: d.b,
-							username: d.user?.username || "未知",
-						})),
-					},
-				},
-			})
-				.then((res) => {
-					if (!res?.success) {
-						console.warn(
-							`[Webhook 處理失敗] BotID: ${app.id}, Reason:`,
-							res?.error,
-						);
-					}
-				})
-				.catch((e) =>
-					console.error(`[Webhook 發送異常] BotID: ${app.id}, Error:`, e),
-				);
+			// sendDiscordWebhookFn({
+			// 	data: {
+			// 		_tag: "approvedBot",
+			// 		bot: {
+			// 			id: app.id,
+			// 			name: app.name,
+			// 			prefix: app.prefix,
+			// 			description: app.description ?? "",
+			// 			inviteUrl: app.inviteUrl ?? "",
+			// 			tags: app.tags ?? [],
+			// 			icon: app.icon,
+			// 			banner: app.banner,
+			// 			developers: developersList.map((d) => ({
+			// 				id: d.b,
+			// 				username: d.user?.username || "未知",
+			// 			})),
+			// 		},
+			// 	},
+			// })
+			// 	.then((res) => {
+			// 		if (!res?.success) {
+			// 			console.warn(
+			// 				`[Webhook 處理失敗] BotID: ${app.id}, Reason:`,
+			// 				res?.error,
+			// 			);
+			// 		}
+			// 	})
+			// 	.catch((e) =>
+			// 		console.error(`[Webhook 發送異常] BotID: ${app.id}, Error:`, e),
+			// 	);
 
 			// C. 觸發背景更新伺服器數量任務
 			fetchAndUpdateServerCount(app.id);
@@ -296,7 +297,7 @@ export const reviewBot = createServerFn({ method: "POST" })
 	});
 
 /** Delete a bot by id */
-export const deleteBot = createServerFn({ method: "POST" })
+export const deleteBotFn = createServerFn({ method: "POST" })
 	.middleware([adminMiddleware])
 	.inputValidator(effectInputValidator(BotIdSchema))
 	.handler(
@@ -305,7 +306,7 @@ export const deleteBot = createServerFn({ method: "POST" })
 	);
 
 /** Delete a server by guild id */
-export const deleteServer = createServerFn({ method: "POST" })
+export const deleteServerFn = createServerFn({ method: "POST" })
 	.middleware([adminMiddleware])
 	.inputValidator(effectInputValidator(ServerGuildIdSchema))
 	.handler(
@@ -316,7 +317,7 @@ export const deleteServer = createServerFn({ method: "POST" })
 	);
 
 /** Update a report */
-export const updateReport = createServerFn({ method: "POST" })
+export const updateReportFn = createServerFn({ method: "POST" })
 	.middleware([adminMiddleware])
 	.inputValidator(effectInputValidator(UpdateReportSchema))
 	.handler(
@@ -339,7 +340,7 @@ export const updateReport = createServerFn({ method: "POST" })
 	);
 
 /** Fetch pending bots count + reports count — used for SSR badge hydration */
-export const adminGetDashboardCounts = createServerFn({
+export const adminGetDashboardCountsFn = createServerFn({
 	method: "GET",
 })
 	.middleware([adminMiddleware])
