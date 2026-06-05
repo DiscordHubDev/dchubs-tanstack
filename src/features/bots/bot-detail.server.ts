@@ -200,6 +200,7 @@ function getBotDetailEffect(
 					.select({
 						id: user.id,
 						username: user.username,
+						name: user.name,
 						avatar: user.avatar,
 					})
 					.from(botDevelopers)

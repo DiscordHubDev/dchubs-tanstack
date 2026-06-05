@@ -219,7 +219,7 @@ const ItemDetailsDialog = memo(
 										<p className="font-medium text-sm text-zinc-300">
 											擁有者：
 											<span className="text-zinc-400">
-												{item.owner?.username ?? "未知"}
+												{item.owner?.name ?? item.owner?.username ?? "未知"}
 											</span>
 										</p>
 										{item.admins.length > 0 && (

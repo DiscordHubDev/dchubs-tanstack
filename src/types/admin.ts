@@ -27,12 +27,13 @@ type BaseUser = InferSelectModel<typeof schema.user>;
 export interface Developer
 	extends Pick<
 		BaseUser,
-		"id" | "username" | "avatar" | "banner" | "bannerColor" | "bio"
+		"id" | "username" | "avatar" | "banner" | "bannerColor" | "bio" | "name"
 	> {
 	readonly joinedAt: string; // schema 設定為 mode: "string"
 }
 
-export interface ServerOwner extends Pick<BaseUser, "id" | "username"> {}
+export interface ServerOwner
+	extends Pick<BaseUser, "id" | "username" | "name"> {}
 
 // ── 3. 複雜關聯 Entities (精準推導 db.query 的回傳結果) ──────
 

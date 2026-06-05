@@ -13,6 +13,7 @@ export type BotCommandItem = {
 export type BotDeveloper = {
 	id: string;
 	username: string;
+	name: string | null;
 	avatar: string | null;
 };
 

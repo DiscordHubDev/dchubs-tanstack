@@ -557,7 +557,7 @@ export function ServerDetailPage() {
 												</div>
 											)}
 											<p className="text-sm font-medium text-gray-100">
-												{detail.owner.username}
+												{detail.owner.name || detail.owner.username}
 											</p>
 										</Link>
 									</div>

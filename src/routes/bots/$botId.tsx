@@ -785,7 +785,7 @@ function BotDetailPage() {
 														</div>
 													)}
 													<p className="text-sm font-medium text-gray-100">
-														{dev.username}
+														{dev.name || dev.username}
 													</p>
 												</Link>
 											))}

@@ -16,6 +16,7 @@ export type ServerReview = {
 export type ServerOwner = {
 	id: string;
 	username: string;
+	name: string | null;
 	avatar: string | null;
 };
 

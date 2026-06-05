@@ -188,6 +188,7 @@ function getServerDetailEffect(
 									.select({
 										id: user.id,
 										username: user.username,
+										name: user.name,
 										avatar: user.avatar,
 									})
 									.from(user)
