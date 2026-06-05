@@ -31,6 +31,7 @@ import {
 } from "react";
 import { FaCheck } from "react-icons/fa6";
 import { toast } from "react-toastify";
+import Swal from "sweetalert2";
 import { Avatar, AvatarFallback, AvatarImage } from "#/components/ui/avatar";
 import { Badge } from "#/components/ui/badge";
 import { Button } from "#/components/ui/button";
@@ -49,6 +50,7 @@ import {
 	TooltipProvider,
 	TooltipTrigger,
 } from "#/components/ui/tooltip";
+import { deleteServerFn } from "#/features/servers/servers.functions";
 import {
 	createOrRegenerateApiTokenFn,
 	updateUserSettingsFn,
@@ -378,6 +380,7 @@ function ServersTabContainer({
 			managedServers={managedServers}
 			isOwner={isOwner}
 			onManageServer={onManageServer}
+			userId={userId}
 		/>
 	);
 }
@@ -595,10 +598,12 @@ function ServersTab({
 	managedServers,
 	isOwner,
 	onManageServer,
+	userId,
 }: {
 	managedServers: ServerCardData[];
 	isOwner: boolean;
 	onManageServer: (id: string, e: MouseEvent) => void;
+	userId: string;
 }) {
 	return (
 		<div className="mt-6">
@@ -622,6 +627,7 @@ function ServersTab({
 							server={server}
 							isOwner={isOwner}
 							onManageServer={onManageServer}
+							userId={userId}
 						/>
 					))}
 				</div>
@@ -649,11 +655,14 @@ const ServerCard = memo(
 		server,
 		isOwner,
 		onManageServer,
+		userId,
 	}: {
 		server: ServerCardData;
 		isOwner: boolean;
 		onManageServer: (id: string, e: MouseEvent) => void;
+		userId: string;
 	}) => {
+		const queryClient = useQueryClient();
 		const clickingRef = useRef(false);
 
 		const handleManageClick = useCallback(
@@ -667,6 +676,49 @@ const ServerCard = memo(
 			},
 			[onManageServer, server.id],
 		);
+
+		const handleDeleteServer = async () => {
+			// 彈出 SweetAlert2 確認視窗
+			const result = await Swal.fire({
+				title: "確定要刪除伺服器嗎？",
+				text: `此操作無法復原，將會永久刪除 "${server.name}"。`,
+				icon: "warning",
+				showCancelButton: true,
+				confirmButtonColor: "#d33", // 刪除通常用紅色
+				cancelButtonColor: "#3085d6",
+				confirmButtonText: "確定刪除",
+				cancelButtonText: "取消",
+				background: "#1e1f22", // 可以配合你的暗色系/Discord風格
+				color: "#fff",
+			});
+
+			// 如果使用者點擊了確定
+			if (result.isConfirmed) {
+				try {
+					await deleteServerFn({ data: { serverId: server.id } });
+
+					await queryClient.invalidateQueries({
+						queryKey: queryKeys.users.settings(userId),
+					});
+
+					Swal.fire({
+						title: "已刪除！",
+						text: "伺服器已成功移除。",
+						icon: "success",
+						background: "#1e1f22",
+						color: "#fff",
+					});
+				} catch (error) {
+					Swal.fire({
+						title: "錯誤！",
+						text: "刪除失敗，請稍後再試。",
+						icon: "error",
+						background: "#1e1f22",
+						color: "#fff",
+					});
+				}
+			}
+		};
 
 		return (
 			<Card className="flex h-full flex-col border-[#1e1f22] bg-[#2b2d31] transition-all duration-200 hover:border-[#5865f2]">
@@ -722,6 +774,14 @@ const ServerCard = memo(
 							className="h-10 w-full cursor-pointer border-[#5865f2] text-white hover:bg-[#5865f2] hover:text-[#5865f2]"
 						>
 							管理伺服器
+						</Button>
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={handleDeleteServer} /* 綁定剛剛建立的刪除確認函數 */
+							className="h-10 w-full cursor-pointer border-red-500 text-red-500 hover:bg-red-500 hover:text-red-800 transition-colors"
+						>
+							刪除伺服器
 						</Button>
 						<PinActionButton itemName={server.name} />
 					</CardFooter>
@@ -1155,11 +1215,19 @@ function PinActionButton({ itemName }: { itemName: string }) {
 	);
 }
 
-function UserSettingsForm({ user }: { user: UserSettings }) {
+export function UserSettingsForm({ user }: { user: UserSettings }) {
 	const queryClient = useQueryClient();
 
+	// 👉 1. 建立 state 來控制 NSFW 過濾器的狀態（假設 true 為啟用過濾/隱藏成人內容）
+	const [nsfwFilter, setNsfwFilter] = useState<boolean>(user.nsfw ?? true);
+
 	const mutation = useMutation({
-		mutationFn: (input: { bio: string; social: Record<string, string> }) =>
+		// 👉 2. 將 nsfw 加入 mutation 接收的型別中
+		mutationFn: (input: {
+			bio: string;
+			social: Record<string, string>;
+			nsfw: boolean;
+		}) =>
 			runEffect(
 				tryEffectPromise("Failed to update user settings", () =>
 					updateUserSettingsFn({ data: input }),
@@ -1183,12 +1251,43 @@ function UserSettingsForm({ user }: { user: UserSettings }) {
 		},
 	});
 
+	// 👉 3. 處理勾選框變更的邏輯
+	const handleNsfwChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+		const willEnableFilter = e.target.checked;
+
+		// 1. 先讓狀態跟著使用者的操作改變（避免瀏覽器原生行為與 React 脫鉤）
+		setNsfwFilter(willEnableFilter);
+
+		if (!willEnableFilter) {
+			const result = await Swal.fire({
+				title: "年齡確認",
+				text: "您是否已滿 18 歲？",
+				icon: "warning",
+				showCancelButton: true,
+				confirmButtonColor: "#5865f2",
+				cancelButtonColor: "#d33",
+				confirmButtonText: "是，我已滿 18 歲",
+				cancelButtonText: "否",
+				background: "#36393f",
+				color: "#fff",
+				// 允許點擊外面或按 ESC 關閉，並視為「否」
+				allowOutsideClick: false,
+				allowEscapeKey: false,
+			});
+
+			if (!result.isConfirmed) {
+				// 2. 如果用戶反悔或點擊「否」，再強制把狀態修正回 true (啟用過濾)
+				setNsfwFilter(true);
+				toast.success("請記得按下右下角的儲存更改喔~");
+			}
+		}
+	};
+
 	const handleSubmit = useCallback(
 		(event: FormEvent<HTMLFormElement>) => {
 			event.preventDefault();
 			const formData = new FormData(event.currentTarget);
 
-			// 萃取表單中所有以 social. 開頭的欄位
 			const social: Record<string, string> = {};
 			for (const key of Object.keys(SOCIAL_PLATFORMS)) {
 				social[key] = (formData.get(`social.${key}`) as string)?.trim() ?? "";
@@ -1196,9 +1295,10 @@ function UserSettingsForm({ user }: { user: UserSettings }) {
 
 			const bio = (formData.get("bio") as string)?.trim() ?? "";
 
-			mutation.mutate({ bio, social });
+			// 👉 4. 提交時帶上 nsfwFilter 狀態
+			mutation.mutate({ bio, social, nsfw: nsfwFilter });
 		},
-		[mutation],
+		[mutation, nsfwFilter], // 記得將 nsfwFilter 加入依賴陣列
 	);
 
 	const socialEntries = Object.entries(SOCIAL_PLATFORMS);
@@ -1230,6 +1330,24 @@ function UserSettingsForm({ user }: { user: UserSettings }) {
 								className="w-full rounded-md border border-[#1e1f22] bg-[#36393f] px-3 py-2 text-white"
 							/>
 						</label>
+					</div>
+
+					{/* 👉 5. 加入 NSFW 過濾的 UI 區塊 */}
+					<div className="space-y-2 md:col-span-2 rounded-md border border-[#1e1f22] bg-[#2f3136] p-4">
+						<label className="flex cursor-pointer items-center space-x-3">
+							<input
+								type="checkbox"
+								checked={nsfwFilter}
+								onChange={handleNsfwChange}
+								className="h-5 w-5 rounded border-[#1e1f22] bg-[#36393f] text-[#5865f2] focus:ring-[#5865f2] focus:ring-offset-gray-900"
+							/>
+							<span className="font-medium text-gray-200 text-sm">
+								啟用 NSFW 過濾 (隱藏成人內容)
+							</span>
+						</label>
+						<p className="mt-1 ml-8 text-xs text-gray-400">
+							取消勾選以在清單中顯示帶有 NSFW 標籤的伺服器與機器人。
+						</p>
 					</div>
 				</div>
 

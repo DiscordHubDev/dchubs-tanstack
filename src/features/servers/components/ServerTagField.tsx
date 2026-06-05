@@ -5,6 +5,7 @@ import { Badge } from "#/components/ui/badge";
 import { Button } from "#/components/ui/button";
 import { Input } from "#/components/ui/input";
 import { Label } from "#/components/ui/label";
+import type { CategoryType } from "#/lib/types";
 
 function readFirstError(errors: unknown[] | undefined): string | null {
 	if (!Array.isArray(errors) || errors.length === 0) {
@@ -25,13 +26,13 @@ function readFirstError(errors: unknown[] | undefined): string | null {
 
 export type ServerTagFieldProps = {
 	field: AnyFieldApi;
-	disabled?: boolean;
+	categories?: CategoryType[];
 	maxTags?: number;
 };
 
 export function ServerTagField({
 	field,
-	disabled = false,
+	categories = [],
 	maxTags = 8,
 }: ServerTagFieldProps) {
 	const [nextTag, setNextTag] = useState("");
@@ -40,35 +41,24 @@ export function ServerTagField({
 		: [];
 	const errorMessage = readFirstError(field.state.meta.errors);
 
-	const appendTag = (raw: string) => {
-		if (disabled) {
-			return;
-		}
-
+	const addTag = (raw: string) => {
 		const value = raw.trim();
-		if (!value || tags.length >= maxTags) {
-			return;
-		}
+		if (!value || tags.length >= maxTags) return;
+		if (tags.some((item) => item.toLowerCase() === value.toLowerCase())) return;
 
-		const duplicated = tags.some(
-			(item) => item.toLocaleLowerCase() === value.toLocaleLowerCase(),
-		);
-
-		if (duplicated) {
-			return;
-		}
-
+		// 新增標籤並觸發欄位更新（這會觸發你的表單驗證）
 		field.handleChange([...tags, value]);
 		setNextTag("");
 	};
 
-	const removeTag = (tag: string) => {
-		field.handleChange(tags.filter((item) => item !== tag));
+	const removeTag = (value: string) => {
+		// 移除標籤並觸發欄位更新（若移除到 0 個，驗證機制會自動跳出錯誤）
+		field.handleChange(tags.filter((item) => item !== value));
 	};
 
 	return (
 		<div className="space-y-3 text-[#dcddde]">
-			<Label className="text-sm font-medium text-[#eee]">標籤</Label>
+			<Label className="text-sm font-medium text-[#eee]">標籤 *</Label>
 
 			<div className="flex gap-2">
 				<Input
@@ -78,46 +68,73 @@ export function ServerTagField({
 					onKeyDown={(event) => {
 						if (event.key === "Enter" || event.key === ",") {
 							event.preventDefault();
-							appendTag(nextTag);
+							addTag(nextTag);
 						}
 					}}
 					placeholder="輸入標籤後按 Enter"
-					disabled={disabled || tags.length >= maxTags}
+					disabled={tags.length >= maxTags}
 					className="bg-[#202225] border-[#18191c] text-white transition-colors duration-200 placeholder:text-[#72767d] focus-visible:border-[#5865f2] focus-visible:ring-1 focus-visible:ring-[#5865f2] disabled:opacity-50 disabled:bg-[#2f3136]"
 				/>
-
 				<Button
 					type="button"
-					onClick={() => appendTag(nextTag)}
-					disabled={disabled || !nextTag.trim() || tags.length >= maxTags}
-					className="bg-discord text-white border-transparent hover:bg-discord-hover active:bg-discord transition-all duration-200 shadow-sm disabled:bg-discord/50 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+					onClick={() => addTag(nextTag)}
+					disabled={!nextTag.trim() || tags.length >= maxTags}
+					className="bg-discord text-white border-transparent hover:bg-discord-hover active:bg-discord transition-all duration-200 shadow-sm disabled:bg-[#3c45a5]/50 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
 				>
 					加入
 				</Button>
 			</div>
 
+			{categories.length > 0 ? (
+				<div className="flex flex-wrap gap-2">
+					{categories.map((category) => (
+						<button
+							key={category.id}
+							type="button"
+							onClick={() => addTag(category.name)}
+							disabled={tags.length >= maxTags}
+							// 按鈕本體改為深色 Discord 風格，hover 時稍微亮一點
+							className="inline-flex items-center gap-2 rounded-full bg-[#2f3136] hover:bg-[#35383e] border border-[#202225] px-3 py-1 text-xs font-medium text-[#b9bbbe] hover:text-white cursor-pointer transition-all duration-150 hover:scale-105 active:scale-95 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100"
+						>
+							{/* 顏色小點點 */}
+							<span
+								className={`h-2 w-2 rounded-full shrink-0 ${category.color}`}
+							/>
+
+							{/* 分類文字 */}
+							<span>{category.name}</span>
+						</button>
+					))}
+				</div>
+			) : null}
+
+			{/* 標籤顯示區域 */}
 			<div className="flex flex-wrap gap-2">
 				{tags.map((tag) => (
-					<Badge
+					<span
 						key={tag}
-						variant="secondary"
-						className="gap-1.5 bg-[#2f3136] hover:bg-[#35383e] text-[#b9bbbe] border border-[#202225] px-2.5 py-1 text-xs font-normal transition-all duration-150 hover:text-white"
+						className="inline-flex items-center gap-1.5 rounded-full bg-[#2f3136] hover:bg-[#35383e] text-[#b9bbbe] border border-[#202225] px-3 py-1 text-xs transition-all duration-150 hover:text-white"
 					>
 						{tag}
 						<button
 							type="button"
 							onClick={() => removeTag(tag)}
-							disabled={disabled}
-							className="group cursor-pointer rounded-full p-0.5 transition-all duration-200 hover:bg-[#ed4245]/20 disabled:cursor-not-allowed"
+							className="group cursor-pointer rounded-full p-0.5 transition-all duration-200 hover:bg-[#ed4245]/20"
 						>
 							<X className="h-3 w-3 text-[#b9bbbe] group-hover:text-[#ed4245] group-hover:scale-110 transition-transform" />
 						</button>
-					</Badge>
+					</span>
 				))}
 			</div>
 
-			<p className="text-xs text-[#b9bbbe]">最多 {maxTags} 個標籤</p>
+			{/* 修改：動態提示文字，未滿 1 個時用黃色/紅色提醒 */}
+			<p
+				className={`text-xs ${tags.length === 0 ? "text-[#f1c40f]" : "text-[#b9bbbe]"}`}
+			>
+				目前已有 {tags.length} 個標籤（最少 1 個，最多 {maxTags} 個）
+			</p>
 
+			{/* 錯誤訊息：當 tags.length === 0 且表單被觸碰（touched）或送出時，這裡會顯示最少 1 個的錯誤 */}
 			{errorMessage ? (
 				<p className="text-sm text-[#ed4245] font-medium animate-pulse">
 					{errorMessage}

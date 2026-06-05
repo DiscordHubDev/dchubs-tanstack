@@ -83,6 +83,7 @@ export type UserSettings = {
 	name: string | null;
 	bio: string | null;
 	social: Record<string, string>;
+	nsfw: boolean;
 };
 
 export type DevUser = {
@@ -104,6 +105,7 @@ export type ToggleFavoriteResult = ToggleFavoriteParams & {
 export type UpdateUserSettingsInput = {
 	bio: string;
 	social: Record<string, string>;
+	nsfw: boolean;
 };
 
 export type ApiTokenPair = {

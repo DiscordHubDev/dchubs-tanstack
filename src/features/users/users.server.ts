@@ -468,6 +468,7 @@ export function getUserSettingsEffect(id: string) {
 					name: true,
 					bio: true,
 					social: true,
+					nsfw: true,
 				},
 			}),
 		);
@@ -772,59 +773,46 @@ export function getCurrentUser(discordId?: string): Promise<UserDetail | null> {
 	return runEffect(getCurrentUserEffect(discordId));
 }
 
+import { sql } from "drizzle-orm";
+
 export function updateUserSettingsForCurrentUser(
 	input: UpdateUserSettingsInput,
 	userId: string,
 ): Promise<UpdateState> {
 	return runEffect(
 		Effect.gen(function* () {
-			const currentUser = yield* dbEffect("Failed to load user settings", () =>
-				db.query.user.findFirst({
-					where: eq(user.id, userId),
-					columns: {
-						bio: true,
-						social: true,
-					},
-				}),
-			);
+			// 1. 動態構建更新欄位，沒傳入的欄位就不放進 updateData
+			const updateData: any = {};
 
-			if (!currentUser) return { error: "找不到使用者" };
+			if (input.bio !== undefined) updateData.bio = input.bio;
+			if (input.nsfw !== undefined) updateData.nsfw = input.nsfw;
 
-			const bio = input.bio;
-			const nextSocial = input.social;
-			const currentSocial = normalizeSocial(currentUser.social);
-
-			const updateData: {
-				bio?: string;
-				social?: Record<string, string>;
-			} = {};
-
-			if ((currentUser.bio ?? "") !== bio) {
-				updateData.bio = bio;
+			// 處理 JSON 局部更新，避免覆蓋掉沒傳入的社群 key
+			if (input.social && Object.keys(input.social).length > 0) {
+				// 使用 PostgreSQL 的 || 運算子合併 JSON
+				updateData.social = sql`COALESCE(${user.social}, '{}'::jsonb) || ${JSON.stringify(input.social)}::jsonb`;
 			}
 
-			const changedSocial: Record<string, string> = {};
-			for (const key in nextSocial) {
-				const oldValue = currentSocial[key] ?? "";
-				if (nextSocial[key] !== oldValue) {
-					changedSocial[key] = nextSocial[key];
-				}
-			}
-
-			if (Object.keys(changedSocial).length > 0) {
-				updateData.social = {
-					...currentSocial,
-					...changedSocial,
-				};
-			}
-
+			// 如果完全沒有要更新的欄位，直接回傳
 			if (Object.keys(updateData).length === 0) {
 				return { success: "沒有任何變更" };
 			}
 
-			yield* dbEffect("Failed to update user settings", () =>
-				db.update(user).set(updateData).where(eq(user.id, userId)),
+			// 2. 直接執行更新，並用 returning 檢查是否有更新到資料
+			const result = yield* dbEffect(
+				"Failed to update user settings",
+				() =>
+					db
+						.update(user)
+						.set(updateData)
+						.where(eq(user.id, userId))
+						.returning({ id: user.id }), // 取得更新後的 ID
 			);
+
+			// 如果回傳陣列長度為 0，代表該 userId 不存在
+			if (result.length === 0) {
+				return { error: "找不到使用者" };
+			}
 
 			return { success: "已成功儲存" };
 		}).pipe(

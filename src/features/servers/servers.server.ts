@@ -1,4 +1,4 @@
-import { desc, eq, gte, sql } from "drizzle-orm";
+import { and, desc, eq, gte, sql } from "drizzle-orm";
 import { Effect } from "effect";
 import { db } from "#/drizzle/db";
 import { server, userFavoriteServers } from "#/drizzle/schema";
@@ -112,13 +112,22 @@ function getListOrderBy(category: ServerCategory) {
 function listServersPageEffect(
 	input: ServerListQueryInput,
 	userId?: string | null,
+	userNsfw?: boolean, // 新增參數：代表使用者是否開啟「隱藏/過濾 NSFW」的設定
 ): Effect.Effect<ServerListQueryResult, Error> {
 	return Effect.gen(function* () {
 		const favoriteIds = yield* getFavoriteIdsEffect(userId ?? null);
 
-		const whereClause = getListWhere(input.category);
+		// 取得原本的過濾條件
+		const baseWhereClause = getListWhere(input.category);
 		const orderBy = getListOrderBy(input.category);
 		const offset = (input.page - 1) * input.limit;
+
+		// 核心修改：如果 userNsfw 為 true，則加上過濾條件：伺服器的 nsfw 必須為 false
+		const whereClause = userNsfw
+			? baseWhereClause
+				? and(baseWhereClause, eq(server.nsfw, false))
+				: eq(server.nsfw, false)
+			: baseWhereClause;
 
 		const countQuery = db.select({ count: sql<number>`count(*)` }).from(server);
 		const rowsQuery = db
@@ -140,6 +149,7 @@ function listServersPageEffect(
 			})
 			.from(server);
 
+		// 使用組合好的 whereClause
 		const scopedCountQuery = whereClause
 			? countQuery.where(whereClause)
 			: countQuery;
@@ -173,34 +183,47 @@ function listServersPageEffect(
 
 function listServerFilterBundleEffect(
 	userId?: string | null,
+	userNsfw?: boolean, // 👉 新增參數：判斷使用者是否要過濾 NSFW
 ): Effect.Effect<ServerFilterBundle, Error> {
 	return Effect.gen(function* () {
 		const favoriteIds = yield* getFavoriteIdsEffect(userId ?? null);
 
-		const rows = yield* tryEffectPromise("Failed to load all servers", () =>
-			db
-				.select({
-					id: server.id,
-					name: server.name,
-					description: server.description,
-					tags: server.tags,
-					members: server.members,
-					online: server.online,
-					upvotes: server.upvotes,
-					icon: server.icon,
-					banner: server.banner,
-					inviteUrl: server.inviteUrl,
-					createdAt: server.createdAt,
-					pin: server.pin,
-					pinExpiry: server.pinExpiry,
-					nsfw: server.nsfw,
-				})
-				.from(server),
+		// 1. 準備基礎的 Query
+		const baseQuery = db
+			.select({
+				id: server.id,
+				name: server.name,
+				description: server.description,
+				tags: server.tags,
+				members: server.members,
+				online: server.online,
+				upvotes: server.upvotes,
+				icon: server.icon,
+				banner: server.banner,
+				inviteUrl: server.inviteUrl,
+				createdAt: server.createdAt,
+				pin: server.pin,
+				pinExpiry: server.pinExpiry,
+				nsfw: server.nsfw,
+			})
+			.from(server);
+
+		// 2. 根據設定加上 where 條件
+		const scopedQuery = userNsfw
+			? baseQuery.where(eq(server.nsfw, false))
+			: baseQuery;
+
+		// 3. 執行過濾後的 Query
+		const rows = yield* tryEffectPromise(
+			"Failed to load all servers",
+			() => scopedQuery,
 		);
 
 		const allServers = rows.map((row) =>
 			mapRowToPublicServer(row, favoriteIds),
 		);
+
+		// --- 以下邏輯完全不用改，因為資料已經乾淨了 ---
 
 		const tagCount = new Map<string, number>();
 		for (const item of allServers) {
@@ -242,12 +265,18 @@ function listServerFilterBundleEffect(
 export async function listServersPage(
 	input: ServerListQueryInput,
 	userId?: string | null,
+	userNsfw?: boolean,
 ): Promise<ServerListQueryResult> {
-	return runEffect(listServersPageEffect(input, userId));
+	return runEffect(listServersPageEffect(input, userId, userNsfw));
 }
 
 export async function listServerFilterBundle(
 	userId?: string | null,
+	userNsfw?: boolean,
 ): Promise<ServerFilterBundle> {
-	return runEffect(listServerFilterBundleEffect(userId));
+	return runEffect(listServerFilterBundleEffect(userId, userNsfw));
+}
+
+export async function deleteServer(serverId: string): Promise<void> {
+	await db.delete(server).where(eq(server.id, serverId));
 }

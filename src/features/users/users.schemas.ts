@@ -22,6 +22,7 @@ export const updateUserSettingsInputEffectSchema = Schema.Struct({
 		key: Schema.String,
 		value: Schema.String,
 	}),
+	nsfw: Schema.Boolean,
 });
 
 export const upsertUserFromSessionInputEffectSchema = Schema.Struct({

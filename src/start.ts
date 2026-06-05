@@ -11,7 +11,7 @@ const securityHeadersMiddleware = createMiddleware().server(
 		if (result?.response) {
 			result.response.headers.set(
 				"Content-Security-Policy",
-				"default-src 'self'; script-src 'self' 'unsafe-inline' https://assets.dchubs.org https://ajax.cloudflare.com; style-src 'self' 'unsafe-inline' https://assets.dchubs.org; img-src 'self' data: https://cdn.discordapp.com https://gallery.dawngs.top https://res.cloudinary.com; frame-src https://discord.com https://www.youtube.com;",
+				"default-src 'self'; script-src 'self' 'unsafe-inline' https://assets.dchubs.org https://ajax.cloudflare.com; style-src 'self' 'unsafe-inline' https://assets.dchubs.org; img-src 'self' data: https://cdn.discordapp.com https://gallery.dawngs.top https://res.cloudinary.com blob:; frame-src https://discord.com https://www.youtube.com;",
 			);
 
 			result.response.headers.set(
@@ -27,7 +27,18 @@ const securityHeadersMiddleware = createMiddleware().server(
 );
 
 const csrfMiddleware = createCsrfMiddleware({
-	filter: (ctx) => ctx.handlerType === "serverFn",
+	filter: (ctx) => {
+		// 1. 如果不是 serverFn，不檢查
+		if (ctx.handlerType !== "serverFn") return false;
+
+		// 2. 檢查請求標頭中是否帶有機器人的專屬 Secret
+		const authHeader = ctx.request.headers.get("Authorization");
+		if (authHeader === `Bearer ${process.env.API_CRON_TOKEN}`) {
+			return false; // 回傳 false 代表「跳過 CSRF 檢查」，放行機器人！
+		}
+
+		return true; // 其他一般使用者的請求，維持 CSRF 檢查
+	},
 });
 
 export const startInstance = createStart(() => {

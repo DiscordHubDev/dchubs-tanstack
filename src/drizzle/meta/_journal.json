@@ -1,104 +1,118 @@
 {
-	"version": "7",
-	"dialect": "postgresql",
-	"entries": [
-		{
-			"idx": 0,
-			"version": "7",
-			"when": 1775830018106,
-			"tag": "0000_lowly_gambit",
-			"breakpoints": true
-		},
-		{
-			"idx": 1,
-			"version": "7",
-			"when": 1775930031421,
-			"tag": "0001_concerned_scorpion",
-			"breakpoints": true
-		},
-		{
-			"idx": 2,
-			"version": "7",
-			"when": 1780076114530,
-			"tag": "0002_jwks_table",
-			"breakpoints": true
-		},
-		{
-			"idx": 3,
-			"version": "7",
-			"when": 1780076473206,
-			"tag": "0003_broad_master_chief",
-			"breakpoints": true
-		},
-		{
-			"idx": 4,
-			"version": "7",
-			"when": 1780471237950,
-			"tag": "0004_clean_forgotten_one",
-			"breakpoints": true
-		},
-		{
-			"idx": 5,
-			"version": "7",
-			"when": 1780552551497,
-			"tag": "0005_volatile_grey_gargoyle",
-			"breakpoints": true
-		},
-		{
-			"idx": 6,
-			"version": "7",
-			"when": 1780562465607,
-			"tag": "0006_fancy_secret_warriors",
-			"breakpoints": true
-		},
-		{
-			"idx": 7,
-			"version": "7",
-			"when": 1780563665765,
-			"tag": "0007_spotty_skreet",
-			"breakpoints": true
-		},
-		{
-			"idx": 8,
-			"version": "7",
-			"when": 1780564250228,
-			"tag": "0008_fair_whizzer",
-			"breakpoints": true
-		},
-		{
-			"idx": 9,
-			"version": "7",
-			"when": 1780564359868,
-			"tag": "0009_bright_pestilence",
-			"breakpoints": true
-		},
-		{
-			"idx": 10,
-			"version": "7",
-			"when": 1780564516092,
-			"tag": "0010_rich_gideon",
-			"breakpoints": true
-		},
-		{
-			"idx": 11,
-			"version": "7",
-			"when": 1780565168030,
-			"tag": "0011_minor_the_call",
-			"breakpoints": true
-		},
-		{
-			"idx": 12,
-			"version": "7",
-			"when": 1780576734085,
-			"tag": "0012_hard_jack_flag",
-			"breakpoints": true
-		},
-		{
-			"idx": 13,
-			"version": "7",
-			"when": 1780588835271,
-			"tag": "0013_rainy_ken_ellis",
-			"breakpoints": true
-		}
-	]
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1775830018106,
+      "tag": "0000_lowly_gambit",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1775930031421,
+      "tag": "0001_concerned_scorpion",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1780076114530,
+      "tag": "0002_jwks_table",
+      "breakpoints": true
+    },
+    {
+      "idx": 3,
+      "version": "7",
+      "when": 1780076473206,
+      "tag": "0003_broad_master_chief",
+      "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1780471237950,
+      "tag": "0004_clean_forgotten_one",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1780552551497,
+      "tag": "0005_volatile_grey_gargoyle",
+      "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1780562465607,
+      "tag": "0006_fancy_secret_warriors",
+      "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1780563665765,
+      "tag": "0007_spotty_skreet",
+      "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1780564250228,
+      "tag": "0008_fair_whizzer",
+      "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1780564359868,
+      "tag": "0009_bright_pestilence",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1780564516092,
+      "tag": "0010_rich_gideon",
+      "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1780565168030,
+      "tag": "0011_minor_the_call",
+      "breakpoints": true
+    },
+    {
+      "idx": 12,
+      "version": "7",
+      "when": 1780576734085,
+      "tag": "0012_hard_jack_flag",
+      "breakpoints": true
+    },
+    {
+      "idx": 13,
+      "version": "7",
+      "when": 1780588835271,
+      "tag": "0013_rainy_ken_ellis",
+      "breakpoints": true
+    },
+    {
+      "idx": 14,
+      "version": "7",
+      "when": 1780673448502,
+      "tag": "0014_flashy_cammi",
+      "breakpoints": true
+    },
+    {
+      "idx": 15,
+      "version": "7",
+      "when": 1780679118918,
+      "tag": "0015_panoramic_titanium_man",
+      "breakpoints": true
+    }
+  ]
 }

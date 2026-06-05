@@ -130,45 +130,59 @@ function getListOrderBy(category: BotCategory) {
 function listBotsPageEffect(
 	input: BotListQueryInput,
 	userId: string | null,
+	userNsfw?: boolean, // 👉 新增判斷參數
 ): Effect.Effect<BotListQueryResult, Error> {
 	return Effect.gen(function* () {
 		const favoriteIds = yield* getFavoriteIdsEffect(userId);
 
-		const whereClause = getListWhere(input.category);
+		const baseWhereClause = getListWhere(input.category);
 		const orderBy = getListOrderBy(input.category);
 		const offset = (input.page - 1) * input.limit;
 
+		// 👉 核心邏輯：如果 userNsfw 為 true，過濾掉 nsfw 為 true 的機器人
+		const whereClause = userNsfw
+			? baseWhereClause
+				? and(baseWhereClause, eq(bot.nsfw, false))
+				: eq(bot.nsfw, false)
+			: baseWhereClause;
+
+		// 將基礎查詢抽離，讓代碼更易讀且好維護
+		const countQuery = db.select({ count: sql<number>`count(*)` }).from(bot);
+		const scopedCountQuery = whereClause
+			? countQuery.where(whereClause)
+			: countQuery;
+
+		const rowsQuery = db
+			.select({
+				id: bot.id,
+				name: bot.name,
+				description: bot.description,
+				tags: bot.tags,
+				servers: bot.servers,
+				users: bot.users,
+				upvotes: bot.upvotes,
+				icon: bot.icon,
+				banner: bot.banner,
+				inviteUrl: bot.inviteUrl,
+				website: bot.website,
+				supportServer: bot.supportServer,
+				approvedAt: bot.approvedAt,
+				pin: bot.pin,
+				pinExpiry: bot.pinExpiry,
+				verified: bot.verified,
+				isAdmin: bot.isAdmin,
+				nsfw: bot.nsfw,
+			})
+			.from(bot);
+
+		const scopedRowsQuery = whereClause
+			? rowsQuery.where(whereClause)
+			: rowsQuery;
+
 		const [countRows, rows] = yield* Effect.all([
-			tryEffectPromise("Failed to count bots", () =>
-				db
-					.select({ count: sql<number>`count(*)` })
-					.from(bot)
-					.where(whereClause),
-			),
+			tryEffectPromise("Failed to count bots", () => scopedCountQuery),
 			tryEffectPromise("Failed to load bot list", () =>
-				db
-					.select({
-						id: bot.id,
-						name: bot.name,
-						description: bot.description,
-						tags: bot.tags,
-						servers: bot.servers,
-						users: bot.users,
-						upvotes: bot.upvotes,
-						icon: bot.icon,
-						banner: bot.banner,
-						inviteUrl: bot.inviteUrl,
-						website: bot.website,
-						supportServer: bot.supportServer,
-						approvedAt: bot.approvedAt,
-						pin: bot.pin,
-						pinExpiry: bot.pinExpiry,
-						verified: bot.verified,
-						isAdmin: bot.isAdmin,
-						nsfw: bot.nsfw,
-					})
-					.from(bot)
-					.where(whereClause)
+				scopedRowsQuery
 					.orderBy(...orderBy)
 					.limit(input.limit)
 					.offset(offset),
@@ -190,9 +204,18 @@ function listBotsPageEffect(
 
 function listBotFilterBundleEffect(
 	userId: string | null,
+	userNsfw?: boolean, // 👉 新增判斷參數
 ): Effect.Effect<BotFilterBundle, Error> {
 	return Effect.gen(function* () {
 		const favoriteIds = yield* getFavoriteIdsEffect(userId);
+
+		// 👉 基礎條件：機器人必須是 approved 狀態
+		const baseCondition = eq(bot.status, "approved");
+
+		// 👉 組合條件：如果開啟過濾，則加上 nsfw === false 的限制
+		const whereClause = userNsfw
+			? and(baseCondition, eq(bot.nsfw, false))
+			: baseCondition;
 
 		const rows = yield* tryEffectPromise("Failed to load all bots", () =>
 			db
@@ -217,7 +240,8 @@ function listBotFilterBundleEffect(
 					nsfw: bot.nsfw,
 				})
 				.from(bot)
-				.where(eq(bot.status, "approved")),
+				// 套用組合後的條件
+				.where(whereClause),
 		);
 
 		const allBots = rows.map((row) => mapRowToPublicBot(row, favoriteIds));
@@ -258,14 +282,16 @@ function listBotFilterBundleEffect(
 export async function listBotsPage(
 	input: BotListQueryInput,
 	userId: string | null,
+	userNsfw?: boolean,
 ): Promise<BotListQueryResult> {
-	return runEffect(listBotsPageEffect(input, userId));
+	return runEffect(listBotsPageEffect(input, userId, userNsfw));
 }
 
 export async function listBotFilterBundle(
 	userId: string | null,
+	userNsfw?: boolean,
 ): Promise<BotFilterBundle> {
-	return runEffect(listBotFilterBundleEffect(userId));
+	return runEffect(listBotFilterBundleEffect(userId, userNsfw));
 }
 
 export function isDeveloperEffect(botId: string, discordId: string) {

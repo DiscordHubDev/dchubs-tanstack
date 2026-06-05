@@ -16,6 +16,7 @@ export type DomainUser = {
 	banner: string | null;
 	bannerColor: string | null;
 	name: string | null;
+	nsfw: boolean;
 };
 
 // 保持原樣：只讀 headers，不做任何 DB 查詢，不對外暴露
@@ -51,6 +52,7 @@ export const getDomainUser = cache(
 				image: schema.user.image,
 				banner: schema.user.banner,
 				bannerColor: schema.user.bannerColor,
+				nsfw: schema.user.nsfw,
 			})
 			.from(schema.user)
 			.leftJoin(
@@ -96,6 +98,7 @@ export const getDomainUser = cache(
 			banner,
 			bannerColor,
 			name,
+			nsfw: userRow.nsfw,
 		};
 	},
 );

@@ -43,9 +43,20 @@ function buildBotInviteUrl(input: {
 	inviteUrl.searchParams.set("client_id", input.clientId);
 	inviteUrl.searchParams.set("permissions", input.permissions);
 	inviteUrl.searchParams.set("integration_type", "0");
-	inviteUrl.searchParams.set("scope", "bot");
+
+	// 💡 關鍵改動 1：有跳轉網址時，scope 必須包含 Oauth2 範疇，單寫 "bot" 會報錯
+	inviteUrl.searchParams.set("scope", "bot identify");
+
 	inviteUrl.searchParams.set("guild_id", input.guildId);
 	inviteUrl.searchParams.set("disable_guild_select", "true");
+
+	// 💡 關鍵改動 2：加入成功後要跳轉回來的目標網址
+	// 例如跳轉回目前網頁：window.location.origin + "/success" 或直接回首頁
+	const redirectUri = window.location.origin + "/protected/add-server";
+	inviteUrl.searchParams.set("redirect_uri", redirectUri);
+
+	// 💡 關鍵改動 3：Discord 規定有 redirect_uri 就必須帶上 response_type
+	inviteUrl.searchParams.set("response_type", "code");
 
 	return inviteUrl.toString();
 }
@@ -241,7 +252,7 @@ function RouteComponent() {
 						</button>
 					</div>
 					<p className="text-[#b9bbbe]">
-						請選擇一個你與機器人同時存在的伺服器，以繼續進行伺服器發布。
+						請選擇一個你與機器人同時存在的伺服器，以繼續進行伺服器發布
 						{isFetching && (
 							<span className="ml-3 text-[#5865f2]">
 								• 取得最新的群組清單中...
@@ -314,7 +325,7 @@ function RouteComponent() {
 								{canLoadMoreActive && (
 									<div className="mt-6 text-center">
 										<div className="text-[#b9bbbe] text-sm">
-											Showing {activeLimit} / {activeGuilds.length} servers
+											往下滑已加載更多
 											{isLoadingMore && " • Loading more..."}
 										</div>
 									</div>
@@ -346,7 +357,7 @@ function RouteComponent() {
 								{canLoadMoreInactive && !canLoadMoreActive && (
 									<div className="mt-6 text-center">
 										<div className="text-[#b9bbbe] text-sm">
-											Showing {inactiveLimit} / {inactiveGuilds.length} servers
+											往下滑已加載更多
 											{isLoadingMore && " • Loading more..."}
 										</div>
 									</div>

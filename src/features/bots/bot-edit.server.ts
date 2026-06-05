@@ -145,7 +145,7 @@ function getBotEditBundleEffect(
 			secret: normalizeOptionalString(currentBot.secret),
 			webhook_url: normalizeOptionalString(currentBot.voteNotificationUrl),
 			screenshots: normalizeList(currentBot.screenshots),
-			banner: currentBot.banner ?? null,
+			banner: currentBot.banner ?? undefined,
 			nsfw: currentBot.nsfw ?? false,
 		};
 

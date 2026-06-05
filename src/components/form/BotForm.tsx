@@ -51,7 +51,7 @@ import { Checkbox } from "../ui/checkbox";
 
 type BotFormDefaultValues = Partial<BotFormData> & {
 	screenshots?: string[];
-	banner?: string | null;
+	banner?: string | undefined;
 	iconUrl?: string | null; // 補充未定義的 iconUrl
 };
 
@@ -68,10 +68,66 @@ type MediaItem = {
 
 type MediaState = {
 	screenshots: MediaItem[];
-	banner: MediaItem | null;
+	banner: MediaItem | undefined;
 };
 
-const botCategories: CategoryType[] = [];
+const botCategories: CategoryType[] = [
+	{
+		id: "1",
+		name: "音樂",
+		color: "bg-blue-500",
+	},
+	{
+		id: "2",
+		name: "遊戲",
+		color: "bg-green-500",
+	},
+	{
+		id: "3",
+		name: "管理",
+		color: "bg-yellow-500",
+	},
+	{
+		id: "4",
+		name: "工具",
+		color: "bg-purple-500",
+	},
+	{
+		id: "5",
+		name: "社群",
+		color: "bg-pink-500",
+	},
+	{
+		id: "6",
+		name: "娛樂",
+		color: "bg-red-500",
+	},
+	{
+		id: "7",
+		name: "多功能",
+		color: "bg-rose-500",
+	},
+	{
+		id: "8",
+		name: "AI",
+		color: "bg-fuchsia-500",
+	},
+	{
+		id: "9",
+		name: "安全",
+		color: "bg-teal-500",
+	},
+	{
+		id: "10",
+		name: "經濟",
+		color: "bg-emerald-500",
+	},
+	{
+		id: "11",
+		name: "紀錄",
+		color: "bg-indigo-500",
+	},
+];
 
 const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
 const MAX_GIF_SIZE_BYTES = 10 * 1024 * 1024;
@@ -108,17 +164,17 @@ function readFirstError(errors: unknown[] | undefined): string | null {
 	return String(first);
 }
 
-function readPersistedFields(): {
-	botDescription: string;
-	botLongDescription: string;
-} {
+function readPersistedFormValues(): Partial<BotFormData> {
 	if (typeof window === "undefined") {
-		return { botDescription: "", botLongDescription: "" };
+		return {};
 	}
-	return {
-		botDescription: window.localStorage.getItem("desc") ?? "",
-		botLongDescription: window.localStorage.getItem("longdesc") ?? "",
-	};
+	try {
+		const saved = window.localStorage.getItem("bot_form_backup");
+		return saved ? JSON.parse(saved) : {};
+	} catch (error) {
+		console.error("無法解析表單備份", error);
+		return {};
+	}
 }
 
 function buildScreenshotFromUrl(url: string): Screenshot {
@@ -172,11 +228,17 @@ function hasRequiredPublishFields(values: {
 	botDescription: string;
 	botLongDescription: string;
 	botInvite: string;
+	botDevelopers: readonly unknown[]; // 加上 readonly
+	botTags: readonly string[]; // 加上 botTags 和 readonly
 }): boolean {
 	return (
 		values.botDescription.trim().length > 0 &&
 		values.botLongDescription.trim().length > 0 &&
-		values.botInvite.trim().length > 0
+		values.botInvite.trim().length > 0 &&
+		Array.isArray(values.botDevelopers) &&
+		values.botDevelopers.length > 0 &&
+		Array.isArray(values.botTags) &&
+		values.botTags.length > 0
 	);
 }
 
@@ -306,17 +368,19 @@ function TagField({ field, categories = [], maxTags = 8 }: TagFieldProps) {
 		if (!value || tags.length >= maxTags) return;
 		if (tags.some((item) => item.toLowerCase() === value.toLowerCase())) return;
 
+		// 新增標籤並觸發欄位更新（這會觸發你的表單驗證）
 		field.handleChange([...tags, value]);
 		setNextTag("");
 	};
 
 	const removeTag = (value: string) => {
+		// 移除標籤並觸發欄位更新（若移除到 0 個，驗證機制會自動跳出錯誤）
 		field.handleChange(tags.filter((item) => item !== value));
 	};
 
 	return (
 		<div className="space-y-3 text-[#dcddde]">
-			<Label className="text-sm font-medium text-[#eee]">標籤</Label>
+			<Label className="text-sm font-medium text-[#eee]">標籤 *</Label>
 
 			<div className="flex gap-2">
 				<Input
@@ -350,15 +414,23 @@ function TagField({ field, categories = [], maxTags = 8 }: TagFieldProps) {
 							key={category.id}
 							type="button"
 							onClick={() => addTag(category.name)}
-							className="rounded-full px-3 py-1 text-xs font-medium text-white cursor-pointer transition-all duration-150 hover:scale-105 active:scale-95 brightness-100 hover:brightness-110 shadow-sm"
-							style={{ backgroundColor: category.color }}
+							disabled={tags.length >= maxTags}
+							// 按鈕本體改為深色 Discord 風格，hover 時稍微亮一點
+							className="inline-flex items-center gap-2 rounded-full bg-[#2f3136] hover:bg-[#35383e] border border-[#202225] px-3 py-1 text-xs font-medium text-[#b9bbbe] hover:text-white cursor-pointer transition-all duration-150 hover:scale-105 active:scale-95 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100"
 						>
-							{category.name}
+							{/* 顏色小點點 */}
+							<span
+								className={`h-2 w-2 rounded-full shrink-0 ${category.color}`}
+							/>
+
+							{/* 分類文字 */}
+							<span>{category.name}</span>
 						</button>
 					))}
 				</div>
 			) : null}
 
+			{/* 標籤顯示區域 */}
 			<div className="flex flex-wrap gap-2">
 				{tags.map((tag) => (
 					<span
@@ -377,8 +449,14 @@ function TagField({ field, categories = [], maxTags = 8 }: TagFieldProps) {
 				))}
 			</div>
 
-			<p className="text-xs text-[#b9bbbe]">最多 {maxTags} 個標籤</p>
+			{/* 修改：動態提示文字，未滿 1 個時用黃色/紅色提醒 */}
+			<p
+				className={`text-xs ${tags.length === 0 ? "text-[#f1c40f]" : "text-[#b9bbbe]"}`}
+			>
+				目前已有 {tags.length} 個標籤（最少 1 個，最多 {maxTags} 個）
+			</p>
 
+			{/* 錯誤訊息：當 tags.length === 0 且表單被觸碰（touched）或送出時，這裡會顯示最少 1 個的錯誤 */}
 			{errorMessage ? (
 				<p className="text-sm text-[#ed4245] font-medium animate-pulse">
 					{errorMessage}
@@ -608,7 +686,7 @@ export function DeveloperListField({ field }: DeveloperListFieldProps) {
 
 	return (
 		<div className="space-y-4">
-			<Label>開發者列表</Label>
+			<Label>開發者列表 *</Label>
 
 			{/* 1. 已選擇的開發者展示區 */}
 			{developers.length === 0 ? (
@@ -734,7 +812,7 @@ export default function BotForm({
 	defaultValues,
 }: BotFormProps) {
 	const navigate = useNavigate();
-	const persisted = useMemo(() => readPersistedFields(), []);
+	const persistedValues = useMemo(() => readPersistedFormValues(), []);
 
 	const objectUrlsRef = useRef<Set<string>>(new Set());
 
@@ -763,6 +841,7 @@ export default function BotForm({
 			webhook_url: "",
 			nsfw: false,
 			...(defaultValues || {}),
+			...persistedValues,
 		},
 		validators: {
 			onChange: ({ value }) => {
@@ -777,13 +856,20 @@ export default function BotForm({
 			setLoading(true);
 			setSuccess(false);
 
-			try {
+			// 將核心業務邏輯全部封裝進 Effect 流程中
+			const program = Effect.gen(function* () {
 				// 1. 處理 Banner 上傳
-				let finalBannerUrl = media.banner?.url ?? null;
+				let finalBannerUrl = media.banner?.url ?? undefined;
 				if (media.banner?.file) {
-					toast.info("上傳 Banner 中...");
-					const uploadedBanner = await ScreenshotUpload([media.banner.file]);
-					finalBannerUrl = uploadedBanner[0]?.url ?? null;
+					yield* Effect.sync(() => toast.info("上傳 Banner 中..."));
+					const uploadedBanner = yield* Effect.tryPromise({
+						try: () => ScreenshotUpload([media.banner!.file!]),
+						catch: (err) =>
+							new SubmitBotFailed({
+								message: `Banner 上傳失敗：${toErrorMessage(err)}`,
+							}),
+					});
+					finalBannerUrl = uploadedBanner[0]?.url ?? undefined;
 				}
 
 				// 2. 處理 Screenshots 上傳
@@ -799,17 +885,23 @@ export default function BotForm({
 				});
 
 				if (localScreenshotFiles.length > 0) {
-					toast.info(`上傳 ${localScreenshotFiles.length} 張截圖中...`);
-					const uploadedScreenshots =
-						await ScreenshotUpload(localScreenshotFiles);
+					yield* Effect.sync(() =>
+						toast.info(`上傳 ${localScreenshotFiles.length} 張截圖中...`),
+					);
+					const uploadedScreenshots = yield* Effect.tryPromise({
+						try: () => ScreenshotUpload(localScreenshotFiles),
+						catch: (err) =>
+							new SubmitBotFailed({
+								message: `截圖上傳失敗：${toErrorMessage(err)}`,
+							}),
+					});
 
-					// 將上傳後的遠端 URL 替換回原陣列對應的位置
 					localScreenshotIndices.forEach((originalIndex, newIndex) => {
 						finalScreenshots[originalIndex] = uploadedScreenshots[newIndex];
 					});
 				}
 
-				// 3. 送出最終表單資料
+				// 3. 組裝 Payload 並送出最終表單資料
 				const payload = {
 					form: value,
 					screenshots: finalScreenshots,
@@ -817,26 +909,33 @@ export default function BotForm({
 					mode,
 				};
 
-				const response = await Effect.runPromise(
-					Effect.tryPromise({
-						try: () => submitBotFn({ data: payload }),
-						catch: (error) =>
-							new SubmitBotFailed({
-								message: `提交失敗：${toErrorMessage(error)}`,
-							}),
-					}).pipe(
-						Effect.catchAll((error) =>
-							Effect.succeed({
-								success: false as const,
-								error: {
-									tag: error._tag,
-									message: error.message,
-								},
-							} satisfies SubmitBotResult),
-						),
-					),
-				);
+				const response = yield* Effect.tryPromise({
+					try: () => submitBotFn({ data: payload }),
+					catch: (err) =>
+						new SubmitBotFailed({
+							message: `資料提交失敗：${toErrorMessage(err)}`,
+						}),
+				});
 
+				return response;
+			}).pipe(
+				// 統一捕捉此 Effect 鏈中的所有自訂錯誤 (SubmitBotFailed)
+				Effect.catchAll((error) =>
+					Effect.succeed({
+						success: false as const,
+						error: {
+							tag: error._tag,
+							message: error.message,
+						},
+					} satisfies SubmitBotResult),
+				),
+			);
+
+			try {
+				// 執行 Effect
+				const response = await Effect.runPromise(program);
+
+				// 統一處理後端/上傳回應的失敗狀態
 				if (!response.success) {
 					await Swal.fire({
 						icon: "error",
@@ -848,13 +947,26 @@ export default function BotForm({
 					return;
 				}
 
+				// 成功後的共同行為
 				setSuccess(true);
-				window.localStorage.removeItem("desc");
-				window.localStorage.removeItem("longdesc");
+				window.localStorage.removeItem("bot_form_backup");
 
+				// 根據模式 (create / edit) 執行對應的 Swal 彈窗與後續動作
 				if (mode === "create") {
 					form.reset();
-					setMedia({ screenshots: [], banner: null });
+					setMedia({ screenshots: [], banner: undefined });
+
+					await Swal.fire({
+						icon: "success",
+						title: "創建成功",
+						text: "機器人已成功建立！",
+						confirmButtonText: "前往機器人頁面",
+					}).then(() => {
+						void navigate({
+							to: "/bots/$botId",
+							params: { botId: response.botId },
+						});
+					});
 				}
 
 				if (mode === "edit") {
@@ -865,17 +977,18 @@ export default function BotForm({
 						confirmButtonText: "前往機器人頁面",
 					}).then(() => {
 						void navigate({
-							to: "/bots/$botId", // 替換成你想去的路由路徑
-							params: { botId: response.botId }, // 如果路徑有動態參數再帶入，沒有的話可省略 params
+							to: "/bots/$botId",
+							params: { botId: response.botId },
 						});
 					});
 				}
 			} catch (error) {
+				// 這裡只會捕捉到非預期的運行時嚴重崩潰 (如代碼 bug、NullPointer 等)
 				await Swal.fire({
 					icon: "error",
-					title: "儲存失敗",
-					text: `機器人資料儲存失敗，錯誤：${toErrorMessage(error)}`,
-					confirmButtonText: "重新嘗試",
+					title: "系統錯誤",
+					text: `發生非預期錯誤：${toErrorMessage(error)}`,
+					confirmButtonText: "確定",
 				});
 			} finally {
 				setLoading(false);
@@ -885,7 +998,7 @@ export default function BotForm({
 
 	const [media, setMedia] = useState<MediaState>({
 		screenshots: [],
-		banner: null,
+		banner: undefined,
 	});
 	const [uploading] = useState(false);
 	const [loading, setLoading] = useState(false);
@@ -895,7 +1008,6 @@ export default function BotForm({
 	const previewRef = useRef<HTMLDivElement | null>(null);
 	const bannerFileInputRef = useRef<HTMLInputElement | null>(null);
 	const screenshotsFileInputRef = useRef<HTMLInputElement | null>(null);
-	const persistedRef = useRef(persisted);
 
 	const longDescription = useStore(
 		form.store,
@@ -903,33 +1015,49 @@ export default function BotForm({
 	);
 
 	useEffect(() => {
-		persistedRef.current = persisted;
-	}, [persisted]);
+		const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+			// 檢查表單是否被修改過 (isDirty)
+			const isDirty = form.state.isDirty;
+
+			if (isDirty) {
+				// 觸發瀏覽器原生的離開確認對話框
+				event.preventDefault();
+				event.returnValue = "";
+			}
+		};
+
+		window.addEventListener("beforeunload", handleBeforeUnload);
+		return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+	}, [form.state.isDirty]); // 依賴 isDirty 狀態
 
 	useEffect(() => {
 		if (typeof window === "undefined") return;
 
-		const lastValues = {
-			botDescription: persistedRef.current.botDescription,
-			botLongDescription: persistedRef.current.botLongDescription,
-		};
+		let timeoutId: NodeJS.Timeout;
 
+		// 訂閱表單狀態變更
 		const subscription = form.store.subscribe((state) => {
-			const botDescription = state.values.botDescription ?? "";
-			const botLongDescription = state.values.botLongDescription ?? "";
+			// 清除上一次的計時器
+			clearTimeout(timeoutId);
 
-			if (botDescription !== lastValues.botDescription) {
-				window.localStorage.setItem("desc", botDescription);
-				lastValues.botDescription = botDescription;
-			}
-
-			if (botLongDescription !== lastValues.botLongDescription) {
-				window.localStorage.setItem("longdesc", botLongDescription);
-				lastValues.botLongDescription = botLongDescription;
-			}
+			// 設定 500 毫秒的延遲，如果使用者連續打字，就不會頻繁寫入
+			timeoutId = setTimeout(() => {
+				try {
+					// 將整個表單狀態轉為 JSON 字串存入
+					window.localStorage.setItem(
+						"bot_form_backup",
+						JSON.stringify(state.values),
+					);
+				} catch (error) {
+					console.error("寫入表單備份失敗:", error);
+				}
+			}, 500);
 		});
 
-		return () => subscription.unsubscribe();
+		return () => {
+			subscription.unsubscribe();
+			clearTimeout(timeoutId); // 元件卸載時清除計時器
+		};
 	}, [form.store]);
 
 	useEffect(() => {
@@ -1019,13 +1147,25 @@ export default function BotForm({
 			}),
 		[],
 	);
-	const validateTags = useMemo(
-		() =>
-			effectValidator(BotTagsSchema, {
-				fallback: "標籤格式不正確",
-			}),
-		[],
-	);
+	const validateTags = useMemo(() => {
+		// 1. 建立原本的驗證器
+		const baseValidator = effectValidator(BotTagsSchema, {
+			fallback: "格式不正確",
+		});
+
+		// 2. 回傳一個自訂的驗證邏輯，手動攔截陣列長度
+		return (value: readonly string[]) => {
+			if (!value || value.length < 1) {
+				return "請至少新增一個標籤";
+			}
+			if (value.length > 8) {
+				return "最多只能新增 8 個標籤";
+			}
+
+			// 長度沒問題，再丟給原來的 Effect decode 去檢查單一 tag 的 maxLength(24)
+			return (baseValidator as any)(value);
+		};
+	}, []);
 	const validateDevelopers = useMemo(
 		() =>
 			effectValidator(BotDevelopersSchema, {
@@ -1111,7 +1251,7 @@ export default function BotForm({
 			}
 			setMedia((previous) => ({
 				...previous,
-				banner: newItems[0] ?? null,
+				banner: newItems[0] ?? undefined,
 			}));
 		} else {
 			setMedia((previous) => ({
@@ -1160,7 +1300,8 @@ export default function BotForm({
 				),
 			);
 		}
-		setMedia((previous) => ({ ...previous, banner: null }));
+		// 修正：改用 undefined 替代 null
+		setMedia((previous) => ({ ...previous, banner: undefined }));
 	};
 
 	const sanitizedMarkdown = useMemo(
@@ -1488,7 +1629,13 @@ export default function BotForm({
 
 						<form.Field
 							name="tags"
-							validators={{ onChange: ({ value }) => validateTags(value) }}
+							validators={{
+								// 💡 將 validateTags 斷言為可以接收參數的函式
+								onChange: ({ value }) =>
+									(validateTags as (v: typeof value) => string | undefined)(
+										value,
+									),
+							}}
 						>
 							{(field) => <TagField field={field} categories={botCategories} />}
 						</form.Field>
@@ -1636,6 +1783,8 @@ export default function BotForm({
 										botDescription: state.values.botDescription ?? "",
 										botLongDescription: state.values.botLongDescription ?? "",
 										botInvite: state.values.botInvite ?? "",
+										botDevelopers: state.values.developers ?? [],
+										botTags: state.values.tags ?? [],
 									}),
 								})}
 							>

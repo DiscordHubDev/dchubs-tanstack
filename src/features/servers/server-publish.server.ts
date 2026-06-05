@@ -22,20 +22,23 @@ function getDiscordAccessTokenEffect(
 	userId: string,
 ): Effect.Effect<string, Error> {
 	return Effect.gen(function* () {
-		const account = yield* tryEffectPromise(
+		// 優化：改用底層 Select builder 提升效能
+		const rows = yield* tryEffectPromise(
 			"Failed to load Discord account token",
 			() =>
-				db.query.authAccount.findFirst({
-					where: and(
-						eq(authAccount.accountId, userId),
-						eq(authAccount.providerId, "discord"),
-					),
-					columns: {
-						accessToken: true,
-					},
-				}),
+				db
+					.select({ accessToken: authAccount.accessToken })
+					.from(authAccount)
+					.where(
+						and(
+							eq(authAccount.accountId, userId),
+							eq(authAccount.providerId, "discord"),
+						),
+					)
+					.limit(1),
 		);
 
+		const account = rows[0];
 		if (!account?.accessToken) {
 			return yield* Effect.fail(
 				new Error("Discord access token 不存在，請重新登入"),
@@ -54,7 +57,6 @@ function getBotTokenEffect(): Effect.Effect<string, Error> {
 				new Error("Missing DISCORD_BOT_TOKEN environment variable."),
 			);
 		}
-
 		return botToken;
 	});
 }
@@ -81,7 +83,6 @@ function normalizeList(
 	if (!Array.isArray(values)) {
 		return [];
 	}
-
 	return values
 		.map((value) => value.trim())
 		.filter(Boolean)
@@ -94,7 +95,6 @@ function normalizeOptionalString(
 	if (typeof value !== "string") {
 		return null;
 	}
-
 	const normalized = value.trim();
 	return normalized.length > 0 ? normalized : null;
 }
@@ -103,7 +103,6 @@ function buildGuildIconUrl(guild: DiscordGuild): string | null {
 	if (!guild.icon) {
 		return null;
 	}
-
 	return `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png?size=256`;
 }
 
@@ -132,12 +131,7 @@ function getCloudinaryCredentialsEffect(): Effect.Effect<
 			);
 		}
 
-		return {
-			cloudName,
-			apiKey,
-			apiSecret,
-			uploadPreset,
-		};
+		return { cloudName, apiKey, apiSecret, uploadPreset };
 	});
 }
 
@@ -148,28 +142,18 @@ function getServerBannerPublicId(serverId: string): string {
 function getExistingBannerFingerprint(resource: unknown): string | null {
 	const candidate = (
 		resource as {
-			context?: {
-				custom?: {
-					fingerprint?: unknown;
-				};
-			};
+			context?: { custom?: { fingerprint?: unknown } };
 		}
 	)?.context?.custom?.fingerprint;
 
-	if (typeof candidate !== "string") {
-		return null;
-	}
-
+	if (typeof candidate !== "string") return null;
 	const normalized = candidate.trim().toLowerCase();
 	return normalized.length > 0 ? normalized : null;
 }
 
 function getExistingBannerUrl(resource: unknown): string | null {
 	const secureUrl = (resource as { secure_url?: unknown })?.secure_url;
-	if (typeof secureUrl !== "string") {
-		return null;
-	}
-
+	if (typeof secureUrl !== "string") return null;
 	const normalized = secureUrl.trim();
 	return normalized.length > 0 ? normalized : null;
 }
@@ -181,10 +165,7 @@ function getCloudinaryErrorDetails(error: unknown): {
 	const topLevel = error as {
 		http_code?: unknown;
 		message?: unknown;
-		error?: {
-			http_code?: unknown;
-			message?: unknown;
-		};
+		error?: { http_code?: unknown; message?: unknown };
 	};
 
 	const nestedError = topLevel?.error;
@@ -203,38 +184,23 @@ function getCloudinaryErrorDetails(error: unknown): {
 				: null;
 
 	if (messageCandidate) {
-		return {
-			httpCode: httpCodeCandidate,
-			message: messageCandidate,
-		};
+		return { httpCode: httpCodeCandidate, message: messageCandidate };
 	}
 
 	if (error instanceof Error && error.message) {
-		return {
-			httpCode: httpCodeCandidate,
-			message: error.message,
-		};
+		return { httpCode: httpCodeCandidate, message: error.message };
 	}
 
 	try {
-		return {
-			httpCode: httpCodeCandidate,
-			message: JSON.stringify(error),
-		};
+		return { httpCode: httpCodeCandidate, message: JSON.stringify(error) };
 	} catch {
-		return {
-			httpCode: httpCodeCandidate,
-			message: String(error),
-		};
+		return { httpCode: httpCodeCandidate, message: String(error) };
 	}
 }
 
 function isCloudinaryNotFoundError(error: unknown): boolean {
 	const details = getCloudinaryErrorDetails(error);
-	if (details.httpCode === 404) {
-		return true;
-	}
-
+	if (details.httpCode === 404) return true;
 	return details.message.toLowerCase().includes("not found");
 }
 
@@ -242,20 +208,24 @@ function getAccessibleGuildEffect(
 	serverId: string,
 ): Effect.Effect<{ userId: string; guild: DiscordGuild }, Error> {
 	return Effect.gen(function* () {
-		const userId = yield* getSessionUserIdEffect(); // 記得底層要加 React.cache
+		const userId = yield* getSessionUserIdEffect();
 		const userAccessToken = yield* getDiscordAccessTokenEffect(userId);
+		const botToken = yield* getBotTokenEffect();
 
-		// 1. 只抓取「使用者」的伺服器列表 (通常數量少，且必須抓來驗證管理員權限)
-		const userGuilds = yield* tryEffectPromise(
-			"Failed to fetch user guilds",
-			() =>
-				fetchDiscordGuilds({
-					token: userAccessToken,
-					tokenType: "Bearer",
-				}),
+		// 🚀 優化：平行發送 Discord API 請求 (獲取使用者公會清單 & 檢查 Bot 是否在公會內)
+		const [userGuilds, isBotInGuild] = yield* Effect.all(
+			[
+				tryEffectPromise("Failed to fetch user guilds", () =>
+					fetchDiscordGuilds({
+						token: userAccessToken,
+						tokenType: "Bearer",
+					}),
+				),
+				checkBotInGuildEffect(serverId, botToken),
+			],
+			{ concurrency: "unbounded" },
 		);
 
-		// 2. 先確認使用者有沒有這個伺服器
 		const guild = userGuilds.find((item) => item.id === serverId);
 		if (!guild) {
 			return yield* Effect.fail(new Error("你在 Discord 中沒有找到這個伺服器"));
@@ -264,11 +234,6 @@ function getAccessibleGuildEffect(
 		if (!hasGuildManagePermission(guild)) {
 			return yield* Effect.fail(new Error("你需要該伺服器的管理權限才能發布"));
 		}
-
-		// 3. 【優化核心】單點確認機器人是否在該伺服器
-		// 不要 fetchDiscordGuilds 抓全部，直接寫一個 Effect 去單查指定的 Server
-		const botToken = yield* getBotTokenEffect();
-		const isBotInGuild = yield* checkBotInGuildEffect(serverId, botToken);
 
 		if (!isBotInGuild) {
 			return yield* Effect.fail(new Error("機器人尚未加入該伺服器"));
@@ -281,14 +246,14 @@ function getAccessibleGuildEffect(
 function checkBotInGuildEffect(serverId: string, botToken: string) {
 	return Effect.tryPromise({
 		try: async () => {
+			// 🚀 優化：加入 with_counts=false 減少不必要的 payload 傳輸
 			const res = await fetch(
-				`https://discord.com/api/v10/guilds/${serverId}`,
+				`https://discord.com/api/v10/guilds/${serverId}?with_counts=false`,
 				{
 					method: "GET",
 					headers: { Authorization: `Bot ${botToken}` },
 				},
 			);
-			// 只要不是 401/403/404，通常就代表機器人看得到這個伺服器
 			return res.ok;
 		},
 		catch: () => new Error("無法驗證機器人狀態"),
@@ -305,7 +270,6 @@ export async function enforceServerOwner(serverId: string, userId: string) {
 function enforceServerOwnerEffect(serverId: string, userId: string) {
 	return Effect.tryPromise({
 		try: () => enforceServerOwner(serverId, userId),
-		// 將原本拋出的 Error 傳遞給 Effect 的錯誤通道
 		catch: (error) =>
 			error instanceof Error ? error : new Error(String(error)),
 	});
@@ -316,59 +280,59 @@ export function getServerPublishBundleEffect(
 	serverId: string,
 ): Effect.Effect<ServerPublishBundle, Error> {
 	return Effect.gen(function* () {
-		// 1. 執行權限與 Guild 檢查
-		const { guild } = yield* enforceServerOwnerEffect(serverId, userId).pipe(
-			Effect.andThen(() => getAccessibleGuildEffect(serverId)),
-
-			// 🎯 關鍵修正點：當任何一個權限檢查失敗時
-			Effect.catchAll((originalError) =>
-				tryEffectPromise(
-					"Failed to remove user from serverAdmins relation",
-					async () => {
-						if (userId) {
-							await db
-								.delete(serverAdmins)
-								.where(
-									and(eq(serverAdmins.a, serverId), eq(serverAdmins.b, userId)),
-								);
-							console.log(`[自動清理] 已成功移除不合規管理員: ${userId}`);
-						}
-					},
-				).pipe(
-					// 💡 移除關聯後，絕對不要忽略錯誤！
-					// 我們使用 andThen 強制讓這個錯誤通道「回歸」成原本的 Forbidden 錯誤
-					Effect.andThen(() => Effect.fail(originalError)),
-					// 如果移除關聯的 DB 操作本身失敗了，也一樣維持拋出原本的權限錯誤
-					Effect.catchAll(() => Effect.fail(originalError)),
+		// 🚀 優化：將「權限驗證及外部 API 抓取」和「資料庫查詢」平行執行
+		const [accessResult, rows] = yield* Effect.all(
+			[
+				enforceServerOwnerEffect(serverId, userId).pipe(
+					Effect.andThen(() => getAccessibleGuildEffect(serverId)),
+					Effect.catchAll((originalError) =>
+						tryEffectPromise(
+							"Failed to remove user from serverAdmins relation",
+							async () => {
+								if (userId) {
+									await db
+										.delete(serverAdmins)
+										.where(
+											and(
+												eq(serverAdmins.a, serverId),
+												eq(serverAdmins.b, userId),
+											),
+										);
+									console.log(`[自動清理] 已成功移除不合規管理員: ${userId}`);
+								}
+							},
+						).pipe(
+							Effect.andThen(() => Effect.fail(originalError)),
+							Effect.catchAll(() => Effect.fail(originalError)),
+						),
+					),
 				),
-			),
+				tryEffectPromise("Failed to fetch published server", () =>
+					db
+						.select({
+							id: server.id,
+							name: server.name,
+							description: server.description,
+							longDescription: server.longDescription,
+							inviteUrl: server.inviteUrl,
+							website: server.website,
+							tags: server.tags,
+							rules: server.rules,
+							secret: server.secret,
+							voteNotificationUrl: server.voteNotificationUrl,
+							icon: server.icon,
+							banner: server.banner,
+							nsfw: server.nsfw,
+						})
+						.from(server)
+						.where(eq(server.id, serverId))
+						.limit(1),
+				),
+			],
+			{ concurrency: "unbounded" },
 		);
 
-		// 2. 獲取資料庫中的發布資料
-		const rows = yield* tryEffectPromise(
-			"Failed to fetch published server",
-			() =>
-				db
-					.select({
-						id: server.id,
-						name: server.name,
-						description: server.description,
-						longDescription: server.longDescription,
-						inviteUrl: server.inviteUrl,
-						website: server.website,
-						tags: server.tags,
-						rules: server.rules,
-						secret: server.secret,
-						voteNotificationUrl: server.voteNotificationUrl,
-						icon: server.icon,
-						banner: server.banner,
-						nsfw: server.nsfw,
-					})
-					.from(server)
-					.where(eq(server.id, serverId))
-					.limit(1),
-		);
-
+		const { guild } = accessResult;
 		const current = rows[0];
 		const guildIconUrl = buildGuildIconUrl(guild);
 
@@ -418,27 +382,34 @@ function upsertServerPublishEffect(
 			normalizeOptionalString(input.iconUrl) ?? buildGuildIconUrl(guild);
 		const bannerUrl = normalizeOptionalString(input.bannerUrl);
 
-		const existingRows = yield* tryEffectPromise(
-			"Failed to inspect existing server",
-			() =>
-				db
-					.select({
-						id: server.id,
-						ownerId: server.ownerId,
-					})
-					.from(server)
-					.where(eq(server.id, input.serverId))
-					.limit(1),
-		);
-
-		const existing = existingRows[0];
-
-		if (existing) {
-			yield* tryEffectPromise("Failed to upsert server publish data", () =>
-				db
-					.insert(server)
-					.values({
-						id: input.serverId,
+		// 🚀 優化：利用 onConflictDoUpdate 原生支援 Upsert 特性，直接移除冗餘的 SELECT 前置檢查
+		yield* tryEffectPromise("Failed to upsert server publish data", () =>
+			db
+				.insert(server)
+				.values({
+					id: input.serverId,
+					name: guild.name,
+					description: shortDescription,
+					longDescription,
+					inviteUrl: inviteLink,
+					website,
+					rules,
+					tags,
+					secret,
+					voteNotificationUrl: webhookUrl,
+					icon: iconUrl,
+					banner: bannerUrl,
+					ownerId: userId,
+					members: 0,
+					online: 0,
+					upvotes: 0,
+					features: [],
+					screenshots: [],
+					nsfw: input.form.nsfw,
+				})
+				.onConflictDoUpdate({
+					target: server.id,
+					set: {
 						name: guild.name,
 						description: shortDescription,
 						longDescription,
@@ -450,67 +421,14 @@ function upsertServerPublishEffect(
 						voteNotificationUrl: webhookUrl,
 						icon: iconUrl,
 						banner: bannerUrl,
-						ownerId: userId,
-						members: 0,
-						online: 0,
-						upvotes: 0,
-						features: [],
-						screenshots: [],
 						nsfw: input.form.nsfw,
-					})
-					.onConflictDoUpdate({
-						target: server.id,
-						set: {
-							name: guild.name,
-							description: shortDescription,
-							longDescription,
-							inviteUrl: inviteLink,
-							website,
-							rules,
-							tags,
-							secret,
-							voteNotificationUrl: webhookUrl,
-							icon: iconUrl,
-							banner: bannerUrl,
-							nsfw: input.form.nsfw,
-						},
-					}),
-			);
-
-			return {
-				success: true,
-				message: "伺服器資料已更新",
-				serverId: input.serverId,
-			};
-		}
-
-		yield* tryEffectPromise("Failed to publish server", () =>
-			db.insert(server).values({
-				id: input.serverId,
-				name: guild.name,
-				description: shortDescription,
-				longDescription,
-				members: 0,
-				online: 0,
-				upvotes: 0,
-				icon: iconUrl,
-				banner: bannerUrl,
-				ownerId: userId,
-				website,
-				inviteUrl: inviteLink,
-				rules,
-				features: [],
-				tags,
-				screenshots: [],
-				voteNotificationUrl: webhookUrl,
-				secret,
-				nsfw: input.form.nsfw,
-			}),
+					},
+				}),
 		);
 
 		return {
 			success: true,
-			message: "伺服器已成功發布",
+			message: "伺服器已成功發布 / 更新",
 			serverId: input.serverId,
 		};
 	});
@@ -546,16 +464,12 @@ function uploadServerBannerEffect(
 				if (isCloudinaryNotFoundError(error)) {
 					return null;
 				}
-
 				const details = getCloudinaryErrorDetails(error);
 				throw new Error(
 					`Failed to inspect existing Cloudinary banner: ${details.message}`,
 				);
 			},
-		}).pipe(
-			// 即使 inspect 失敗也不中斷，改由 upload 流程繼續執行。
-			Effect.catchAll(() => Effect.succeed(null)),
-		);
+		}).pipe(Effect.catchAll(() => Effect.succeed(null)));
 
 		const existingFingerprint = getExistingBannerFingerprint(existingResource);
 		const existingBannerUrl = getExistingBannerUrl(existingResource);
@@ -611,16 +525,11 @@ function uploadServerBannerEffect(
 	});
 }
 
-// 假設這是你原本獲取 Discord/外部 API 的函式
-// 它應該要回傳一個 Effect，或者用 Effect.tryPromise 包裹
 const checkIsOwnerFromApiEffect = (serverId: string, userId: string) =>
 	Effect.gen(function* () {
 		yield* Effect.logInfo("➡️ 資料庫查無資料，改用 API 線上比對中...");
 
-		// 直接 yield* 其他 Effect，保留完整的執行鏈與錯誤追蹤
 		const userAccessToken = yield* getDiscordAccessTokenEffect(userId);
-
-		// 把原生的 Promise 呼叫包進 Effect.tryPromise
 		const guilds = yield* Effect.tryPromise({
 			try: () =>
 				fetchDiscordGuilds({
@@ -636,18 +545,19 @@ const checkIsOwnerFromApiEffect = (serverId: string, userId: string) =>
 
 const checkIsServerOwnerEffect = (serverId: string, userId: string) =>
 	Effect.gen(function* () {
-		// 1. 資料庫只單純查詢這個伺服器是否存在，並把真正的 ownerId 拿出來
-		const serverResult = yield* Effect.tryPromise({
+		// 🚀 優化：改用底層 Select 以輕量化查詢
+		const rows = yield* Effect.tryPromise({
 			try: () =>
-				db.query.server.findFirst({
-					where: eq(server.id, serverId), // 只比對 serverId
-					columns: { ownerId: true }, // 撈出 ownerId 來做比對
-				}),
+				db
+					.select({ ownerId: server.ownerId })
+					.from(server)
+					.where(eq(server.id, serverId))
+					.limit(1),
 			catch: (error) => new Error(`資料庫查詢失敗: ${error}`),
 		});
 
-		if (serverResult) {
-			return serverResult.ownerId === userId;
+		if (rows.length > 0) {
+			return rows[0].ownerId === userId;
 		}
 
 		return yield* checkIsOwnerFromApiEffect(serverId, userId);

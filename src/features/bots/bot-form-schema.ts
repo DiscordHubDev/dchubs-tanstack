@@ -30,7 +30,10 @@ export const BotCommandSchema = Schema.Struct({
 export const BotCommandsSchema = Schema.Array(BotCommandSchema);
 
 export const BotTagSchema = NonEmptyString.pipe(Schema.maxLength(24));
-export const BotTagsSchema = Schema.Array(BotTagSchema);
+export const BotTagsSchema = Schema.Array(BotTagSchema).pipe(
+	Schema.minItems(1, { message: () => "請至少新增一個標籤" }),
+	Schema.maxItems(8, { message: () => "最多只能新增 8 個標籤" }),
+);
 
 export const BotSecretSchema = Schema.optional(Schema.String);
 export const BotWebhookUrlSchema = Schema.optional(Schema.String);

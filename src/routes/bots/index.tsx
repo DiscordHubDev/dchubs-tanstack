@@ -31,7 +31,6 @@ const LazyBotsAddCta = lazy(
 import { motion } from "framer-motion";
 import { Input } from "#/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "#/components/ui/tabs";
-import type { BotDetail } from "#/features/bots/bot-detail.types";
 import {
 	botFilterBundleQueryOptions,
 	botsListQueryOptions,
@@ -130,7 +129,7 @@ export const Route = createFileRoute("/bots/")({
 		if (!loaderData) {
 			return {
 				meta: [
-					{ title: "發現最棒的 Discord 機器人 | DiscordHub" },
+					{ title: "熱門機器人 | DiscordHub" },
 					{
 						name: "description",
 						content:
@@ -144,9 +143,8 @@ export const Route = createFileRoute("/bots/")({
 		const categoryLabel =
 			BOT_CATEGORY_CONFIG.find((c) => c.id === category)?.label ??
 			"Discord 機器人";
-		const pageText = page > 1 ? ` - 第 ${page} 頁` : "";
 
-		const title = `發現最棒的${categoryLabel}${pageText} | DiscordHub`;
+		const title = `發現最棒的${categoryLabel} | DiscordHub`;
 		const description = `在 DiscordHub 探索數百個功能豐富的${categoryLabel}機器人，為您的伺服器增添更多功能和樂趣。尋找最適合您的社群工具。`;
 
 		// 使用 rawTab 與 page 組裝網址

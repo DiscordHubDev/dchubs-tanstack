@@ -18,6 +18,10 @@ export const ServerListInputSchema = Schema.Struct({
 	limit: PositiveIntLikeSchema.pipe(Schema.lessThanOrEqualTo(50)),
 });
 
+export const DeleteServerInputSchema = Schema.Struct({
+	serverId: Schema.String,
+});
+
 export const HomeSearchSchema = Schema.Struct({
 	tab: Schema.optional(ServerCategorySchema),
 	page: Schema.optional(PositiveIntLikeSchema),

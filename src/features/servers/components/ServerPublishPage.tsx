@@ -18,6 +18,7 @@ import { Textarea } from "#/components/ui/textarea";
 import { runEffect, tryEffectPromise } from "#/lib/effect-utils";
 import { showErrorAlert } from "#/lib/error-alert";
 import { queryKeys } from "#/lib/query-keys";
+import type { CategoryType } from "#/lib/types";
 import {
 	uploadServerBannerFn,
 	upsertServerPublishFn,
@@ -42,20 +43,36 @@ import { effectValidator } from "../server-publish.validators";
 import { RulesField } from "./RulesField";
 import { ServerTagField } from "./ServerTagField";
 
+const ServerCategories: CategoryType[] = [
+	{ id: "1", name: "遊戲", color: "bg-green-600" },
+	{ id: "2", name: "實況主", color: "bg-purple-600" },
+	{ id: "3", name: "粉絲社群", color: "bg-pink-500" },
+	{ id: "4", name: "繪師", color: "bg-yellow-500" },
+	{ id: "5", name: "VTuber", color: "bg-red-500" },
+	{ id: "6", name: "音樂", color: "bg-indigo-500" },
+	{ id: "7", name: "交友", color: "bg-blue-500" },
+	{ id: "8", name: "動畫", color: "bg-pink-600" },
+	{ id: "9", name: "程式設計", color: "bg-cyan-600" },
+	{ id: "10", name: "標籤群", color: "bg-orange-600" },
+	{ id: "11", name: "教育", color: "bg-teal-500" },
+	{ id: "12", name: "日常", color: "bg-sky-500" },
+	{ id: "13", name: "心情樹洞", color: "bg-rose-500" },
+	{ id: "14", name: "攝影", color: "bg-amber-600" },
+	{ id: "15", name: "語言學習", color: "bg-lime-500" },
+	{ id: "16", name: "美食", color: "bg-emerald-500" },
+	{ id: "17", name: "電影", color: "bg-red-600" },
+	{ id: "18", name: "理財", color: "bg-gray-600" },
+	{ id: "19", name: "創作者合作", color: "bg-fuchsia-600" },
+	{ id: "20", name: "社群經營", color: "bg-zinc-500" },
+	{ id: "21", name: "支援群組", color: "bg-teal-500" },
+	{ id: "22", name: "Vtuber", color: "bg-teal-500" }, // 修正了原本重複的 id: "21"
+];
+
 function readFirstError(errors: unknown[] | undefined): string | null {
-	if (!Array.isArray(errors) || errors.length === 0) {
-		return null;
-	}
-
+	if (!Array.isArray(errors) || errors.length === 0) return null;
 	const first = errors[0];
-	if (typeof first === "string") {
-		return first;
-	}
-
-	if (first instanceof Error) {
-		return first.message;
-	}
-
+	if (typeof first === "string") return first;
+	if (first instanceof Error) return first.message;
 	return String(first);
 }
 
@@ -88,68 +105,43 @@ function resolveSupportedBannerMimeType(
 	) {
 		return mimeType as SupportedBannerMimeType;
 	}
-
 	const fileName = file.name.toLowerCase();
-	if (fileName.endsWith(".gif")) {
-		return "image/gif";
-	}
-
-	if (fileName.endsWith(".png")) {
-		return "image/png";
-	}
-
-	if (fileName.endsWith(".jpg") || fileName.endsWith(".jpeg")) {
+	if (fileName.endsWith(".gif")) return "image/gif";
+	if (fileName.endsWith(".png")) return "image/png";
+	if (fileName.endsWith(".jpg") || fileName.endsWith(".jpeg"))
 		return "image/jpeg";
-	}
-
-	if (fileName.endsWith(".webp")) {
-		return "image/webp";
-	}
-
+	if (fileName.endsWith(".webp")) return "image/webp";
 	return null;
 }
 
 function readFileAsDataUrl(file: File): Promise<string> {
 	return new Promise((resolve, reject) => {
 		const reader = new FileReader();
-
-		reader.onerror = () => {
-			reject(new Error("無法讀取選取的圖片檔案"));
-		};
-
+		reader.onerror = () => reject(new Error("無法讀取選取的圖片檔案"));
 		reader.onload = () => {
 			const result = reader.result;
 			if (typeof result !== "string") {
 				reject(new Error("無法解析選取的圖片檔案"));
 				return;
 			}
-
 			resolve(result);
 		};
-
 		reader.readAsDataURL(file);
 	});
 }
 
 async function buildFileFingerprint(file: File): Promise<string> {
 	const subtle = globalThis.crypto?.subtle;
-	if (!subtle) {
-		throw new Error("目前瀏覽器不支援檔案雜湊，請更新後重試");
-	}
-
+	if (!subtle) throw new Error("目前瀏覽器不支援檔案雜湊，請更新後重試");
 	const buffer = await file.arrayBuffer();
 	const digest = await subtle.digest("SHA-256", buffer);
-
 	return Array.from(new Uint8Array(digest), (value) =>
 		value.toString(16).padStart(2, "0"),
 	).join("");
 }
 
 function getErrorMessage(error: unknown): string {
-	if (error instanceof Error) {
-		return error.message;
-	}
-
+	if (error instanceof Error) return error.message;
 	return "儲存時發生未預期錯誤";
 }
 
@@ -157,11 +149,14 @@ function hasRequiredPublishFields(values: {
 	shortDescription: string;
 	longDescription: string;
 	inviteLink: string;
+	tags: readonly string[];
 }): boolean {
 	return (
 		values.shortDescription.trim().length > 0 &&
 		values.longDescription.trim().length > 0 &&
-		values.inviteLink.trim().length > 0
+		values.inviteLink.trim().length > 0 &&
+		Array.isArray(values.tags) &&
+		values.tags.length > 0
 	);
 }
 
@@ -177,7 +172,7 @@ export function ServerPublishPage({ serverId }: ServerPublishPageProps) {
 	);
 
 	const [iconPreviewUrl, setIconPreviewUrl] = useState(bundle.iconUrl ?? "");
-	const [bannerPreviewUrl, setBannerPreviewUrl] = useState(
+	const [bannerPreviewUrl, setBannerPreviewUrl] = useState<string>(
 		bundle.bannerUrl ?? "",
 	);
 	const [bannerFingerprint, setBannerFingerprint] = useState<string | null>(
@@ -194,12 +189,12 @@ export function ServerPublishPage({ serverId }: ServerPublishPageProps) {
 	const [bannerFile, setBannerFile] = useState<File | null>(null);
 	const [localPreviewUrl, setLocalPreviewUrl] = useState<string | null>(null);
 
-	// 新增：當元件卸載或更換預覽網址時，釋放 Object URL 記憶體
+	// 定義 localStorage 的鍵值，確保不同伺服器的草稿不會互相污染
+	const DRAFT_KEY = `server-publish-draft-${serverId}`;
+
 	useEffect(() => {
 		return () => {
-			if (localPreviewUrl) {
-				URL.revokeObjectURL(localPreviewUrl);
-			}
+			if (localPreviewUrl) URL.revokeObjectURL(localPreviewUrl);
 		};
 	}, [localPreviewUrl]);
 
@@ -263,10 +258,7 @@ export function ServerPublishPage({ serverId }: ServerPublishPageProps) {
 		[],
 	);
 	const validateRules = useMemo(
-		() =>
-			effectValidator(RulesSchema, {
-				fallback: "規則內容格式不正確",
-			}),
+		() => effectValidator(RulesSchema, { fallback: "規則內容格式不正確" }),
 		[],
 	);
 	const validateRule = useMemo(
@@ -287,10 +279,7 @@ export function ServerPublishPage({ serverId }: ServerPublishPageProps) {
 		[],
 	);
 	const validateTags = useMemo(
-		() =>
-			effectValidator(TagsSchema, {
-				fallback: "標籤格式不正確",
-			}),
+		() => effectValidator(TagsSchema, { fallback: "標籤格式不正確" }),
 		[],
 	);
 	const validateTag = useMemo(
@@ -341,20 +330,20 @@ export function ServerPublishPage({ serverId }: ServerPublishPageProps) {
 					if (!oldData) return oldData;
 					return {
 						...oldData,
-						name: payload.form.serverName, // 對應 serverName
-						description: payload.form.shortDescription, // 對應 shortDescription
-						longDescription: payload.form.longDescription, // 對應 longDescription
-						inviteUrl: payload.form.inviteLink, // 對應 inviteLink
-						website: payload.form.websiteLink, // 對應 websiteLink
-						rules: payload.form.rules, // 對應 rules
-						tags: payload.form.tags, // 對應 tags
-						secret: payload.form.secret, // 對應 secret
-						voteNotificationUrl: payload.form.webhook_url, // 對應 webhook_url
-						nsfw: payload.form.nsfw, // 對應 nsfw
+						name: payload.form.serverName,
+						description: payload.form.shortDescription,
+						longDescription: payload.form.longDescription,
+						inviteUrl: payload.form.inviteLink,
+						website: payload.form.websiteLink,
+						rules: payload.form.rules,
+						tags: payload.form.tags,
+						secret: payload.form.secret,
+						voteNotificationUrl: payload.form.webhook_url,
+						nsfw: payload.form.nsfw,
 					};
 				},
 			);
-			await Promise.all([
+			Promise.all([
 				queryClient.invalidateQueries({
 					queryKey: queryKeys.servers.publish(serverId),
 				}),
@@ -370,10 +359,7 @@ export function ServerPublishPage({ serverId }: ServerPublishPageProps) {
 				confirmButtonText: "前往伺服器頁面",
 			});
 
-			void navigate({
-				to: "/servers/$serverId",
-				params: { serverId },
-			});
+			void navigate({ to: "/servers/$serverId", params: { serverId } });
 		},
 		onError: (error) => {
 			showErrorAlert(getErrorMessage(error), "儲存失敗");
@@ -383,17 +369,11 @@ export function ServerPublishPage({ serverId }: ServerPublishPageProps) {
 	const bannerUploadMutation = useMutation({
 		mutationFn: async (file: File) => {
 			const mimeType = resolveSupportedBannerMimeType(file);
-			if (!mimeType) {
+			if (!mimeType)
 				throw new Error("請選擇 GIF、PNG、JPG、JPEG 或 WEBP 圖片檔案");
-			}
-
-			if (file.size <= 0) {
-				throw new Error("選擇的檔案內容為空，請重新選擇");
-			}
-
-			if (file.size > MAX_BANNER_IMAGE_BYTES) {
+			if (file.size <= 0) throw new Error("選擇的檔案內容為空，請重新選擇");
+			if (file.size > MAX_BANNER_IMAGE_BYTES)
 				throw new Error("圖片檔案大小不可超過 10MB");
-			}
 
 			const fingerprint = await buildFileFingerprint(file);
 
@@ -443,22 +423,40 @@ export function ServerPublishPage({ serverId }: ServerPublishPageProps) {
 		},
 	});
 
-	const form = useForm({
-		defaultValues: {
+	// 【功能 1】：初始化時合併資料庫 bundle 與 localStorage 的草稿
+	const defaultFormValues = useMemo(() => {
+		const baseValues = {
 			...bundle.formValues,
 			nsfw: bundle.formValues?.nsfw ?? false,
-		},
+		};
+
+		if (typeof window !== "undefined") {
+			try {
+				const draftStr = localStorage.getItem(DRAFT_KEY);
+				if (draftStr) {
+					const draftParsed = JSON.parse(draftStr);
+					// 覆蓋原本的資料
+					return { ...baseValues, ...draftParsed };
+				}
+			} catch (err) {
+				console.error("無法載入本地草稿:", err);
+			}
+		}
+
+		return baseValues;
+	}, [bundle.formValues, DRAFT_KEY]);
+
+	const form = useForm({
+		defaultValues: defaultFormValues,
 		validators: {
 			onSubmit: ({ value }) => validateForm(value),
 		},
 		onSubmit: async ({ value }) => {
 			let finalBannerUrl = normalizeExternalUrl(bannerPreviewUrl);
 
-			// 如果有選取新圖片，先執行圖片上傳
 			if (bannerFile) {
 				try {
 					const result = await bannerUploadMutation.mutateAsync(bannerFile);
-					// 上傳成功後，使用後端回傳的圖片網址
 					finalBannerUrl = normalizeExternalUrl(result.bannerUrl);
 				} catch (error) {
 					console.error("Banner 圖片上傳失敗，已取消發布流程:", error);
@@ -466,41 +464,87 @@ export function ServerPublishPage({ serverId }: ServerPublishPageProps) {
 				}
 			}
 
-			// 執行原始的表單儲存
 			await saveMutation.mutateAsync({
 				serverId,
 				iconUrl: normalizeExternalUrl(iconPreviewUrl),
 				bannerUrl: finalBannerUrl,
 				form: value,
 			});
+
+			// 送出成功後，清除快取的草稿
+			if (typeof window !== "undefined") {
+				localStorage.removeItem(DRAFT_KEY);
+			}
 		},
 	});
+
+	// 取出表單目前狀態，用於判斷是否需要警告或儲存
+	const currentFormValues = useStore(form.store, (state) => state.values);
+	const isFormDirty = useStore(form.store, (state) => state.isDirty);
+
+	// 【功能 1.2】：表單有變動且為 dirty 狀態時，自動寫入 localStorage
+	useEffect(() => {
+		if (isFormDirty && typeof window !== "undefined") {
+			localStorage.setItem(DRAFT_KEY, JSON.stringify(currentFormValues));
+		}
+	}, [currentFormValues, isFormDirty, DRAFT_KEY]);
+
+	// 【功能 2】：防止瀏覽器意外重整、關閉分頁
+	useEffect(() => {
+		const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+			if (isFormDirty) {
+				e.preventDefault();
+				// 賦值給 returnValue 才能觸發標準瀏覽器提示框
+				e.returnValue = "您有未儲存的變更，確定要離開嗎？";
+			}
+		};
+
+		window.addEventListener("beforeunload", handleBeforeUnload);
+		return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+	}, [isFormDirty]);
+
+	// 【加碼】：處理內部 Router 的返回行為
+	const handleGoBack = () => {
+		if (isFormDirty) {
+			const confirmLeave = window.confirm(
+				"您有未儲存的內容，確定要放棄草稿並離開嗎？",
+			);
+			if (!confirmLeave) return; // 使用者按取消則停留在原地
+		}
+
+		void navigate({
+			to: "/servers/$serverId",
+			params: { serverId },
+		});
+	};
+
+	useEffect(() => {
+		// 當組件卸載時，如果當前是 blob 網址，就釋放它
+		return () => {
+			if (bannerPreviewUrl && bannerPreviewUrl.startsWith("blob:")) {
+				URL.revokeObjectURL(bannerPreviewUrl);
+			}
+		};
+	}, [bannerPreviewUrl]);
 
 	const longDescriptionValue = useStore(
 		form.store,
 		(state) => state.values.longDescription,
 	);
-
 	const sanitizedMarkdown = useMemo(
 		() => longDescriptionValue || "詳細描述預覽 (支援Markdown)",
 		[longDescriptionValue],
 	);
 
 	const handleScroll = () => {
-		if (!textareaRef.current || !previewRef.current) {
-			return;
-		}
-
+		if (!textareaRef.current || !previewRef.current) return;
 		previewRef.current.scrollTop = textareaRef.current.scrollTop;
 	};
 
 	const handleBannerFileChange = (event: ChangeEvent<HTMLInputElement>) => {
 		const file = event.target.files?.[0];
-		if (!file) {
-			return;
-		}
+		if (!file) return;
 
-		// 基本驗證
 		const mimeType = resolveSupportedBannerMimeType(file);
 		if (!mimeType) {
 			showErrorAlert("請選擇 GIF、PNG、JPG、JPEG 或 WEBP 圖片檔案", "格式錯誤");
@@ -520,25 +564,24 @@ export function ServerPublishPage({ serverId }: ServerPublishPageProps) {
 			return;
 		}
 
-		// 釋放前一次的本機預覽網址記憶體
-		if (localPreviewUrl) {
-			URL.revokeObjectURL(localPreviewUrl);
+		// --- 修正部分 ---
+		// 先前產生的舊 blob URL 可以先不用急著手動 revoke，或是只在確認它是 blob 時才釋放
+		if (bannerPreviewUrl && bannerPreviewUrl.startsWith("blob:")) {
+			URL.revokeObjectURL(bannerPreviewUrl);
 		}
 
-		// 建立新的 Object URL 作為預覽
 		const newPreviewUrl = URL.createObjectURL(file);
-		setLocalPreviewUrl(newPreviewUrl);
+
+		// 統一更新這個狀態即可
 		setBannerPreviewUrl(newPreviewUrl);
-		setBannerFile(file); // 儲存檔案以供提交時上傳
+		setBannerFile(file);
 
 		setBannerUploadStatus("已選擇新圖片，將於儲存時上傳");
 		setBannerUploadError(null);
-
-		event.target.value = ""; // 清空 input 以允許重複選取相同檔案
+		event.target.value = "";
 	};
 
 	const isBannerUploading = bannerUploadMutation.isPending;
-
 	const isUploading = isIconUploading || isBannerUploading;
 
 	return (
@@ -552,12 +595,7 @@ export function ServerPublishPage({ serverId }: ServerPublishPageProps) {
 					</div>
 					<Button
 						type="button"
-						onClick={() =>
-							void navigate({
-								to: "/servers/$serverId",
-								params: { serverId },
-							})
-						}
+						onClick={handleGoBack}
 						className="bg-discord text-white hover:bg-discord-hover"
 					>
 						返回伺服器頁
@@ -572,6 +610,7 @@ export function ServerPublishPage({ serverId }: ServerPublishPageProps) {
 					}}
 					className="grid gap-6 lg:grid-cols-2"
 				>
+					{/* ... 後續的表單 JSX 不需要變更 ... */}
 					<div className="space-y-6 rounded-xl border border-white/10 bg-[#2b2d31] p-5">
 						<h2 className="border-b border-white/10 pb-2 font-bold text-lg">
 							基本資訊
@@ -689,7 +728,6 @@ export function ServerPublishPage({ serverId }: ServerPublishPageProps) {
 											}}
 										/>
 										<div className="space-y-1 leading-none">
-											{/* 新加入的警告元件 */}
 											<div className="space-y-1 leading-none">
 												<Label htmlFor="nsfw" className="cursor-pointer">
 													NSFW 伺服器
@@ -697,8 +735,6 @@ export function ServerPublishPage({ serverId }: ServerPublishPageProps) {
 												<p className="text-sm text-muted-foreground">
 													如果你的伺服器包含成人或敏感內容，請勾選此項。
 												</p>
-
-												{/* 警告元件：套用黃色樣式與 text-xs text-yellow-700 */}
 												<div className="max-w-sm rounded-md border border-yellow-400 bg-yellow-100 px-3 py-2 text-xs text-yellow-700 mt-2 flex gap-2 items-start">
 													<div className="relative z-20 cursor-pointer text-yellow-600 hover:text-yellow-500">
 														<AlertTriangle className="h-5 w-5" />
@@ -713,14 +749,12 @@ export function ServerPublishPage({ serverId }: ServerPublishPageProps) {
 														</p>
 													</div>
 												</div>
-
 												{errorMessage ? (
 													<p className="text-sm text-[#ed4245] mt-1">
 														{errorMessage}
 													</p>
 												) : null}
 											</div>
-
 											{errorMessage ? (
 												<p className="text-sm text-[#ed4245] mt-1">
 													{errorMessage}
@@ -795,17 +829,11 @@ export function ServerPublishPage({ serverId }: ServerPublishPageProps) {
 							validators={{
 								onChange: ({ value }) => {
 									const listError = validateRules(value);
-									if (listError) {
-										return listError;
-									}
-
+									if (listError) return listError;
 									for (const rule of value) {
 										const ruleError = validateRule(rule);
-										if (ruleError) {
-											return ruleError;
-										}
+										if (ruleError) return ruleError;
 									}
-
 									return undefined;
 								},
 							}}
@@ -818,22 +846,18 @@ export function ServerPublishPage({ serverId }: ServerPublishPageProps) {
 							validators={{
 								onChange: ({ value }) => {
 									const listError = validateTags(value);
-									if (listError) {
-										return listError;
-									}
-
+									if (listError) return listError;
 									for (const tag of value) {
 										const tagError = validateTag(tag);
-										if (tagError) {
-											return tagError;
-										}
+										if (tagError) return tagError;
 									}
-
 									return undefined;
 								},
 							}}
 						>
-							{(field) => <ServerTagField field={field} />}
+							{(field) => (
+								<ServerTagField field={field} categories={ServerCategories} />
+							)}
 						</form.Field>
 
 						<h2 className="border-b border-white/10 pb-2 font-bold text-lg">
@@ -941,6 +965,7 @@ export function ServerPublishPage({ serverId }: ServerPublishPageProps) {
 									shortDescription: state.values.shortDescription,
 									longDescription: state.values.longDescription,
 									inviteLink: state.values.inviteLink,
+									tags: state.values.tags,
 								}),
 							})}
 						>
@@ -971,7 +996,6 @@ export function ServerPublishPage({ serverId }: ServerPublishPageProps) {
 					</div>
 
 					<div className="flex h-full flex-col space-y-4 rounded-xl border border-white/10 bg-[#2b2d31] p-5">
-						{/* 1. 橫幅預覽 */}
 						<div className="space-y-2">
 							<Label>Icon 預覽</Label>
 							<div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-full border border-white/10 bg-[#36393f]">
@@ -1004,7 +1028,6 @@ export function ServerPublishPage({ serverId }: ServerPublishPageProps) {
 							</div>
 						</div>
 
-						{/* 3. Markdown 預覽（加上 flex-1 與 h-0 讓它自動延伸至最底部） */}
 						<div className="flex flex-1 flex-col space-y-2">
 							<Label>Markdown 預覽</Label>
 							<div

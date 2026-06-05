@@ -2,7 +2,7 @@ import type { BotFormData } from "./bot-form-schema";
 
 export type BotEditDefaults = Partial<BotFormData> & {
 	screenshots?: string[];
-	banner?: string | null;
+	banner?: string | undefined;
 };
 
 export type BotEditBundle = {

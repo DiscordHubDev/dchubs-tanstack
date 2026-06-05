@@ -13,13 +13,20 @@ export const getBotsListFn = createServerFn({ method: "GET" })
 	.middleware([authMiddleware])
 	.inputValidator(effectInputValidator(BotListInputSchema))
 	.handler(async ({ data, context }) => {
-		return listBotsPage(data, context.user?.discordId ?? null);
+		return listBotsPage(
+			data,
+			context.user?.discordId ?? null,
+			context.user?.nsfw,
+		);
 	});
 
 export const getBotFilterBundleFn = createServerFn({ method: "GET" })
 	.middleware([authMiddleware])
 	.handler(async ({ context }) => {
-		return listBotFilterBundle(context.user?.discordId ?? null);
+		return listBotFilterBundle(
+			context.user?.discordId ?? null,
+			context.user?.nsfw,
+		);
 	});
 
 export const checkBotDeveloperServerFn = createServerFn({ method: "GET" })

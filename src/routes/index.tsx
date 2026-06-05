@@ -527,7 +527,7 @@ function HomePage() {
 						role="img"
 						aria-hidden="true"
 					>
-						<title>Background grid pattern</title>
+						<title>背景</title>
 						<defs>
 							<pattern
 								id="grid"

@@ -69,10 +69,9 @@ export const user = pgTable(
 		bannerColor: text("banner_color"),
 		bio: text("bio"),
 		social: jsonb().$type<SocialData>(),
+		nsfw: boolean("nsfw").default(true).notNull(),
 	},
 	(table) => [
-		// 3. 建立時間索引 (之前加過的)
-		// 加速「最新加入的使用者」或後台分頁排序的查詢
 		index("auth_user_created_at_idx").using(
 			"btree",
 			table.createdAt.asc().nullsLast(),

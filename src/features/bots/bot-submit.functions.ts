@@ -8,8 +8,6 @@ import {
 } from "./bot-submit.schemas";
 import {
 	deleteBotImage,
-	enforceBotDeveloper,
-	parseBotId,
 	submitBot,
 	uploadBotImages,
 } from "./bot-submit.server";
@@ -22,11 +20,7 @@ import type {
 export const submitBotFn = createServerFn({ method: "POST" })
 	.middleware([protectedMiddleware])
 	.inputValidator(effectInputValidator(SubmitBotInputSchema))
-	.handler(async ({ data, context }): Promise<SubmitBotResult> => {
-		await enforceBotDeveloper(
-			await parseBotId(data.form.botInvite),
-			context.user?.discordId,
-		);
+	.handler(async ({ data }): Promise<SubmitBotResult> => {
 		return submitBot(data);
 	});
 

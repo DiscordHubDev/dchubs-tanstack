@@ -1,14 +1,21 @@
 import { createServerFn } from "@tanstack/react-start";
 import { authMiddleware } from "#/lib/auth-middleware";
 import { effectInputValidator } from "#/lib/effect-utils";
-import { ServerListInputSchema } from "./servers.schemas";
-import { listServerFilterBundle, listServersPage } from "./servers.server";
+import {
+	DeleteServerInputSchema,
+	ServerListInputSchema,
+} from "./servers.schemas";
+import {
+	deleteServer,
+	listServerFilterBundle,
+	listServersPage,
+} from "./servers.server";
 
 export const getServersListFn = createServerFn({ method: "GET" })
 	.middleware([authMiddleware])
 	.inputValidator(effectInputValidator(ServerListInputSchema))
 	.handler(async ({ data, context }) => {
-		return listServersPage(data, context.user?.discordId);
+		return listServersPage(data, context.user?.discordId, context.user?.nsfw);
 	});
 
 export const getServerFilterBundleFn = createServerFn({
@@ -16,5 +23,14 @@ export const getServerFilterBundleFn = createServerFn({
 })
 	.middleware([authMiddleware])
 	.handler(async ({ context }) => {
-		return listServerFilterBundle(context.user?.discordId);
+		return listServerFilterBundle(context.user?.discordId, context.user?.nsfw);
+	});
+
+export const deleteServerFn = createServerFn({
+	method: "POST",
+})
+	.middleware([authMiddleware])
+	.inputValidator(effectInputValidator(DeleteServerInputSchema))
+	.handler(async ({ data }) => {
+		await deleteServer(data.serverId);
 	});
