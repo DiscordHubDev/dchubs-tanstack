@@ -96,7 +96,6 @@ const SafeIframe = ({ src, title, className, ...rest }: SafeIframeProps) => {
 				referrerPolicy="strict-origin-when-cross-origin"
 				sandbox={sandbox || undefined}
 				allow=""
-				allowFullScreen
 				className="w-full h-full"
 			/>
 		</div>
@@ -248,7 +247,6 @@ export default function MarkdownRenderer({ content }: Props) {
 										"width",
 										"height",
 										"allow",
-										"allowfullscreen",
 										"loading",
 										"data-perms", // 你自訂的權限屬性
 									],

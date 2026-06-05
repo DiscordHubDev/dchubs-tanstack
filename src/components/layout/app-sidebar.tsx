@@ -14,7 +14,7 @@ import {
 } from "lucide-react";
 import { useEffect } from "react";
 import { useIsMobile } from "#/hooks/use-mobile";
-import { type LegacySessionData, useSession } from "@/lib/auth-client";
+import type { LegacySessionData } from "@/lib/auth-client";
 import {
 	Sidebar,
 	SidebarContent,
@@ -29,7 +29,7 @@ import { NavMain } from "./nav-main";
 import { NavSecondary } from "./nav-secondary";
 import { NavUser } from "./nav-user";
 
-const adminEnv = process.env.VITE_ADMIN_IDS || "";
+const adminEnv = import.meta.env.VITE_ADMIN_IDS || "";
 const ADMIN_ID = adminEnv ? adminEnv.split(",").map((id) => id.trim()) : [];
 
 const data = {
@@ -90,7 +90,7 @@ const data = {
 		},
 		{
 			title: "管理員頁面",
-			url: "/admin",
+			url: "/protected/admin",
 			icon: ShieldPlus,
 			onlyFor: ADMIN_ID, // 💡 綁定管理員 ID 陣列
 		},
@@ -168,15 +168,15 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 	const currentDiscordId =
 		session?.user?.discordId ?? session?.discordProfile?.id;
 
-	// 💡 核心邏輯：過濾 NavSecondary
+	// 💡 核心邏輯修改
 	const filterednavSecondary = data.navSecondary.filter((item) => {
-		// 如果沒有設定 onlyFor，代表所有人皆可見
 		if (!item.onlyFor) return true;
-		// 如果有設定 onlyFor，需確認使用者「已登入」且「ID 在名單內」
+
 		return (
 			status === "authenticated" &&
 			!!currentDiscordId &&
-			item.onlyFor.includes(currentDiscordId)
+			// 確保雙方都轉成字串再進行比對
+			item.onlyFor.map(String).includes(String(currentDiscordId))
 		);
 	});
 

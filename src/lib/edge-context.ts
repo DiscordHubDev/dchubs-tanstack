@@ -115,6 +115,8 @@ export const getResolvedEdgeContext = cache(async () => {
 
 	const user = await getDomainUser(raw.userId);
 
+	console.log("[Debug] Resolved Edge Context - raw:", raw);
+
 	return {
 		trusted: raw.trusted,
 		isAdmin: raw.isAdmin,

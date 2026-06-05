@@ -1,5 +1,5 @@
 // src/features/admin/admin.query.ts
-import { queryOptions } from "@tanstack/react-query";
+import { infiniteQueryOptions, queryOptions } from "@tanstack/react-query";
 import { queryKeys } from "#/lib/query-keys";
 import {
 	adminGetAllBotsFn,
@@ -34,8 +34,22 @@ export const adminDashboardCountsQueryOptions = () =>
 		queryFn: () => adminGetDashboardCountsFn(),
 	});
 
-export const adminUsersQueryOptions = () =>
-	queryOptions({
-		queryKey: queryKeys.admin.users(),
-		queryFn: () => getUsersFn(),
+export const adminUsersInfiniteQueryOptions = (search: string = "") =>
+	infiniteQueryOptions({
+		// 將 search 加入 queryKey，這樣搜尋字串改變時，React Query 才會自動重新拉取並分開快取
+		queryKey: [...queryKeys.admin.users(), { search }],
+
+		// React Query 會自動傳入 pageParam
+		queryFn: async ({ pageParam = 1 }) => {
+			// 呼叫你的 Server Function 並帶入參數
+			return getUsersFn({
+				data: { search, page: pageParam, limit: 20 },
+			});
+		},
+
+		initialPageParam: 1,
+
+		// 這裡會接收 getUsersFn 回傳的 { users, nextCursor }
+		// 若 nextCursor 為 null，回傳 undefined 告訴 React Query 已經沒有下一頁了
+		getNextPageParam: (lastPage) => lastPage?.nextCursor ?? undefined,
 	});

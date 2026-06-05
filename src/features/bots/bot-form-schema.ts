@@ -17,6 +17,7 @@ export const BotSupportSchema = Schema.optional(Schema.String);
 
 export const BotDeveloperSchema = Schema.Struct({
 	name: NonEmptyString.pipe(Schema.maxLength(80)),
+	avatar: Schema.optional(Schema.String),
 });
 export const BotDevelopersSchema = Schema.Array(BotDeveloperSchema);
 

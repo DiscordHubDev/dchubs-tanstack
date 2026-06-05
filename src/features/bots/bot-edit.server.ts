@@ -113,6 +113,7 @@ function getBotEditBundleEffect(
 					.select({
 						id: user.id,
 						username: user.username,
+						avatar: user.avatar,
 					})
 					.from(botDevelopers)
 					.innerJoin(user, eq(botDevelopers.b, user.id))
@@ -130,7 +131,10 @@ function getBotEditBundleEffect(
 			botInvite: normalizeOptionalString(currentBot.inviteUrl),
 			botWebsite: normalizeOptionalString(currentBot.website),
 			botSupport: normalizeOptionalString(currentBot.supportServer),
-			developers: developerRows.map((dev) => ({ name: dev.username })),
+			developers: developerRows.map((dev) => ({
+				name: dev.username,
+				avatar: dev.avatar,
+			})),
 			commands: commandRows.map((cmd) => ({
 				name: cmd.name,
 				description: cmd.description,

@@ -489,22 +489,27 @@ export function getUserSettingsEffect(id: string) {
 
 export function getUserByIdOrNameEffect(
 	query: string,
-): Effect.Effect<DevUser | null, Error> {
+): Effect.Effect<DevUser[], Error> {
+	// 💡 將回傳型別從 DevUser | null 改為 DevUser[]
 	return Effect.gen(function* () {
-		if (!query) return null;
+		if (!query) return []; // 💡 找不到時回傳空陣列
 
-		// 💡 Drizzle 的 or() 語法：同時去對比 ID 或 名稱
 		const whereClause = or(
 			eq(user.id, query),
 			ilike(user.username, `%${query}%`),
 			ilike(user.name, `%${query}%`),
 		);
 
-		const currentUser = yield* dbEffect("Failed to load user", () =>
-			db.query.user.findFirst({ where: whereClause /* ...columns */ }),
+		const currentUsers = yield* dbEffect("Failed to load users", () =>
+			db.query.user.findMany({
+				// 💡 從 findFirst 改為 findMany
+				where: whereClause,
+				limit: 5,
+				/* ...columns */
+			}),
 		);
 
-		return currentUser ?? null;
+		return currentUsers ?? [];
 	});
 }
 

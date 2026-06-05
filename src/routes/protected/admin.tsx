@@ -1,9 +1,8 @@
 // ============================================================
 // routes/admin/dashboard.tsx  (TanStack Start file-based route)
-// SSR loader  +  lazy tab hydration  +  Suspense boundaries
 // ============================================================
 import { Await, createFileRoute, defer } from "@tanstack/react-router";
-import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import { lazy, Suspense, useState } from "react";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "#/components/ui/tabs";
 import {
 	adminGetAllBotsFn,
@@ -23,6 +22,10 @@ const BotServerManagement = lazy(
 const ReportInbox = lazy(
 	() => import("../../features/admin/components/report-inbox"),
 );
+// 🌟 匯入 UserManagement
+const UserManagement = lazy(
+	() => import("../../features/admin/components/user-management"),
+);
 
 type BotResult = Awaited<ReturnType<typeof adminGetAllBotsFn>>;
 type ServerResult = Awaited<ReturnType<typeof adminGetAllServersFn>>;
@@ -30,10 +33,10 @@ type ReportResult = Awaited<ReturnType<typeof getReportsFn>>;
 
 export const Route = createFileRoute("/protected/admin")({
 	loader: async () => {
-		// Eagerly await: small query, needed for badge SSR hydration
+		// Eagerly await: 小資料，SSR 階段阻擋以確保 Badge 數量有正確的初始 HTML
 		const counts = await adminGetDashboardCountsFn();
 
-		// Deferred: full list queries — streamed after shell paint
+		// Deferred: 大量列表資料，不阻塞頁面首次繪製
 		return {
 			counts: counts.success
 				? counts.data
@@ -47,13 +50,11 @@ export const Route = createFileRoute("/protected/admin")({
 });
 
 function PanelSkeleton() {
-	// Generate a fixed array of unique IDs once per render
 	const skeletonRows = Array.from({ length: 3 }, () => ({
 		id: crypto.randomUUID(),
 	}));
 
 	return (
-		// 🌟 已修正：將 bg-[#2F3136] 改為 bg-[#2b2d31]
 		<div className="animate-pulse space-y-3 rounded-md border border-[#202225] bg-[#2b2d31] p-6">
 			{skeletonRows.map((row, i) => (
 				<div
@@ -75,13 +76,10 @@ function normalizeBots(botsData: any[]): Bot[] {
 	})) as Bot[];
 }
 
-// 🌟 新增：輔助函式，用來修復 DiscordServer 的關聯資料結構錯誤
 function normalizeServers(serversData: any[]): DiscordServer[] {
 	return serversData.map((server) => ({
 		...server,
-		// 處理 owner 的層級結構
 		owner: server.owner?.user ?? server.owner ?? null,
-		// 提取 user 物件，解決 admins 型別不相容（缺少 id, username）的問題
 		admins: server.admins?.map((a: any) => a.user ?? a) ?? [],
 	})) as DiscordServer[];
 }
@@ -110,55 +108,10 @@ function AdminDashboard() {
 			reportsPromise: Promise<ReportResult>;
 		};
 
-	// Tabs
+	// 🌟 新增了 "users" tab 狀態
 	const [activeTab, setActiveTab] = useState<
-		"applications" | "management" | "reports"
+		"applications" | "management" | "reports" | "users"
 	>("applications");
-
-	// Resolved data — populated when each tab is first visited
-	const [bots, setBots] = useState<Bot[] | null>(null);
-	const [servers, setServers] = useState<DiscordServer[] | null>(null);
-	const [reports, setReports] = useState<Report[] | null>(null);
-
-	// Resolve management data when tab is activated
-	useEffect(() => {
-		if (activeTab !== "management" || bots) return;
-		void Promise.all([botsPromise, serversPromise]).then(([b, s]) => {
-			if (b.success && b.data) setBots(normalizeBots(b.data));
-			// 🌟 已修正：套用 normalizeServers 修正巢狀資料結構與斷言錯誤
-			if (s.success && s.data) setServers(normalizeServers(s.data));
-		});
-	}, [activeTab, bots, botsPromise, serversPromise]);
-
-	// Resolve reports when tab is activated
-	useEffect(() => {
-		if (activeTab !== "reports" || reports) return;
-		void reportsPromise.then((r: ReportResult) => {
-			if (r.success && r.data) setReports(normalizeReports(r.data));
-		});
-	}, [activeTab, reports, reportsPromise]);
-
-	// Pending bot count derived from live bot state (SSR seed → live)
-	const [initialBots, setInitialBots] = useState<Bot[] | null>(null);
-	useEffect(() => {
-		void botsPromise.then((r: BotResult) => {
-			if (r.success && r.data) setInitialBots(normalizeBots(r.data));
-		});
-	}, [botsPromise]);
-
-	const pendingBotCount = useMemo(
-		() =>
-			initialBots?.filter((b) => b.status === "pending").length ??
-			counts.pendingBots,
-		[initialBots, counts.pendingBots],
-	);
-
-	const pendingReportCount = useMemo(
-		() =>
-			reports?.filter((r) => r.status === "pending").length ??
-			counts.pendingReports,
-		[reports, counts.pendingReports],
-	);
 
 	return (
 		<Tabs
@@ -173,9 +126,9 @@ function AdminDashboard() {
 					className="min-w-fit flex-1 py-2 text-sm data-[state=active]:bg-[#5865F2] data-[state=active]:text-white sm:text-base"
 				>
 					待審核機器人
-					{pendingBotCount > 0 && (
+					{counts.pendingBots > 0 && (
 						<span className="ml-2 rounded-full bg-[#ED4245] px-2 py-0.5 text-xs">
-							{pendingBotCount}
+							{counts.pendingBots}
 						</span>
 					)}
 				</TabsTrigger>
@@ -192,11 +145,19 @@ function AdminDashboard() {
 					className="min-w-fit flex-1 py-2 text-sm data-[state=active]:bg-[#5865F2] data-[state=active]:text-white sm:text-base"
 				>
 					檢舉收件匣
-					{pendingReportCount > 0 && (
+					{counts.pendingReports > 0 && (
 						<span className="ml-2 rounded-full bg-[#ED4245] px-2 py-0.5 text-xs">
-							{pendingReportCount}
+							{counts.pendingReports}
 						</span>
 					)}
+				</TabsTrigger>
+
+				{/* 🌟 增加系統用戶管理 Tab */}
+				<TabsTrigger
+					value="users"
+					className="min-w-fit flex-1 py-2 text-sm data-[state=active]:bg-[#5865F2] data-[state=active]:text-white sm:text-base"
+				>
+					系統用戶管理
 				</TabsTrigger>
 			</TabsList>
 
@@ -206,43 +167,59 @@ function AdminDashboard() {
 					<Await promise={botsPromise}>
 						{(result) => {
 							const r = result as BotResult;
-							return r.success && r.data ? (
-								<BotApplications
-									applications={normalizeBots(r.data).filter(
-										(b) => b.status === "pending",
-									)}
-								/>
-							) : (
-								<p className="text-red-400 text-sm">
-									載入失敗：
-									{"error" in r ? String(r.error) : "未知錯誤"}
-								</p>
+							if (!r.success || !r.data) {
+								return (
+									<p className="text-red-400 text-sm">
+										載入失敗：{"error" in r ? String(r.error) : "未知錯誤"}
+									</p>
+								);
+							}
+							const pendingBots = normalizeBots(r.data).filter(
+								(b) => b.status === "pending",
 							);
+							return <BotApplications applications={pendingBots} />;
 						}}
 					</Await>
 				</Suspense>
 			</TabsContent>
 
-			{/* Management tab */}
+			{/* Management tab - 🚀 效能優化：不再使用 useState/useEffect 等待 Promise */}
 			<TabsContent value="management" className="mt-4 space-y-4">
-				{bots && servers ? (
-					<Suspense fallback={<PanelSkeleton />}>
-						<BotServerManagement bots={bots} servers={servers} />
-					</Suspense>
-				) : (
-					<PanelSkeleton />
-				)}
+				<Suspense fallback={<PanelSkeleton />}>
+					<Await promise={Promise.all([botsPromise, serversPromise])}>
+						{([bResult, sResult]) => {
+							const bots =
+								bResult.success && bResult.data
+									? normalizeBots(bResult.data)
+									: [];
+							const servers =
+								sResult.success && sResult.data
+									? normalizeServers(sResult.data)
+									: [];
+							return <BotServerManagement bots={bots} servers={servers} />;
+						}}
+					</Await>
+				</Suspense>
 			</TabsContent>
 
-			{/* Reports tab */}
+			{/* Reports tab - 🚀 同樣完全依賴 Suspense + Await */}
 			<TabsContent value="reports" className="mt-4 space-y-4">
-				{reports ? (
-					<Suspense fallback={<PanelSkeleton />}>
-						<ReportInbox reports={reports} />
-					</Suspense>
-				) : (
-					<PanelSkeleton />
-				)}
+				<Suspense fallback={<PanelSkeleton />}>
+					<Await promise={reportsPromise}>
+						{(r) => {
+							if (!r.success || !r.data)
+								return <p className="text-red-400">載入失敗</p>;
+							return <ReportInbox reports={normalizeReports(r.data)} />;
+						}}
+					</Await>
+				</Suspense>
+			</TabsContent>
+
+			{/* 🌟 Users Tab - 內部已有 TanStack Query 負責取資料，直接掛載 */}
+			<TabsContent value="users" className="mt-4 space-y-4">
+				<Suspense fallback={<PanelSkeleton />}>
+					<UserManagement />
+				</Suspense>
 			</TabsContent>
 		</Tabs>
 	);

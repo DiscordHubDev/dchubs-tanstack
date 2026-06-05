@@ -2,7 +2,7 @@
 
 import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
-import { desc, eq } from "drizzle-orm";
+import { desc, eq, ilike, or } from "drizzle-orm";
 import { Effect, pipe } from "effect";
 import { db } from "#/drizzle/db";
 import { bot, notification, report, server, user } from "#/drizzle/schema";
@@ -18,6 +18,7 @@ import type { ActionResult, ReportStatus } from "#/types/admin";
 import { sendDiscordWebhookFn } from "../webhook/webhook.functions";
 import {
 	BotIdSchema,
+	QuerySchema,
 	RejectBotSchema,
 	ReviewBotSchema,
 	ServerGuildIdSchema,
@@ -498,11 +499,43 @@ export const resolveReportServerFn = createServerFn({ method: "POST" })
 // User Management Functions
 export const getUsersFn = createServerFn({ method: "GET" })
 	.middleware([adminMiddleware])
-	.handler(async () => {
+	.inputValidator(effectInputValidator(QuerySchema))
+	.handler(async ({ data }) => {
+		const { search, page, limit } = data;
+		const offset = (page - 1) * limit;
+
 		const program = Effect.tryPromise({
-			try: () =>
-				// 依照 createdAt 降序排列，最新加入的在前面
-				db.select().from(user).orderBy(desc(user.createdAt)),
+			try: async () => {
+				// 2. 組合搜尋條件
+				const searchCondition = search
+					? or(
+							ilike(user.name, `%${search}%`),
+							ilike(user.email, `%${search}%`),
+							ilike(user.id, `%${search}%`),
+						)
+					: undefined;
+
+				// 3. 執行 Drizzle 查詢 (撈取 limit + 1 筆來判斷是否有下一頁)
+				const items = await db
+					.select()
+					.from(user)
+					.where(searchCondition)
+					.orderBy(desc(user.createdAt))
+					.limit(limit + 1)
+					.offset(offset);
+
+				// 4. 計算下一頁的 Cursor
+				let nextCursor: number | null = null;
+				if (items.length > limit) {
+					items.pop(); // 移除多查出來的那一筆，不傳給前端
+					nextCursor = page + 1; // 設定下一頁的頁碼
+				}
+
+				return {
+					users: items,
+					nextCursor,
+				};
+			},
 			catch: (error) => new Error(`獲取使用者失敗: ${error}`),
 		});
 

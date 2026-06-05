@@ -527,7 +527,7 @@ function CommandListField({ field }: CommandListFieldProps) {
 
 type DeveloperItem = BaseDeveloperItem & {
 	_displayUsername?: string;
-	_avatarUrl?: string | null;
+	avatar?: string | null;
 };
 
 export type DeveloperListFieldProps = {
@@ -535,6 +535,11 @@ export type DeveloperListFieldProps = {
 };
 
 export function DeveloperListField({ field }: DeveloperListFieldProps) {
+	console.log("DeveloperListField render", {
+		value: field.state.value,
+		errors: field.state.meta.errors,
+	});
+
 	const developers = Array.isArray(field.state.value)
 		? (field.state.value as DeveloperItem[])
 		: [];
@@ -554,7 +559,8 @@ export function DeveloperListField({ field }: DeveloperListFieldProps) {
 	}, [searchTerm]);
 
 	// 獲取搜尋結果
-	const { data: searchResult = null, isFetching } = useQuery({
+	// 💡 將預設值改為空陣列 []，並將變數重新命名為 searchResults 以符合陣列語意
+	const { data: searchResults = [], isFetching } = useQuery({
 		...userGetBaseProfileByNameOrIdQueryOptions(debouncedTerm),
 		enabled: debouncedTerm.length > 0,
 	});
@@ -580,21 +586,18 @@ export function DeveloperListField({ field }: DeveloperListFieldProps) {
 
 	const selectDeveloper = (user: DevUser) => {
 		// 檢查重複 (依賴 user.id)
-		const isDuplicate = developers.some(
-			(dev) => dev.name === user.id, // 這裡你的資料結構似乎把 id 存在 dev.name 裡
-		);
+		const isDuplicate = developers.some((dev) => dev.name === user.id);
 
 		if (!isDuplicate) {
-			// 處理顯示名稱：優先使用 name，如果沒有才退回使用 username
 			const displayName =
 				user.name && user.name.trim() !== "" ? user.name : user.username;
 
 			field.handleChange([
 				...developers,
 				{
-					name: user.id, // 依照你原本的 BaseDeveloperItem 設定
+					name: user.id,
 					_displayUsername: displayName,
-					_avatarUrl: user.avatar, // 轉換成完整網址
+					avatar: user.avatar,
 				},
 			]);
 		}
@@ -615,17 +618,16 @@ export function DeveloperListField({ field }: DeveloperListFieldProps) {
 			) : (
 				<div className="flex flex-wrap gap-2">
 					{developers.map((developer, index) => {
-						// 確保正確顯示優先名稱
 						const displayName = developer._displayUsername || developer.name;
 
 						return (
 							<div
-								key={developer.name} // 這裡的 name 其實是 id
+								key={developer.name}
 								className="flex items-center gap-2 rounded-md border border-white/10 bg-[#2b2d31] pl-3 pr-1 py-1"
 							>
-								{developer._avatarUrl ? (
+								{developer.avatar ? (
 									<img
-										src={developer._avatarUrl}
+										src={developer.avatar}
 										alt="avatar"
 										className="h-5 w-5 rounded-full object-cover"
 									/>
@@ -671,46 +673,49 @@ export function DeveloperListField({ field }: DeveloperListFieldProps) {
 
 				{/* 下拉選單結果 */}
 				{isDropdownOpen && searchTerm.length > 0 && (
-					<div className="absolute top-full z-50 mt-1 max-h-60 w-full overflow-y-auto rounded-md border border-white/10 bg-[#2b2d31] p-1 shadow-lg">
+					<div className="absolute top-full z-50 mt-1 max-h-60 w-full overflow-y-auto overflow-x-hidden rounded-md border border-white/10 bg-[#2b2d31] p-1 shadow-lg">
 						{isFetching ? (
 							<div className="p-3 text-center text-sm text-[#b9bbbe]">
 								搜尋中...
 							</div>
-						) : !searchResult ? (
+						) : searchResults.length === 0 ? (
 							<div className="p-3 text-center text-sm text-[#b9bbbe]">
 								找不到使用者
 							</div>
 						) : (
-							<button
-								key={searchResult.id}
-								type="button"
-								onClick={() => selectDeveloper(searchResult)}
-								className="flex w-full items-center gap-3 rounded-sm px-2 py-2 text-left hover:bg-[#404249] transition-colors"
-							>
-								{/* 這裡同樣使用轉換後的 Avatar URL */}
-								{searchResult.avatar ? (
-									<img
-										src={searchResult.avatar}
-										alt="avatar"
-										className="h-8 w-8 rounded-full object-cover"
-									/>
-								) : (
-									<div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#1e1f22]">
-										<UserPlus className="h-4 w-4 text-muted-foreground" />
+							searchResults.map((result: DevUser) => (
+								<button
+									key={result.id}
+									type="button"
+									onClick={() => selectDeveloper(result)}
+									className="flex w-full items-center gap-3 rounded-sm px-2 py-2 text-left hover:bg-[#404249] transition-colors"
+								>
+									{result.avatar ? (
+										<img
+											src={result.avatar}
+											alt="avatar"
+											className="h-8 w-8 shrink-0 rounded-full object-cover" /* 💡 確保頭像不被擠壓 (shrink-0) */
+										/>
+									) : (
+										<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#1e1f22]">
+											<UserPlus className="h-4 w-4 text-muted-foreground" />
+										</div>
+									)}
+
+									{/* 💡 2. 加上 flex-1 min-w-0 讓文字區塊正確縮放，避免撐破 flex 容器 */}
+									<div className="flex flex-1 flex-col min-w-0">
+										{/* 💡 3. 加上 truncate 讓過長文字顯示為 ... */}
+										<span className="truncate text-sm font-medium">
+											{result.name && result.name.trim() !== ""
+												? result.name
+												: result.username}
+										</span>
+										<span className="truncate text-xs text-[#b9bbbe]">
+											{result.id}
+										</span>
 									</div>
-								)}
-								<div className="flex flex-col">
-									<span className="text-sm font-medium">
-										{/* 確保下拉選單也優先顯示 name */}
-										{searchResult.name && searchResult.name.trim() !== ""
-											? searchResult.name
-											: searchResult.username}
-									</span>
-									<span className="text-xs text-[#b9bbbe]">
-										{searchResult.id}
-									</span>
-								</div>
-							</button>
+								</button>
+							))
 						)}
 					</div>
 				)}

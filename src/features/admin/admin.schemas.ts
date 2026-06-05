@@ -35,3 +35,17 @@ export const RejectBotSchema = Schema.Struct({
 	botId: Schema.String,
 	reason: Schema.String.pipe(Schema.minLength(1)),
 });
+
+export const QuerySchema = Schema.Struct({
+	search: Schema.optional(Schema.String),
+
+	// 核心：使用 Schema.optional 加上與特定屬性相關的 .pipe
+	page: Schema.optional(
+		Schema.Number.pipe(Schema.int(), Schema.greaterThanOrEqualTo(1)),
+	).pipe(Schema.withDecodingDefault(() => 1)),
+
+	// 順序：先定義好限制範圍的 Schema -> 轉成 optional -> pipe 注入解碼預設值
+	limit: Schema.optional(
+		Schema.Number.pipe(Schema.int(), Schema.between(1, 100)),
+	).pipe(Schema.withDecodingDefault(() => 20)),
+});
