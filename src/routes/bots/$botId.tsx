@@ -164,6 +164,7 @@ function createBotHead(detail: BotDetail | null, botId: string) {
 			{ name: "twitter:url", content: canonicalUrl },
 		],
 		links: [{ rel: "canonical", href: canonicalUrl }],
+		staticData: { breadcrumb: metaTitle },
 		scripts: [
 			{
 				type: "application/ld+json",

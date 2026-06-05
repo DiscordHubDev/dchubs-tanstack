@@ -31,6 +31,7 @@ const LazyBotsAddCta = lazy(
 import { motion } from "framer-motion";
 import { Input } from "#/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "#/components/ui/tabs";
+import type { BotDetail } from "#/features/bots/bot-detail.types";
 import {
 	botFilterBundleQueryOptions,
 	botsListQueryOptions,
@@ -78,6 +79,10 @@ function parsePositiveIntLike(value: unknown): number | undefined {
 	return parsed;
 }
 
+const siteUrl =
+	(typeof process !== "undefined" ? process.env.BETTER_AUTH_URL : undefined) ||
+	"https://dchubs.org";
+
 function validateSearch(search: Record<string, unknown>): BotHomeSearch {
 	const tab = parseBotCategory(search.tab);
 	const page = parsePositiveIntLike(search.page);
@@ -98,12 +103,15 @@ function validateSearch(search: Record<string, unknown>): BotHomeSearch {
 // ─── Route ────────────────────────────────────────────────────────────────────
 export const Route = createFileRoute("/bots/")({
 	validateSearch,
+
 	loaderDeps: ({ search }) => ({
 		category: (search.tab ?? DEFAULT_CATEGORY) as BotCategory,
 		page: search.page ?? 1,
+		// 把原始的 tab 也傳進去，方便後續組裝 URL
+		rawTab: search.tab,
 	}),
+
 	loader: async ({ context, deps }) => {
-		// 只 await 首屏關鍵資料，確保路由跳轉速度 = botList 的請求時間
 		await context.queryClient.ensureQueryData(
 			botsListQueryOptions({
 				category: deps.category,
@@ -111,10 +119,79 @@ export const Route = createFileRoute("/bots/")({
 				limit: ITEMS_PER_PAGE,
 			}),
 		);
-
-		// filterBundle（含全量 allBots）改為 fire-and-forget：
-		// 不阻塞路由，背景預熱後由 useQuery 自動取用快取
 		void context.queryClient.prefetchQuery(botFilterBundleQueryOptions());
+
+		// ⭐ 在這裡回傳 deps，讓 head 可以透過 loaderData 取得
+		return {
+			searchData: deps,
+		};
+	},
+	head: ({ loaderData }) => {
+		if (!loaderData) {
+			return {
+				meta: [
+					{ title: "發現最棒的 Discord 機器人 | DiscordHub" },
+					{
+						name: "description",
+						content:
+							"在 DiscordHub 探索數百個功能豐富的機器人，為您的伺服器增添更多功能和樂趣。",
+					},
+				],
+			};
+		}
+		const { category, page, rawTab } = loaderData.searchData;
+
+		const categoryLabel =
+			BOT_CATEGORY_CONFIG.find((c) => c.id === category)?.label ??
+			"Discord 機器人";
+		const pageText = page > 1 ? ` - 第 ${page} 頁` : "";
+
+		const title = `發現最棒的${categoryLabel}${pageText} | DiscordHub`;
+		const description = `在 DiscordHub 探索數百個功能豐富的${categoryLabel}機器人，為您的伺服器增添更多功能和樂趣。尋找最適合您的社群工具。`;
+
+		// 使用 rawTab 與 page 組裝網址
+		const currentUrl = `${siteUrl}/bots${rawTab ? `?tab=${rawTab}` : ""}${page > 1 ? `&page=${page}` : ""}`;
+		const canonicalUrl = `${siteUrl}/bots${rawTab ? `?tab=${rawTab}` : ""}`;
+		const ogImage =
+			"https://gallery.dawngs.top/api/v1/buckets/image/objects/download?preview=true&prefix=nuo_dchub_2.png";
+
+		return {
+			meta: [
+				{ title },
+				{ name: "description", content: description },
+				// Open Graph
+				{ property: "og:site_name", content: "DiscordHub" },
+				{ property: "og:title", content: title },
+				{ property: "og:description", content: description },
+				{ property: "og:image", content: ogImage },
+				{ property: "og:type", content: "website" },
+				{ property: "og:url", content: currentUrl },
+				// Twitter Card
+				{ name: "twitter:card", content: "summary_large_image" },
+				{ name: "twitter:title", content: title },
+				{ name: "twitter:description", content: description },
+				{ name: "twitter:image", content: ogImage },
+			],
+			links: [{ rel: "canonical", href: canonicalUrl }],
+			scripts: [
+				{
+					type: "application/ld+json",
+					children: JSON.stringify({
+						"@context": "https://schema.org",
+						"@type": "CollectionPage",
+						name: title,
+						description: description,
+						url: currentUrl,
+						isPartOf: {
+							"@type": "WebSite",
+							name: "DiscordHub",
+							url: siteUrl,
+						},
+					}),
+				},
+			],
+			staticData: { breadcrumb: title },
+		};
 	},
 	component: BotsPage,
 });

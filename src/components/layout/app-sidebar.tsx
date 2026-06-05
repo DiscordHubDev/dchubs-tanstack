@@ -166,7 +166,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 
 	// 💡 取得精確的 Discord ID，避免與資料庫 UUID 混淆
 	const currentDiscordId =
-		session?.user?.discordId ?? session?.discordProfile?.id;
+		session?.user?.id ??
+		session?.user?.discordId ??
+		session?.discordProfile?.id;
 
 	// 💡 核心邏輯修改
 	const filterednavSecondary = data.navSecondary.filter((item) => {

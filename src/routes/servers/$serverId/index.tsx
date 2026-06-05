@@ -121,6 +121,7 @@ function createServerHead(detail: ServerDetail | null, serverId: string) {
 			{ name: "twitter:url", content: canonicalUrl },
 		],
 		links: [{ rel: "canonical", href: canonicalUrl }],
+		staticData: { breadcrumb: metaTitle },
 		scripts: [
 			{
 				type: "application/ld+json",
@@ -156,8 +157,7 @@ export const Route = createFileRoute("/servers/$serverId/")({
 					{ property: "og:url", content: publishCanonical },
 				],
 				links: [{ rel: "canonical", href: publishCanonical }],
-				// 如果發布頁面需要，可以加上靜態麵包屑識別
-				// staticData: { breadcrumb: "發布伺服器" } <- 搭配我們先前在 __root 的實作
+				staticData: { breadcrumb: "發布伺服器" },
 			};
 		}
 

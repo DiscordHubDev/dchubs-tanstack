@@ -4,31 +4,39 @@ import {
 	HeadContent,
 	Scripts,
 } from "@tanstack/react-router";
-import type { ReactNode } from "react";
+import React, { type ReactNode, Suspense } from "react";
 import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+
+import { ErrorState } from "#/components/ErrorState";
+// --- Components & Layouts ---
 import { AppSidebar } from "#/components/layout/app-sidebar";
 import NotFound from "#/components/notFound";
 import { SidebarInset, SidebarProvider } from "#/components/ui/sidebar";
+// --- Utils & Assets ---
+import { getSession, type NormalizedSession } from "#/lib/auth.functions";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import Footer from "../components/Footer";
 import Header from "../components/Header";
 import appCss from "../styles.css?url";
-import "react-toastify/dist/ReactToastify.css";
-import React, { Suspense } from "react";
-import { ErrorState } from "#/components/ErrorState";
-import { getSession, type NormalizedSession } from "#/lib/auth.functions";
 
-interface MyRouterContext {
+// ==========================================
+// 1. 型別與 Context 宣告 (集中管理，刪除檔案底部的重複宣告)
+// ==========================================
+export interface MyRouterContext {
 	queryClient: QueryClient;
 	session: NormalizedSession | null;
 }
 
 declare module "@tanstack/react-router" {
 	interface StaticDataRouteOption {
-		breadcrumb?: string; // 定義 breadcrumb 為可選字串
+		breadcrumb?: string;
 	}
 }
 
+// ==========================================
+// 2. 常數與全域設定
+// ==========================================
 const THEME_INIT_SCRIPT = `(function(){try{var root=document.documentElement;root.classList.remove('light');root.classList.add('dark');root.setAttribute('data-theme','dark');root.style.colorScheme='dark';window.localStorage.setItem('theme','dark');}catch(e){}})();`;
 
 const keywords = [
@@ -43,7 +51,6 @@ const keywords = [
 ];
 
 const siteUrl = "https://dchubs.org";
-
 const pageTitle = "熱門伺服器 | Discord伺服器列表 - DiscordHubs";
 const pageDescription =
 	"DiscordHubs是最佳的 Discord 中文伺服器和機器人列表平台，幫助您發現及宣傳伺服器，和加入有趣的社群群組和機器人，為伺服器增添功能和成員。";
@@ -60,31 +67,37 @@ const jsonLd = {
 	description: pageDescription,
 };
 
+// 動態載入 Devtools
+const Devtools = import.meta.env.DEV
+	? React.lazy(() => import("#/components/devtools"))
+	: () => null;
+
+// ==========================================
+// 3. Router Root 定義
+// ==========================================
 export const Route = createRootRouteWithContext<MyRouterContext>()({
 	beforeLoad: async () => {
 		const session = await getSession();
 		return { session };
 	},
 	head: ({ matches }) => {
-		// ==========================================
-		// 1. 動態計算全域麵包屑 (Breadcrumb) 邏輯
-		// ==========================================
 		const breadcrumbMatches = matches.filter(
 			(m) => m.pathname !== "/" && m.pathname !== "",
 		);
 
+		console.log(
+			"[Debug] Current Route Matches for Breadcrumbs:",
+			breadcrumbMatches,
+		);
+
 		const itemListElement = breadcrumbMatches.map((m, index) => {
-			// 嘗試抓取動態資料 (如伺服器詳細頁的 loaderData)
-			const dynamicName = (m.loaderData as any)?.detail?.name;
-			// 嘗試抓取靜態資料 (如發布頁面設定的 staticData)
+			// @ts-expect-error - 動態捕捉 loaderData
+			const dynamicName = m.loaderData?.detail?.name;
 			const staticName = m.staticData?.breadcrumb;
-			// 備用方案：網址路徑
 			const fallbackName =
 				m.pathname.split("/").filter(Boolean).pop() || "未命名";
 
 			const name = dynamicName || staticName || fallbackName;
-
-			// 確保 siteUrl 是你的根網址 (例如 https://discordhubs.com)
 			const itemUrl = new URL(m.pathname, siteUrl).toString();
 
 			return {
@@ -95,19 +108,17 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
 			};
 		});
 
-		// 如果有麵包屑節點，就產生 JSON-LD 字串並防範 XSS
+		console.log("[Debug] Generated Breadcrumb JSON-LD:", itemListElement);
+
 		const breadcrumbJsonLd =
 			itemListElement.length > 0
 				? JSON.stringify({
 						"@context": "https://schema.org",
 						"@type": "BreadcrumbList",
 						itemListElement: itemListElement,
-					}).replace(/</g, "\\u003c")
+					}).replace(/</g, "\\u003c") // 防止 XSS
 				: null;
 
-		// ==========================================
-		// 2. 回傳原本所有的 Meta、Links，並加入 Scripts
-		// ==========================================
 		return {
 			meta: [
 				{ charSet: "utf-8" },
@@ -141,7 +152,6 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
 				{ rel: "icon", type: "image/png", href: "/icon.png" },
 				{ rel: "canonical", href: canonicalUrl },
 			],
-			// ✅ 新增這裡：將麵包屑放入 scripts 陣列
 			scripts: breadcrumbJsonLd
 				? [
 						{
@@ -157,10 +167,9 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
 	notFoundComponent: NotFound,
 });
 
-const Devtools = import.meta.env.DEV
-	? React.lazy(() => import("#/components/devtools"))
-	: () => null;
-
+// ==========================================
+// 4. 根文檔元件
+// ==========================================
 function RootDocument({ children }: { children: ReactNode }) {
 	return (
 		<html
@@ -171,12 +180,12 @@ function RootDocument({ children }: { children: ReactNode }) {
 			suppressHydrationWarning
 		>
 			<head>
-				{/** biome-ignore lint/security/noDangerouslySetInnerHtml: Just Theme */}
+				{/* biome-ignore lint/security/noDangerouslySetInnerHtml: Just Theme */}
 				<script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
 				<script
 					type="application/ld+json"
 					suppressHydrationWarning
-					// biome-ignore lint/security/noDangerouslySetInnerHtml: This is necessary for embedding JSON-LD structured data in the head.
+					// biome-ignore lint/security/noDangerouslySetInnerHtml: Embedding JSON-LD
 					dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
 				/>
 				<HeadContent />
