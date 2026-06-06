@@ -103,5 +103,8 @@
     "vite-plugin-inspect": "^11.4.1",
     "vitest": ">=4.1.0",
     "wrangler": "^4.81.1"
+  },
+  "overrides": {
+    "kysely": "0.28.1"
   }
 }
