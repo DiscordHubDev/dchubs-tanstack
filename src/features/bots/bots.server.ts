@@ -307,3 +307,7 @@ export function isDeveloperEffect(botId: string, discordId: string) {
 		catch: (error) => new Error(`資料庫查詢失敗: ${error}`),
 	});
 }
+
+export async function deleteBot(botId: string): Promise<void> {
+	await db.delete(bot).where(eq(bot.id, botId));
+}

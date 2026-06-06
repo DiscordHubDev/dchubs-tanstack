@@ -50,6 +50,7 @@ import {
 	TooltipProvider,
 	TooltipTrigger,
 } from "#/components/ui/tooltip";
+import { deleteBotFn } from "#/features/bots/bots.functions";
 import { deleteServerFn } from "#/features/servers/servers.functions";
 import {
 	createOrRegenerateApiTokenFn,
@@ -400,6 +401,7 @@ function BotsTabContainer({
 			bots={data.developedBots}
 			isOwner={isOwner}
 			onManageBot={onManageBot}
+			userId={userId}
 		/>
 	);
 }
@@ -796,10 +798,12 @@ function BotsTab({
 	bots,
 	isOwner,
 	onManageBot,
+	userId,
 }: {
 	bots: UserDetail["developedBots"];
 	isOwner: boolean;
 	onManageBot: (id: string, e: MouseEvent) => void;
+	userId: string;
 }) {
 	const approvedBots = useMemo(
 		() => bots.filter((bot) => bot.status !== "rejected"),
@@ -828,6 +832,7 @@ function BotsTab({
 							bot={bot}
 							isOwner={isOwner}
 							onManageBot={onManageBot}
+							userId={userId}
 						/>
 					))}
 				</div>
@@ -855,11 +860,14 @@ const BotCard = memo(
 		bot,
 		isOwner,
 		onManageBot,
+		userId,
 	}: {
 		bot: BotCardData;
 		isOwner: boolean;
 		onManageBot: (id: string, e: MouseEvent) => void;
+		userId: string;
 	}) => {
+		const queryClient = useQueryClient();
 		const clickingRef = useRef(false);
 
 		const handleManageClick = useCallback(
@@ -873,6 +881,49 @@ const BotCard = memo(
 			},
 			[bot.id, onManageBot],
 		);
+
+		const handleDeleteBot = async () => {
+			// 彈出 SweetAlert2 確認視窗
+			const result = await Swal.fire({
+				title: "確定要刪除機器人嗎？",
+				text: `此操作無法復原，將會永久刪除 "${bot.name}"。`,
+				icon: "warning",
+				showCancelButton: true,
+				confirmButtonColor: "#d33", // 刪除通常用紅色
+				cancelButtonColor: "#3085d6",
+				confirmButtonText: "確定刪除",
+				cancelButtonText: "取消",
+				background: "#1e1f22", // 可以配合你的暗色系/Discord風格
+				color: "#fff",
+			});
+
+			// 如果使用者點擊了確定
+			if (result.isConfirmed) {
+				try {
+					await deleteBotFn({ data: { botId: bot.id } });
+
+					await queryClient.invalidateQueries({
+						queryKey: queryKeys.users.settings(userId),
+					});
+
+					Swal.fire({
+						title: "已刪除！",
+						text: "機器人成功移除。",
+						icon: "success",
+						background: "#1e1f22",
+						color: "#fff",
+					});
+				} catch (error) {
+					Swal.fire({
+						title: "錯誤！",
+						text: "刪除失敗，請稍後再試。",
+						icon: "error",
+						background: "#1e1f22",
+						color: "#fff",
+					});
+				}
+			}
+		};
 
 		return (
 			<Card className="flex h-full flex-col border-[#1e1f22] bg-[#2b2d31] transition-all duration-200 hover:border-[#5865f2]">
@@ -939,6 +990,14 @@ const BotCard = memo(
 							className="h-10 w-full cursor-pointer border-[#5865f2] text-white hover:bg-[#5865f2] hover:text-[#5865f2]"
 						>
 							管理機器人
+						</Button>
+						<Button
+							variant="outline"
+							size="sm"
+							onClick={handleDeleteBot} /* 綁定剛剛建立的刪除確認函數 */
+							className="h-10 w-full cursor-pointer border-red-500 text-red-500 hover:bg-red-500 hover:text-red-800 transition-colors"
+						>
+							刪除機器人
 						</Button>
 						<PinActionButton itemName={bot.name} />
 					</CardFooter>

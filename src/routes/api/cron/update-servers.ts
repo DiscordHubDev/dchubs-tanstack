@@ -40,6 +40,8 @@ interface DiscordUser {
 	avatar: string | null;
 	banner?: string | null;
 	banner_color?: string | null;
+	global_name?: string | null;
+	email?: string | null; // 注意：Discord API 不提供 email 欄位，這裡保持可選
 }
 
 // 根據 Discord API 結構定義 Guild Member 欄位
@@ -192,8 +194,7 @@ const upsertUserDb = (member: DiscordGuildMember) =>
 		try: async () => {
 			const discordUser = member.user;
 
-			// 處理頭像與橫幅網址 (全域 User 的頭像)
-			// 備註: avatar 必填(notNull)，若沒設定頭像需給預設值
+			// 處理頭像與橫幅網址
 			const avatarUrl = discordUser.avatar
 				? `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png`
 				: "https://cdn.discordapp.com/embed/avatars/0.png";
@@ -210,13 +211,17 @@ const upsertUserDb = (member: DiscordGuildMember) =>
 					avatar: avatarUrl,
 					banner: bannerUrl,
 					bannerColor: discordUser.banner_color || null,
-					// bio, social 保留未定義，或依賴 DB 預設值
-					// joinedAt 有 DEFAULT CURRENT_TIMESTAMP，這裡可不傳或使用 member.joined_at
+					// 修正 1: 如果 Discord 沒有回傳 email，則給予空字串（或符合你資料庫防呆的值）
+					email: discordUser.email ?? "",
+					name: discordUser.global_name || discordUser.username,
 				})
 				.onConflictDoUpdate({
 					target: user.id,
 					set: {
 						username: discordUser.username,
+						name: discordUser.global_name || discordUser.username,
+						// 修正 2: 移除 email: undefined，避免 Drizzle 解析錯誤
+						// 如果更新時不打算變動 email，直接不寫這個欄位即可
 						avatar: avatarUrl,
 						banner: bannerUrl,
 						bannerColor: discordUser.banner_color || null,

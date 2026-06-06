@@ -27,6 +27,8 @@ import { Route as ServersServerIdPublishRouteImport } from './routes/servers/$se
 import { Route as ApiSitemapStaticRouteImport } from './routes/api/sitemap/static'
 import { Route as ApiSitemapServersRouteImport } from './routes/api/sitemap/servers'
 import { Route as ApiSitemapBotsRouteImport } from './routes/api/sitemap/bots'
+import { Route as ApiDiscordBotPublishRouteImport } from './routes/api/discord-bot/publish'
+import { Route as ApiDiscordBotPinRouteImport } from './routes/api/discord-bot/pin'
 import { Route as ApiCronUpdateServersRouteImport } from './routes/api/cron/update-servers'
 import { Route as ApiCronUpdateBotsRouteImport } from './routes/api/cron/update-bots'
 import { Route as ApiCronCheckServerRouteImport } from './routes/api/cron/check-server'
@@ -123,6 +125,16 @@ const ApiSitemapBotsRoute = ApiSitemapBotsRouteImport.update({
   path: '/api/sitemap/bots',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiDiscordBotPublishRoute = ApiDiscordBotPublishRouteImport.update({
+  id: '/api/discord-bot/publish',
+  path: '/api/discord-bot/publish',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiDiscordBotPinRoute = ApiDiscordBotPinRouteImport.update({
+  id: '/api/discord-bot/pin',
+  path: '/api/discord-bot/pin',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiCronUpdateServersRoute = ApiCronUpdateServersRouteImport.update({
   id: '/api/cron/update-servers',
   path: '/api/cron/update-servers',
@@ -167,6 +179,8 @@ export interface FileRoutesByFullPath {
   '/api/cron/check-server': typeof ApiCronCheckServerRoute
   '/api/cron/update-bots': typeof ApiCronUpdateBotsRoute
   '/api/cron/update-servers': typeof ApiCronUpdateServersRoute
+  '/api/discord-bot/pin': typeof ApiDiscordBotPinRoute
+  '/api/discord-bot/publish': typeof ApiDiscordBotPublishRoute
   '/api/sitemap/bots': typeof ApiSitemapBotsRoute
   '/api/sitemap/servers': typeof ApiSitemapServersRoute
   '/api/sitemap/static': typeof ApiSitemapStaticRoute
@@ -191,6 +205,8 @@ export interface FileRoutesByTo {
   '/api/cron/check-server': typeof ApiCronCheckServerRoute
   '/api/cron/update-bots': typeof ApiCronUpdateBotsRoute
   '/api/cron/update-servers': typeof ApiCronUpdateServersRoute
+  '/api/discord-bot/pin': typeof ApiDiscordBotPinRoute
+  '/api/discord-bot/publish': typeof ApiDiscordBotPublishRoute
   '/api/sitemap/bots': typeof ApiSitemapBotsRoute
   '/api/sitemap/servers': typeof ApiSitemapServersRoute
   '/api/sitemap/static': typeof ApiSitemapStaticRoute
@@ -217,6 +233,8 @@ export interface FileRoutesById {
   '/api/cron/check-server': typeof ApiCronCheckServerRoute
   '/api/cron/update-bots': typeof ApiCronUpdateBotsRoute
   '/api/cron/update-servers': typeof ApiCronUpdateServersRoute
+  '/api/discord-bot/pin': typeof ApiDiscordBotPinRoute
+  '/api/discord-bot/publish': typeof ApiDiscordBotPublishRoute
   '/api/sitemap/bots': typeof ApiSitemapBotsRoute
   '/api/sitemap/servers': typeof ApiSitemapServersRoute
   '/api/sitemap/static': typeof ApiSitemapStaticRoute
@@ -244,6 +262,8 @@ export interface FileRouteTypes {
     | '/api/cron/check-server'
     | '/api/cron/update-bots'
     | '/api/cron/update-servers'
+    | '/api/discord-bot/pin'
+    | '/api/discord-bot/publish'
     | '/api/sitemap/bots'
     | '/api/sitemap/servers'
     | '/api/sitemap/static'
@@ -268,6 +288,8 @@ export interface FileRouteTypes {
     | '/api/cron/check-server'
     | '/api/cron/update-bots'
     | '/api/cron/update-servers'
+    | '/api/discord-bot/pin'
+    | '/api/discord-bot/publish'
     | '/api/sitemap/bots'
     | '/api/sitemap/servers'
     | '/api/sitemap/static'
@@ -293,6 +315,8 @@ export interface FileRouteTypes {
     | '/api/cron/check-server'
     | '/api/cron/update-bots'
     | '/api/cron/update-servers'
+    | '/api/discord-bot/pin'
+    | '/api/discord-bot/publish'
     | '/api/sitemap/bots'
     | '/api/sitemap/servers'
     | '/api/sitemap/static'
@@ -319,6 +343,8 @@ export interface RootRouteChildren {
   ApiCronCheckServerRoute: typeof ApiCronCheckServerRoute
   ApiCronUpdateBotsRoute: typeof ApiCronUpdateBotsRoute
   ApiCronUpdateServersRoute: typeof ApiCronUpdateServersRoute
+  ApiDiscordBotPinRoute: typeof ApiDiscordBotPinRoute
+  ApiDiscordBotPublishRoute: typeof ApiDiscordBotPublishRoute
   ApiSitemapBotsRoute: typeof ApiSitemapBotsRoute
   ApiSitemapServersRoute: typeof ApiSitemapServersRoute
   ApiSitemapStaticRoute: typeof ApiSitemapStaticRoute
@@ -453,6 +479,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiSitemapBotsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/discord-bot/publish': {
+      id: '/api/discord-bot/publish'
+      path: '/api/discord-bot/publish'
+      fullPath: '/api/discord-bot/publish'
+      preLoaderRoute: typeof ApiDiscordBotPublishRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/discord-bot/pin': {
+      id: '/api/discord-bot/pin'
+      path: '/api/discord-bot/pin'
+      fullPath: '/api/discord-bot/pin'
+      preLoaderRoute: typeof ApiDiscordBotPinRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/cron/update-servers': {
       id: '/api/cron/update-servers'
       path: '/api/cron/update-servers'
@@ -522,6 +562,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiCronCheckServerRoute: ApiCronCheckServerRoute,
   ApiCronUpdateBotsRoute: ApiCronUpdateBotsRoute,
   ApiCronUpdateServersRoute: ApiCronUpdateServersRoute,
+  ApiDiscordBotPinRoute: ApiDiscordBotPinRoute,
+  ApiDiscordBotPublishRoute: ApiDiscordBotPublishRoute,
   ApiSitemapBotsRoute: ApiSitemapBotsRoute,
   ApiSitemapServersRoute: ApiSitemapServersRoute,
   ApiSitemapStaticRoute: ApiSitemapStaticRoute,

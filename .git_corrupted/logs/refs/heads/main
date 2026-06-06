@@ -1,0 +1,66 @@
+0000000000000000000000000000000000000000 e2b2bfa1bbc3210e93efd26fd4419300f731132a Mantouisyummy <opcantel@gmail.com> 1776010220 +0800	commit (initial): first commit
+e2b2bfa1bbc3210e93efd26fd4419300f731132a e2b2bfa1bbc3210e93efd26fd4419300f731132a Mantouisyummy <opcantel@gmail.com> 1776010223 +0800	Branch: renamed refs/heads/master to refs/heads/main
+e2b2bfa1bbc3210e93efd26fd4419300f731132a 9e981c50ddba209adb6f4bfbe48da7c9c31b7b51 Mantouisyummy <opcantel@gmail.com> 1776357232 +0800	commit: deploy workflow
+9e981c50ddba209adb6f4bfbe48da7c9c31b7b51 09f9c9c51d3f3ac39b68e76be6302597003287fb Mantouisyummy <opcantel@gmail.com> 1776357856 +0800	commit: fix upload to r2 failure
+09f9c9c51d3f3ac39b68e76be6302597003287fb 0aceccc02f27a337dd1078630897d245ba5ee5fc Mantouisyummy <opcantel@gmail.com> 1776408857 +0800	commit: add env var
+0aceccc02f27a337dd1078630897d245ba5ee5fc 77221f6b3a8022fcad5f506aec4ede331f580acb Mantouisyummy <opcantel@gmail.com> 1776408981 +0800	commit: fix action failure
+77221f6b3a8022fcad5f506aec4ede331f580acb f65625cb6a615725de6576d45bbfd9655576823a Mantouisyummy <opcantel@gmail.com> 1776409469 +0800	commit: fix upload assets failure
+f65625cb6a615725de6576d45bbfd9655576823a 03a0176a3dadabf500d99e9bc645b2e0a3074119 Mantouisyummy <opcantel@gmail.com> 1776411252 +0800	commit: Package the server-side files into an docker image.
+03a0176a3dadabf500d99e9bc645b2e0a3074119 753eb697d27daa9a80c178dff4e9bcbd7d567740 Mantouisyummy <opcantel@gmail.com> 1776411489 +0800	commit: lowercase image tag
+753eb697d27daa9a80c178dff4e9bcbd7d567740 3d6c6fb5643799012ee89212cd81a8645f5852b9 Mantouisyummy <opcantel@gmail.com> 1776411698 +0800	commit: install required package
+3d6c6fb5643799012ee89212cd81a8645f5852b9 180f1b04cca571c4dfdc9e386b890aa7c6722602 Mantouisyummy <opcantel@gmail.com> 1776412572 +0800	commit: modify dockerfile
+180f1b04cca571c4dfdc9e386b890aa7c6722602 3f8e59e30fc2e5d3c557ffcd7ee1f07c9634317e Mantouisyummy <opcantel@gmail.com> 1776427546 +0800	commit: fix missing package issues
+3f8e59e30fc2e5d3c557ffcd7ee1f07c9634317e 674cf13dbc65f5111de7ef93bcfc7cfb6ef872a1 Mantouisyummy <opcantel@gmail.com> 1776427926 +0800	commit: add .dockeringore and adjust dockerfile
+674cf13dbc65f5111de7ef93bcfc7cfb6ef872a1 642198f17d538aeaa02e977308159f97435d5603 Mantouisyummy <opcantel@gmail.com> 1776428682 +0800	commit: adjust dockerfile and entrypoint.sh
+642198f17d538aeaa02e977308159f97435d5603 a30d5871c77bbc2db0b898170ce6008388a0ee1f Mantouisyummy <opcantel@gmail.com> 1776428905 +0800	commit: link env
+a30d5871c77bbc2db0b898170ce6008388a0ee1f 8fc2046242ebba527dccadcffdbd54f9d4ed6bad Mantouisyummy <opcantel@gmail.com> 1776429001 +0800	commit: pointed to correct port
+8fc2046242ebba527dccadcffdbd54f9d4ed6bad 67071dbc10781a21a8d64105f6baeba589638d0b Mantouisyummy <opcantel@gmail.com> 1776429283 +0800	commit: adjust read .env method
+67071dbc10781a21a8d64105f6baeba589638d0b b390742545d1e3a9e8126a6338c7ac8de0a80948 Mantouisyummy <opcantel@gmail.com> 1776429691 +0800	commit: fix not found public assets
+b390742545d1e3a9e8126a6338c7ac8de0a80948 2642dd5ca01a483ec448d2537ec83e2c33e99e01 Mantouisyummy <opcantel@gmail.com> 1776430203 +0800	commit: fix not found public
+2642dd5ca01a483ec448d2537ec83e2c33e99e01 a83bdde5a7ce6f6a58f7c7479d8e9726d1608f25 Mantouisyummy <opcantel@gmail.com> 1776436562 +0800	commit: fix start error
+a83bdde5a7ce6f6a58f7c7479d8e9726d1608f25 281fe3689f99d21d7c53a4cb50d4804f4ec2ad38 Mantouisyummy <opcantel@gmail.com> 1776441571 +0800	commit: auto redirect when not login
+281fe3689f99d21d7c53a4cb50d4804f4ec2ad38 0c05cf591f63fefb3e56a6659481b10e63b0f7fd Mantouisyummy <opcantel@gmail.com> 1776695762 +0800	commit: Convert the uploaded banner image into a button and integrate it with Cloudinary
+0c05cf591f63fefb3e56a6659481b10e63b0f7fd 5baa4e87df3f195ab52ed0186c15b3b05f8c6cfa Mantouisyummy <opcantel@gmail.com> 1776696770 +0800	commit: fix render issue
+5baa4e87df3f195ab52ed0186c15b3b05f8c6cfa 232fb93dae39340e031cce336d4478b5fda5698b Mantouisyummy <opcantel@gmail.com> 1776701313 +0800	commit: fixed dark mode
+232fb93dae39340e031cce336d4478b5fda5698b 9ea9b27784b2a4cd3a9aef4a5fecf2f718e45843 Mantouisyummy <opcantel@gmail.com> 1776701660 +0800	commit: set NODE_ENV to production
+9ea9b27784b2a4cd3a9aef4a5fecf2f718e45843 cc9b28fd64cc1e78f77fdde75ce16e5a45d035df Mantouisyummy <opcantel@gmail.com> 1776702093 +0800	commit: refactor github actions
+cc9b28fd64cc1e78f77fdde75ce16e5a45d035df a9fa231a7985926c03d0e16ec198f358161946d2 Mantouisyummy <opcantel@gmail.com> 1776703017 +0800	commit: fix assets url cant be loaded
+a9fa231a7985926c03d0e16ec198f358161946d2 cea82e57c4144c2580432bf0cb30365839f1e95c Mantouisyummy <opcantel@gmail.com> 1776703441 +0800	commit: fix prefix
+cea82e57c4144c2580432bf0cb30365839f1e95c 7a3b849bfa94560921847f68bb5b0fdebbe622dd Mantouisyummy <opcantel@gmail.com> 1776774939 +0800	commit: add sitemap API routes
+7a3b849bfa94560921847f68bb5b0fdebbe622dd c24571fd56e46a75900560c2e59b944636812d4d Mantouisyummy <opcantel@gmail.com> 1776775703 +0800	commit: fix zod Dependencies
+c24571fd56e46a75900560c2e59b944636812d4d 25afc66a80c0ec2ae147bc3096d00b7214c062da Mantouisyummy <opcantel@gmail.com> 1776777109 +0800	commit: fix tooltip not displayed
+25afc66a80c0ec2ae147bc3096d00b7214c062da 247a3ba8e4400cfff49099bd016b9d84ebf44104 Mantouisyummy <opcantel@gmail.com> 1776781898 +0800	commit: fix badge hover not working
+247a3ba8e4400cfff49099bd016b9d84ebf44104 05336a267030d30e053d8d6a48aa2f6a3428fde2 Mantouisyummy <opcantel@gmail.com> 1777208844 +0800	commit: feat(error-alert): enhance error alert system with priority handling
+05336a267030d30e053d8d6a48aa2f6a3428fde2 1eee0345384f28e00b3c43fdd78e7b6f2f8c5981 Mantouisyummy <opcantel@gmail.com> 1777727743 +0800	commit: feat: add TanStack Start configuration and documentation
+1eee0345384f28e00b3c43fdd78e7b6f2f8c5981 077984523d176c5ac91b488a77d3a7c74802ecd1 Mantouisyummy <opcantel@gmail.com> 1777728483 +0800	commit: feat: 更新 Vite 配置以使用 @vitejs/plugin-react-swc，並新增相關依賴
+077984523d176c5ac91b488a77d3a7c74802ecd1 b2ab3accbd561cef3a648124ecdf66901fafed40 Mantouisyummy <opcantel@gmail.com> 1777728499 +0800	commit: fix: can't get database
+b2ab3accbd561cef3a648124ecdf66901fafed40 bf4f055c1d3d6f169e6e7bcc146d45a2c5a9c86a Mantouisyummy <opcantel@gmail.com> 1777728745 +0800	commit: new lockfile
+bf4f055c1d3d6f169e6e7bcc146d45a2c5a9c86a e7c63f2a5fa0b7e13ee623941eb419f1365bb3cf Mantouisyummy <opcantel@gmail.com> 1777729225 +0800	commit: feat: use oxc as Transpilation
+e7c63f2a5fa0b7e13ee623941eb419f1365bb3cf 019ab65a5065d064549bab3b236ea33e9734e96c Mantouisyummy <opcantel@gmail.com> 1777729628 +0800	commit: feat: readme and agents.md
+019ab65a5065d064549bab3b236ea33e9734e96c 4abd50b4c848aa374d64a3565494ee945a1668a1 Mantouisyummy <opcantel@gmail.com> 1777730252 +0800	commit: new readme.md
+4abd50b4c848aa374d64a3565494ee945a1668a1 3acb22a63b95bdd775a3d8991f5a70f49a6a8da6 Mantouisyummy <opcantel@gmail.com> 1777734756 +0800	commit: update package version
+3acb22a63b95bdd775a3d8991f5a70f49a6a8da6 aaa957c744ba0fbe69e8b5e3e758c5cee463d910 Mantouisyummy <opcantel@gmail.com> 1777735512 +0800	commit: fix: update database URL environment variable
+aaa957c744ba0fbe69e8b5e3e758c5cee463d910 c2293defaabc7e9101385b4c2f4ff51cf98e95d5 Mantouisyummy <opcantel@gmail.com> 1780303930 +0800	commit: new version (not fully tested)
+c2293defaabc7e9101385b4c2f4ff51cf98e95d5 6e1b3d26cbd0506128213a52bd7d8e1b9bae294e Mantouisyummy <opcantel@gmail.com> 1780303951 +0800	pull --tags origin main (finish): refs/heads/main onto eb43d5ce989652074b4328996e798927b6324881
+6e1b3d26cbd0506128213a52bd7d8e1b9bae294e 6eac7224d93f8e29a6b8e19e8ce5613e3b1693a0 Mantouisyummy <opcantel@gmail.com> 1780313837 +0800	commit: let session cookie to jwt
+6eac7224d93f8e29a6b8e19e8ce5613e3b1693a0 482a11ecf53656b06a6e0809d6657592a292ff97 Mantouisyummy <opcantel@gmail.com> 1780313850 +0800	commit: forgot to save bruh
+482a11ecf53656b06a6e0809d6657592a292ff97 4fa34c1885855d24fca648e980fff79ac53eb121 Mantouisyummy <opcantel@gmail.com> 1780313968 +0800	commit: remove temp plans
+4fa34c1885855d24fca648e980fff79ac53eb121 8d16b7eb2e95fb82e70c4bdbdb913f5c20690537 Mantouisyummy <opcantel@gmail.com> 1780314537 +0800	commit: Adjusting CSP rules
+8d16b7eb2e95fb82e70c4bdbdb913f5c20690537 e1185f537df986491f2ac096768d281543467333 Mantouisyummy <opcantel@gmail.com> 1780316575 +0800	commit: hidden overflow
+e1185f537df986491f2ac096768d281543467333 e18e3033b0e0cd4528e8ed380f67efc09f3b1fbf Mantouisyummy <opcantel@gmail.com> 1780334757 +0800	commit: complete admin dashboard (not fully tested security)
+e18e3033b0e0cd4528e8ed380f67efc09f3b1fbf 69cbede140eccf73f07a8a13549b35c96400232d Mantouisyummy <opcantel@gmail.com> 1780381640 +0800	commit: add effect schema support and remove isomorphic-dompurify
+69cbede140eccf73f07a8a13549b35c96400232d 295492373da25ec459fa68366aa703e4d2dadb7b Mantouisyummy <opcantel@gmail.com> 1780382018 +0800	commit: fix build failed
+295492373da25ec459fa68366aa703e4d2dadb7b 70f8c6cd3f715b836f77ba99019d2c69ce85d262 Mantouisyummy <opcantel@gmail.com> 1780382735 +0800	commit: remove dynamic import
+70f8c6cd3f715b836f77ba99019d2c69ce85d262 1196acb3febbdd3c1afaa657657829064dd72ba2 Mantouisyummy <opcantel@gmail.com> 1780470074 +0800	commit: Security fix implemented (middleware authentication added to the server function)
+1196acb3febbdd3c1afaa657657829064dd72ba2 83f63e4f13baec85b5123049cab98b6322a9f3cf Mantouisyummy <opcantel@gmail.com> 1780496450 +0800	commit: Fixed an issue where logged-in users were forced to redirect when accessing a protected route
+83f63e4f13baec85b5123049cab98b6322a9f3cf 35ee907e862e28bb087f9d464210aabc61169ed6 Mantouisyummy <opcantel@gmail.com> 1780497398 +0800	commit: complete cron api
+35ee907e862e28bb087f9d464210aabc61169ed6 67ee7ca5a7d036b5e9817d6193a205126ebab884 Mantouisyummy <opcantel@gmail.com> 1780508607 +0800	commit: 優化了個人頁面的性能
+67ee7ca5a7d036b5e9817d6193a205126ebab884 5c8e50df898805ead21219d1aa61f0bad0b08199 Mantouisyummy <opcantel@gmail.com> 1780546235 +0800	commit: 向下兼容，避免 auth_user 表 跟 user 表 茶不到對應的ID
+5c8e50df898805ead21219d1aa61f0bad0b08199 bf02d59f39f3dd6a47a87bea47499cabcbba7e6d Mantouisyummy <opcantel@gmail.com> 1780559411 +0800	commit: add privacy, terms, tutorial page
+bf02d59f39f3dd6a47a87bea47499cabcbba7e6d 44ddc309aa65412fee99b5cf4b178e3e14252042 Mantouisyummy <opcantel@gmail.com> 1780559490 +0800	commit: add db migrate script
+44ddc309aa65412fee99b5cf4b178e3e14252042 167123cb8cce02d29a55fd681ebc2ddb0fd637ca Mantouisyummy <opcantel@gmail.com> 1780559550 +0800	commit: yeah I submitted many things
+167123cb8cce02d29a55fd681ebc2ddb0fd637ca d6b366cb55be1ccfa56a0aba3549879eabc5c245 Mantouisyummy <opcantel@gmail.com> 1780594420 +0800	commit: I hate TypeScript
+d6b366cb55be1ccfa56a0aba3549879eabc5c245 9699c4b7c42b52d957be43e7b72692b609e47dbc Mantouisyummy <opcantel@gmail.com> 1780647133 +0800	commit: add user manage and ban features
+9699c4b7c42b52d957be43e7b72692b609e47dbc df9599284c83ea242781de89c3cb893e8886f41a Mantouisyummy <opcantel@gmail.com> 1780657772 +0800	commit: Use `user.name` instead of `user.username`
+df9599284c83ea242781de89c3cb893e8886f41a 9455f23bd8d73401a58c073fada0764ebfc7fef7 Mantouisyummy <opcantel@gmail.com> 1780664667 +0800	commit: add seo and Breadcrumb
+                                                                                                                                                                                                                     9455f23bd8d73401a58c073fada0764ebfc7fef7 358a835495e831ae10c4e8d6376c5ed1479949a3 Mantouisyummy <opcantel@gmail.com> 1780764410 +0800	commit: chore: restore repository and dynamic features

@@ -2,8 +2,10 @@ import { createServerFn } from "@tanstack/react-start";
 import { Effect } from "effect";
 import { authMiddleware } from "#/lib/auth-middleware";
 import { effectInputValidator } from "#/lib/effect-utils";
+import { deleteServer } from "../servers/servers.server";
 import { BotListInputSchema } from "./bots.schemas";
 import {
+	deleteBot,
 	isDeveloperEffect,
 	listBotFilterBundle,
 	listBotsPage,
@@ -46,4 +48,13 @@ export const checkBotDeveloperServerFn = createServerFn({ method: "GET" })
 		} catch {
 			return { isLoggedIn: true, isDeveloper: false };
 		}
+	});
+
+export const deleteBotFn = createServerFn({
+	method: "POST",
+})
+	.middleware([authMiddleware])
+	.inputValidator((data: { botId: string }) => data)
+	.handler(async ({ data }) => {
+		await deleteBot(data.botId);
 	});
