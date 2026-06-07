@@ -10,6 +10,7 @@ import { defineConfig } from "vite";
 // ─── Environment flags ────────────────────────────────────────────────────────
 const isProd = process.env.NODE_ENV === "production";
 const isAnalyze = process.env.ANALYZE === "true";
+const cdnOrigin = process.env.VITE_CDN_ORIGIN || "";
 
 // ─── Vendor chunk grouping ─────────────────────────────────────────────────────
 function manualChunks(id: string): string | undefined {
@@ -69,6 +70,7 @@ function manualChunks(id: string): string | undefined {
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 export default defineConfig({
+	base: isProd ? `${cdnOrigin}/` : "/",
 	resolve: {
 		tsconfigPaths: true,
 	},

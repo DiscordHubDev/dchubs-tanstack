@@ -212,7 +212,7 @@ function getAccessibleGuildEffect(
 		const userAccessToken = yield* getDiscordAccessTokenEffect(userId);
 		const botToken = yield* getBotTokenEffect();
 
-		// 🚀 優化：平行發送 Discord API 請求 (獲取使用者公會清單 & 檢查 Bot 是否在公會內)
+		// 🚀 平行發送 Discord API 請求
 		const [userGuilds, isBotInGuild] = yield* Effect.all(
 			[
 				tryEffectPromise("Failed to fetch user guilds", () =>
@@ -231,12 +231,32 @@ function getAccessibleGuildEffect(
 			return yield* Effect.fail(new Error("你在 Discord 中沒有找到這個伺服器"));
 		}
 
-		if (!hasGuildManagePermission(guild)) {
-			return yield* Effect.fail(new Error("你需要該伺服器的管理權限才能發布"));
+		// 🚀 在這裡直接做嚴格的 Admin 權限判斷
+		let hasStrictAdmin = false;
+		if (guild.owner === true) {
+			hasStrictAdmin = true;
+		} else {
+			try {
+				const permissions = BigInt(guild.permissions || "0");
+				// 只檢查是否包含管理員權限 (不包含 Manage Guild 了)
+				hasStrictAdmin =
+					(permissions & GUILD_ADMINISTRATOR_PERMISSION) ===
+					GUILD_ADMINISTRATOR_PERMISSION;
+			} catch {
+				hasStrictAdmin = false;
+			}
+		}
+
+		if (!hasStrictAdmin) {
+			return yield* Effect.fail(
+				new Error(
+					"你需要該伺服器的管理員 (Administrator) 權限才能發布 / 編輯。",
+				),
+			);
 		}
 
 		if (!isBotInGuild) {
-			return yield* Effect.fail(new Error("機器人尚未加入該伺服器"));
+			return yield* Effect.fail(new Error("機器人尚未加入該伺服器。"));
 		}
 
 		return { userId, guild };
@@ -267,46 +287,14 @@ export async function enforceServerOwner(serverId: string, userId: string) {
 	}
 }
 
-function enforceServerOwnerEffect(serverId: string, userId: string) {
-	return Effect.tryPromise({
-		try: () => enforceServerOwner(serverId, userId),
-		catch: (error) =>
-			error instanceof Error ? error : new Error(String(error)),
-	});
-}
-
 export function getServerPublishBundleEffect(
-	userId: string,
-	serverId: string,
+	serverId: string, // 🚀 連這裡的 userId 參數都可以拔掉了！因為 getAccessibleGuildEffect 會自己去拿 Session
 ): Effect.Effect<ServerPublishBundle, Error> {
 	return Effect.gen(function* () {
-		// 🚀 優化：將「權限驗證及外部 API 抓取」和「資料庫查詢」平行執行
+		// 🚀 平行執行：Discord 權限驗證 與 資料庫查詢
 		const [accessResult, rows] = yield* Effect.all(
 			[
-				enforceServerOwnerEffect(serverId, userId).pipe(
-					Effect.andThen(() => getAccessibleGuildEffect(serverId)),
-					Effect.catchAll((originalError) =>
-						tryEffectPromise(
-							"Failed to remove user from serverAdmins relation",
-							async () => {
-								if (userId) {
-									await db
-										.delete(serverAdmins)
-										.where(
-											and(
-												eq(serverAdmins.a, serverId),
-												eq(serverAdmins.b, userId),
-											),
-										);
-									console.log(`[自動清理] 已成功移除不合規管理員: ${userId}`);
-								}
-							},
-						).pipe(
-							Effect.andThen(() => Effect.fail(originalError)),
-							Effect.catchAll(() => Effect.fail(originalError)),
-						),
-					),
-				),
+				getAccessibleGuildEffect(serverId), // 內含 Session 獲取、Discord API 請求與 Admin 權限擋關
 				tryEffectPromise("Failed to fetch published server", () =>
 					db
 						.select({
@@ -332,7 +320,7 @@ export function getServerPublishBundleEffect(
 			{ concurrency: "unbounded" },
 		);
 
-		const { guild } = accessResult;
+		const { guild } = accessResult; // 這裡就能直接拿到驗證通過後的 guild 資料
 		const current = rows[0];
 		const guildIconUrl = buildGuildIconUrl(guild);
 
@@ -545,7 +533,6 @@ const checkIsOwnerFromApiEffect = (serverId: string, userId: string) =>
 
 const checkIsServerOwnerEffect = (serverId: string, userId: string) =>
 	Effect.gen(function* () {
-		// 🚀 優化：改用底層 Select 以輕量化查詢
 		const rows = yield* Effect.tryPromise({
 			try: () =>
 				db
@@ -570,11 +557,67 @@ const checkIsServerOwnerEffect = (serverId: string, userId: string) =>
 		),
 	);
 
-export function getServerPublishBundleById(
+function checkIsServerOwnerInDb(
+	serverId: string,
 	userId: string,
+): Effect.Effect<boolean, never> {
+	return Effect.tryPromise({
+		try: () =>
+			db
+				.select({ ownerId: server.ownerId })
+				.from(server)
+				.where(eq(server.id, serverId))
+				.limit(1),
+		catch: (error) => new Error(`資料庫查詢失敗: ${error}`),
+	}).pipe(
+		Effect.map((rows) => rows.length > 0 && rows[0].ownerId === userId),
+		// 遇到任何錯誤（如 DB 斷線）都安全地回傳 false，不中斷主流程
+		Effect.catchAll((error) =>
+			Effect.sync(() => {
+				console.error("DB 權限備援檢查失敗:", error);
+				return false;
+			}),
+		),
+	);
+}
+
+function enforceServerAdminEffect(serverId: string, userId: string) {
+	return Effect.gen(function* () {
+		// 1. 抓取 Discord 資料
+		const accessResult = yield* getAccessibleGuildEffect(serverId);
+		const { guild } = accessResult;
+
+		let hasPermission = false;
+
+		if (guild.owner) {
+			hasPermission = true;
+		} else {
+			try {
+				const permissions = BigInt(guild.permissions || "0");
+				// 🚀 改成只有 Admin
+				hasPermission =
+					(permissions & GUILD_ADMINISTRATOR_PERMISSION) ===
+					GUILD_ADMINISTRATOR_PERMISSION;
+			} catch {
+				hasPermission = false;
+			}
+		}
+
+		// 2. 如果 Discord 驗證失敗，報錯阻擋（不在此處悄悄刪除資料庫）
+		if (!hasPermission) {
+			return yield* Effect.fail(
+				new Error("權限不足：您必須是該伺服器的擁有者或管理員"),
+			);
+		}
+
+		return accessResult;
+	});
+}
+
+export function getServerPublishBundleById(
 	serverId: string,
 ): Promise<ServerPublishBundle> {
-	return runEffect(getServerPublishBundleEffect(userId, serverId));
+	return runEffect(getServerPublishBundleEffect(serverId));
 }
 
 export function upsertServerPublish(
