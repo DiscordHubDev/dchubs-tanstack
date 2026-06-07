@@ -11,7 +11,7 @@ const securityHeadersMiddleware = createMiddleware().server(
 		if (result?.response) {
 			result.response.headers.set(
 				"Content-Security-Policy",
-				"default-src 'self'; script-src 'self' 'unsafe-inline' https://assets.dchubs.org https://ajax.cloudflare.com; style-src 'self' 'unsafe-inline' https://assets.dchubs.org; img-src 'self' data: https://cdn.discordapp.com https://gallery.dawngs.top https://res.cloudinary.com blob:; frame-src https://discord.com https://www.youtube.com;",
+				"default-src 'self'; script-src 'self' 'unsafe-inline' https://assets.dchubs.org https://ajax.cloudflare.com https://static.cloudflareinsights.com; style-src 'self' 'unsafe-inline' https://assets.dchubs.org; img-src 'self' data: https://cdn.discordapp.com https://gallery.dawngs.top https://res.cloudinary.com blob:; frame-src https://discord.com https://www.youtube.com; connect-src 'self' https://cloudflareinsights.com",
 			);
 
 			result.response.headers.set(

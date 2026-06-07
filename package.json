@@ -10,7 +10,7 @@
     "build": "NODE_ENV=production bun --bun vite build && bun src/scripts/upload-to-r2.ts",
     "preview": "bun --bun vite preview",
     "deploy": "bun run build && wrangler deploy",
-    "start": "bun run .output/server/index.mjs",
+    "start": "bun --bun .output/server/index.mjs",
     "cf-typegen": "wrangler types",
     "test": "vitest run",
     "format": "biome format --write",
