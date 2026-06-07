@@ -1,5 +1,6 @@
 import { createRouter as createTanStackRouter } from "@tanstack/react-router";
 import { setupRouterSsrQueryIntegration } from "@tanstack/react-router-ssr-query";
+import { getGlobalStartContext } from "@tanstack/react-start";
 import { ErrorState } from "./components/ErrorState";
 import LoadingPage from "./components/loading";
 import { getQueryClient } from "./integrations/tanstack-query/root-provider";
@@ -8,6 +9,7 @@ import { routeTree } from "./routeTree.gen";
 export function getRouter() {
 	// 1. 先實例化一個獨立的 QueryClient
 	const queryClient = getQueryClient();
+	const nonce = getGlobalStartContext()?.nonce;
 
 	const router = createTanStackRouter({
 		routeTree,
@@ -16,6 +18,7 @@ export function getRouter() {
 			queryClient,
 			session: null, // 給予 session 一個預設值，這會滿足你 Root Route 的型別要求
 		},
+		ssr: { nonce },
 		scrollRestoration: true,
 		defaultPreload: "intent",
 		defaultPreloadDelay: 50,

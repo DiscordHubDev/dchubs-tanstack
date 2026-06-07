@@ -5,6 +5,7 @@ import {
 	ArrowUp,
 	BadgeCheck,
 	Clock,
+	Heart,
 	Pin,
 	Users,
 } from "lucide-react";
@@ -141,8 +142,8 @@ function BotCardHeader({ item }: { item: PublicBot }) {
 			)}
 
 			{item.isFavorite && (
-				<span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2 py-1 text-xs text-white/80">
-					<BadgeCheck className="h-3.5 w-3.5" />
+				<span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2 py-1 text-xs font-semibold text-rose-600 border border-rose-100">
+					<Heart className="h-3.5 w-3.5 fill-rose-500 stroke-rose-500" />
 					已收藏
 				</span>
 			)}
@@ -193,19 +194,6 @@ function BotCardAction({ item }: { item: PublicBot }) {
 			</div>
 		);
 	}
-
-	return (
-		<div className="relative z-20 flex items-center sm:items-start">
-			<Link to="/about">
-				<Button
-					variant="outline"
-					className="border-white/20 text-white hover:bg-white/10"
-				>
-					查看資訊
-				</Button>
-			</Link>
-		</div>
-	);
 }
 
 /**

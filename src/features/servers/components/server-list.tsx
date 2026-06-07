@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { Image } from "@unpic/react";
-import { ArrowUp, BadgeCheck, Clock, Pin, Users } from "lucide-react";
+import { ArrowUp, BadgeCheck, Clock, Heart, Pin, Users } from "lucide-react";
 import { memo } from "react";
 import ListSkeleton from "#/components/list-skeleton";
 import { Badge } from "#/components/ui/badge";
@@ -70,8 +70,8 @@ function ServerList({
 									{item.pin && <Pin className="h-4 w-4 text-gray-400" />}
 								</h3>
 								{item.isFavorite && (
-									<span className="inline-flex items-center gap-1 rounded-full bg-white/10 px-2 py-1 text-xs text-white/80">
-										<BadgeCheck className="h-3.5 w-3.5" />
+									<span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2 py-1 text-xs font-semibold text-rose-600 border border-rose-100">
+										<Heart className="h-3.5 w-3.5 fill-rose-500 stroke-rose-500" />
 										已收藏
 									</span>
 								)}
@@ -139,12 +139,12 @@ function ServerList({
 									</Button>
 								</a>
 							) : (
-								<Link to="/about">
+								<Link to="/tutorial">
 									<Button
 										variant="outline"
 										className="border-white/20 text-white hover:bg-white/10"
 									>
-										查看資訊
+										查看教學
 									</Button>
 								</Link>
 							)}

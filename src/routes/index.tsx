@@ -1,4 +1,6 @@
 import {
+	dehydrate,
+	HydrationBoundary,
 	useQuery,
 	useQueryClient,
 	useSuspenseQuery,
@@ -146,15 +148,10 @@ export const Route = createFileRoute("/")({
 	loader: async ({ context, deps }) => {
 		/**
 		 * OPTIMISATION 1 — Split blocking vs. background fetches.
-		 *
-		 * Only the active tab's server list blocks navigation; the filter bundle
-		 * (which carries *all* servers for client-side search) is fired in the
-		 * background so it warms the cache without delaying the page paint.
-		 *
-		 * Before: both calls were inside Promise.all → filter bundle blocked TTI
-		 * After : filter bundle is a void prefetch → ~40-60 % faster initial load
-		 *         on slow connections where the bundle is the heavier payload.
+		 * 保持你的優化邏輯不變，確保首屏渲染不會被 filterBundle 卡住。
 		 */
+
+		// 1. 阻塞型獲取：等待伺服器列表載入完成
 		await context.queryClient.ensureQueryData(
 			serversListQueryOptions({
 				category: deps.category,
@@ -163,11 +160,26 @@ export const Route = createFileRoute("/")({
 			}),
 		);
 
-		// Fire-and-forget — warms the cache so search feels instant if the user
-		// happens to type before the bundle arrives.
+		// 2. 背景預先獲取：不加 await，讓它在背景執行
 		void context.queryClient.prefetchQuery(serverFilterBundleQueryOptions());
+
+		// 3. 【新增】將當前 queryClient 的狀態脫水 (dehydrate) 並回傳
+		return {
+			dehydratedState: dehydrate(context.queryClient),
+		};
 	},
-	component: HomePage,
+
+	// 4. 【修改】用 HydrationBoundary 包裝你的 HomePage
+	component: () => {
+		// 從 loader 中取出剛才脫水的狀態
+		const { dehydratedState } = Route.useLoaderData();
+
+		return (
+			<HydrationBoundary state={dehydratedState}>
+				<HomePage />
+			</HydrationBoundary>
+		);
+	},
 });
 
 // ─── Sub-components ──────────────────────────────────────────────────────────
@@ -227,6 +239,7 @@ function HomePage() {
 	const { status } = useSession();
 	const autoSignInTriggeredRef = useRef(false);
 	const [isPending, startTransition] = useTransition();
+	const loaderData = Route.useLoaderData();
 
 	const activeTab = (search.tab ?? DEFAULT_CATEGORY) as ServerCategory;
 	const currentPage = search.page ?? 1;
