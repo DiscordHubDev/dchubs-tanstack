@@ -65,25 +65,14 @@ function manualChunks(id: string): string | undefined {
 
 // ─── Config ───────────────────────────────────────────────────────────────────
 export default defineConfig(({ mode }) => {
-	// 1. 確保 Vite 確實讀取到所有環境變數 (包含系統注入與 .env)
-	// process.cwd() 確保在 Bun 執行環境下也能正確指向專案根目錄
-	const env = loadEnv(mode, process.cwd(), "");
-	const isProd =
-		env.NODE_ENV === "production" || process.env.NODE_ENV === "production";
-	const isAnalyze = env.ANALYZE === "true" || process.env.ANALYZE === "true";
-	const cdnOrigin = env.VITE_CDN_ORIGIN || process.env.VITE_CDN_ORIGIN || "";
+	const isProd = process.env.NODE_ENV === "production";
+	const isAnalyze = process.env.ANALYZE === "true";
 
 	return {
-		// 3. 🛡️ 終極防線：強制攔截所有編譯後的動態 import 與資源路徑
-		experimental: {
-			renderBuiltUrl(filename) {
-				if (isProd && cdnOrigin) {
-					// 強制把所有的動態 chunk 加上 CDN 前綴
-					return `${cdnOrigin}/${filename}`;
-				}
-				return "/" + filename;
-			},
-		},
+		base:
+			process.env.NODE_ENV === "production"
+				? `${process.env.VITE_CDN_ORIGIN}/`
+				: "/",
 
 		// ─── 下面的配置完全保持你原本的寫法 ───
 		resolve: {
@@ -129,8 +118,6 @@ export default defineConfig(({ mode }) => {
 			viteReact(),
 			babel({ presets: [reactCompilerPreset()] }),
 		].filter(Boolean),
-
-		base: "",
 
 		build: {
 			target: "esnext",
