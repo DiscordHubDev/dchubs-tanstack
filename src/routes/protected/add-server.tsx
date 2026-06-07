@@ -1,25 +1,65 @@
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { AlertTriangle, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
+import LoadingPage from "#/components/loading";
+import { guildMembershipQueryOptions } from "#/features/servers/add-server.query";
 import type { DiscordGuild } from "#/features/servers/add-server.types";
 import { useGuilds } from "#/hooks/use-guilds";
 import { checkAuthServerFn } from "#/lib/auth.functions";
 
 export const Route = createFileRoute("/protected/add-server")({
-	preload: false,
-	component: RouteComponent,
 	beforeLoad: async ({ location }) => {
-		// 這裡會透過 RPC 呼叫後端確認 Header 狀態
 		const authStatus = await checkAuthServerFn();
 
 		if (!authStatus.isAuthenticated || !authStatus.userId) {
-			// 雙重保險：Client 端跳轉時發現沒登入，強制導向登入頁
 			throw redirect({
-				to: "/", // 或 "/login"
+				to: "/",
 				search: { redirect: location.href },
 			});
 		}
+
+		return {
+			userId: authStatus.userId,
+		};
 	},
+
+	loader: async ({ context }) => {
+		const { queryClient } = context;
+		await queryClient.ensureQueryData(guildMembershipQueryOptions());
+	},
+
+	component: RouteComponent,
+	pendingComponent: () => (
+		<LoadingPage
+			loadingText="正在加載您的 Discord 群組..."
+			subText="請稍候"
+			loaderType="dots"
+		/>
+	),
+	errorComponent: ({ error, reset }) => (
+		<div className="min-h-dvh bg-[#36393f] p-8 text-white">
+			<div className="mx-auto mt-20 max-w-2xl rounded-xl border border-[#ed4245] bg-[#2f3136] p-6 text-center">
+				<div className="mb-3 inline-flex items-center gap-2 text-[#ed4245]">
+					<AlertTriangle className="h-5 w-5" />
+					<span className="font-semibold">讀取伺服器失敗</span>
+				</div>
+				<p className="mb-4 text-[#b9bbbe] text-sm">
+					{error instanceof Error
+						? error.message
+						: "一個未預期的錯誤發生了。請稍後再試。"}
+				</p>
+				<button
+					type="button"
+					onClick={() => {
+						reset(); // Router 提供的 reset 方法，會重試 loader
+					}}
+					className="cursor-pointer rounded-lg bg-[#5865f2] px-4 py-2 font-medium text-sm transition-colors hover:bg-[#4752c4]"
+				>
+					重試
+				</button>
+			</div>
+		</div>
+	),
 });
 
 const INITIAL_SERVERS_LOAD = 12;
@@ -52,7 +92,7 @@ function buildBotInviteUrl(input: {
 
 	// 💡 關鍵改動 2：加入成功後要跳轉回來的目標網址
 	// 例如跳轉回目前網頁：window.location.origin + "/success" 或直接回首頁
-	const redirectUri = window.location.origin + "/protected/add-server";
+	const redirectUri = `${window.location.origin}/protected/add-server`;
 	inviteUrl.searchParams.set("redirect_uri", redirectUri);
 
 	// 💡 關鍵改動 3：Discord 規定有 redirect_uri 就必須帶上 response_type
@@ -112,17 +152,10 @@ function GuildCard({
 
 function RouteComponent() {
 	const navigate = useNavigate();
-	const {
-		data,
-		activeGuilds,
-		inactiveGuilds,
-		hasGuilds,
-		isLoading,
-		isError,
-		error,
-		isFetching,
-		refetch,
-	} = useGuilds();
+	// 透過 Suspense Query，這裡拿到的資料絕對存在
+	// 注意：isFetching 還是要留著，因為它代表「背景重新整理中」(例如點擊 Refresh 按鈕)
+	const { activeGuilds, inactiveGuilds, hasGuilds, data, isFetching, refetch } =
+		useGuilds();
 
 	const [activeLimit, setActiveLimit] = useState(INITIAL_SERVERS_LOAD);
 	const [inactiveLimit, setInactiveLimit] = useState(INITIAL_SERVERS_LOAD);
@@ -207,10 +240,7 @@ function RouteComponent() {
 	]);
 
 	useEffect(() => {
-		if (isLoading || isError) {
-			return;
-		}
-
+		// 移除原有的 isLoading 與 isError 判斷，因為元件能掛載代表資料已就緒
 		let ticking = false;
 
 		const scrollListener = () => {
@@ -228,7 +258,7 @@ function RouteComponent() {
 
 		window.addEventListener("scroll", scrollListener, { passive: true });
 		return () => window.removeEventListener("scroll", scrollListener);
-	}, [handleScroll, isLoading, isError]);
+	}, [handleScroll]); // 依賴陣列同樣移除 isLoading, isError
 
 	return (
 		<div className="min-h-dvh bg-[#36393f] text-white">
@@ -261,43 +291,15 @@ function RouteComponent() {
 					</p>
 				</header>
 
-				{isLoading && (
-					<div className="py-20 text-center text-[#b9bbbe]">
-						<div className="inline-flex items-center gap-2">
-							<RefreshCw className="h-4 w-4 animate-spin" />
-							<span>加載Discord群組...</span>
-						</div>
-					</div>
-				)}
+				{/* 完全移除原先的 isLoading 與 isError 的 JSX */}
 
-				{isError && (
-					<div className="rounded-xl border border-[#ed4245] bg-[#2f3136] p-6 text-center">
-						<div className="mb-3 inline-flex items-center gap-2 text-[#ed4245]">
-							<AlertTriangle className="h-5 w-5" />
-							<span className="font-semibold">讀取伺服器失敗</span>
-						</div>
-						<p className="mb-4 text-[#b9bbbe] text-sm">
-							{error instanceof Error
-								? error.message
-								: "一個未預期的錯誤發生了。請稍後再試。"}
-						</p>
-						<button
-							type="button"
-							onClick={handleRefresh}
-							className="cursor-pointer rounded-lg bg-[#5865f2] px-4 py-2 font-medium text-sm transition-colors hover:bg-[#4752c4]"
-						>
-							重試
-						</button>
-					</div>
-				)}
-
-				{!isLoading && !isError && !hasGuilds && (
+				{!hasGuilds && (
 					<div className="rounded-xl border border-[#4f545c] bg-[#2f3136] p-6 text-center text-[#b9bbbe]">
 						No Discord guilds were found for your account.
 					</div>
 				)}
 
-				{!isLoading && !isError && hasGuilds && (
+				{hasGuilds && (
 					<>
 						{activeGuilds.length > 0 && (
 							<div className="mb-10">

@@ -1,6 +1,7 @@
 import { createRouter as createTanStackRouter } from "@tanstack/react-router";
 import { setupRouterSsrQueryIntegration } from "@tanstack/react-router-ssr-query";
 import { ErrorState } from "./components/ErrorState";
+import LoadingPage from "./components/loading";
 import { getQueryClient } from "./integrations/tanstack-query/root-provider";
 import { routeTree } from "./routeTree.gen";
 
@@ -16,12 +17,11 @@ export function getRouter() {
 			session: null, // 給予 session 一個預設值，這會滿足你 Root Route 的型別要求
 		},
 		scrollRestoration: true,
+		defaultPreload: "intent",
+		defaultPreloadDelay: 50,
 		defaultPreloadStaleTime: 30000,
 		defaultPendingComponent: () => (
-			<div className="flex min-h-screen flex-col items-center justify-center space-y-4 bg-[#1e1f22] text-white">
-				<div className="h-12 w-12 animate-spin rounded-full border-[#5865f2] border-t-2 border-b-2"></div>
-				<p className="animate-breath text-gray-400 text-sm">加載中...</p>
-			</div>
+			<LoadingPage loadingText="加載中..." subText="請稍候" loaderType="dots" />
 		),
 		defaultErrorComponent: ({ error }) => <ErrorState error={error} />,
 	});

@@ -1,4 +1,5 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
+import LoadingPage from "#/components/loading";
 import { UserProfilePage } from "#/features/users/components/profile-page";
 import type {
 	ProfileSearch,
@@ -85,7 +86,13 @@ export const Route = createFileRoute("/protected/profile")({
 		};
 	},
 
-	pendingComponent: ProfilePending,
+	pendingComponent: () => (
+		<LoadingPage
+			loadingText="正在準備用戶資料..."
+			subText="請稍候"
+			loaderType="dots"
+		/>
+	),
 	component: RouteComponent,
 });
 

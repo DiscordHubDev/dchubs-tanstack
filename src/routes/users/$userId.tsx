@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import LoadingPage from "#/components/loading";
 import { UserProfilePage } from "#/features/users/components/profile-page";
 import type { ProfileTab } from "#/features/users/profile.schemas";
 import { userProfileQueryOptions } from "#/features/users/users.query";
@@ -46,7 +47,13 @@ export const Route = createFileRoute("/users/$userId")({
 		);
 		return { viewedUserId: params.userId };
 	},
-	pendingComponent: ProfilePending,
+	pendingComponent: () => (
+		<LoadingPage
+			loadingText="正在準備用戶資料..."
+			subText="請稍候"
+			loaderType="dots"
+		/>
+	),
 	component: RouteComponent,
 });
 
@@ -74,16 +81,5 @@ function RouteComponent() {
 				});
 			}}
 		/>
-	);
-}
-
-function ProfilePending() {
-	return (
-		<div className="min-h-dvh flex items-center justify-center bg-[#2b2d31] text-white">
-			<div className="text-center animate-pulse">
-				<h2 className="text-2xl font-semibold mb-2">載入中...</h2>
-				<p className="text-gray-400 text-sm">正在準備用戶資料...</p>
-			</div>
-		</div>
 	);
 }

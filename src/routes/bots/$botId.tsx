@@ -18,6 +18,7 @@ import {
 import { memo, useCallback, useMemo, useState } from "react";
 import { FaCheck, FaDiscord } from "react-icons/fa6";
 import { toast } from "react-toastify";
+import LoadingPage from "#/components/loading";
 import MarkdownRenderer from "#/components/MarkdownRenderer";
 import NotFound from "#/components/notFound";
 import { Badge } from "#/components/ui/badge";
@@ -197,7 +198,13 @@ export const Route = createFileRoute("/bots/$botId")({
 		return { detail };
 	},
 	component: BotDetailPage,
-	pendingComponent: BotLoading,
+	pendingComponent: () => (
+		<LoadingPage
+			loadingText="正在從茫茫大海中撈取機器人的資訊..."
+			subText="請稍候"
+			loaderType="dots"
+		/>
+	),
 	notFoundComponent: () => NotFound(),
 });
 
