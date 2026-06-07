@@ -81,21 +81,19 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
 		return { session };
 	},
 	head: ({ matches }) => {
-		const breadcrumbMatches = matches.filter(
-			(m) => m.pathname !== "/" && m.pathname !== "",
-		);
-
-		console.log(
-			"[Debug] Current Route Matches for Breadcrumbs:",
-			breadcrumbMatches,
-		);
+		const breadcrumbMatches = matches.filter((m) => m.pathname !== "");
 
 		const itemListElement = breadcrumbMatches.map((m, index) => {
+			const isHome = m.pathname === "/"; // 判斷是否為首頁
+
 			// @ts-expect-error - 動態捕捉 loaderData
 			const dynamicName = m.loaderData?.detail?.name;
 			const staticName = m.staticData?.breadcrumb;
-			const fallbackName =
-				m.pathname.split("/").filter(Boolean).pop() || "未命名";
+
+			// 如果是首頁，預設給 "首頁"，否則才用網址後綴
+			const fallbackName = isHome
+				? "首頁"
+				: m.pathname.split("/").filter(Boolean).pop() || "未命名";
 
 			const name = dynamicName || staticName || fallbackName;
 			const itemUrl = new URL(m.pathname, siteUrl).toString();
@@ -107,7 +105,6 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
 				item: itemUrl,
 			};
 		});
-
 		console.log("[Debug] Generated Breadcrumb JSON-LD:", itemListElement);
 
 		const breadcrumbJsonLd =

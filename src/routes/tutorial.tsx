@@ -120,5 +120,8 @@ const jsonLd = {
 
 export const Route = createFileRoute("/tutorial")({
 	component: TutorialPage,
+	staticData: {
+		breadcrumb: "教學",
+	},
 	head: () => ({ meta: seoMeta, scripts: [jsonLd] }),
 });

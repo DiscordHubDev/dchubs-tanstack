@@ -9,6 +9,9 @@ const baseUrl =
 
 export const Route = createFileRoute("/privacy")({
 	head: () => ({
+		staticData: {
+			breadcrumb: "隱私權政策",
+		},
 		meta: [
 			{ title: "隱私權政策 | DiscordHubs" },
 			{

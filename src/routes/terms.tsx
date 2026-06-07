@@ -9,6 +9,9 @@ const baseUrl =
 
 export const Route = createFileRoute("/terms")({
 	head: () => ({
+		staticData: {
+			breadcrumb: "使用條款",
+		},
 		meta: [
 			{ title: "使用條款 | DiscordHubs" },
 			{ name: "description", content: "DiscordHubs平台的服務使用條款說明" },
@@ -32,23 +35,6 @@ export const Route = createFileRoute("/terms")({
 					name: "Discord伺服器列表",
 					description: "DiscordHubs平台的服務使用條款說明",
 					url: `${baseUrl}/terms`,
-					breadcrumb: {
-						"@type": "BreadcrumbList",
-						itemListElement: [
-							{
-								"@type": "ListItem",
-								position: 1,
-								name: "首頁",
-								item: baseUrl,
-							},
-							{
-								"@type": "ListItem",
-								position: 2,
-								name: "服務條款",
-								item: `${baseUrl}/terms`,
-							},
-						],
-					},
 					isPartOf: {
 						"@type": "WebSite",
 						name: "DiscordHubs",

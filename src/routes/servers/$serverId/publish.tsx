@@ -8,6 +8,7 @@ const siteUrl =
 
 export const Route = createFileRoute("/servers/$serverId/publish")({
 	preload: false,
+	staticData: { breadcrumb: "發布伺服器" },
 	head: ({ match }) => {
 		const publishTitle = "發布伺服器 | DiscordHubs";
 		const publishCanonical = new URL(match.pathname, siteUrl).toString();

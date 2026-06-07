@@ -143,7 +143,6 @@ function validateSearch(search: Record<string, unknown>): ServerDetailSearch {
 
 export const Route = createFileRoute("/servers/$serverId/")({
 	validateSearch,
-
 	head: ({ loaderData, params, match }) => {
 		// 1. 處理子路徑 (/publish) 的靜態 Meta
 		if (match.pathname.endsWith("/publish")) {
@@ -157,7 +156,6 @@ export const Route = createFileRoute("/servers/$serverId/")({
 					{ property: "og:url", content: publishCanonical },
 				],
 				links: [{ rel: "canonical", href: publishCanonical }],
-				staticData: { breadcrumb: "發布伺服器" },
 			};
 		}
 
