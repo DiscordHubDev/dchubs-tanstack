@@ -5,12 +5,7 @@ import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import viteReact, { reactCompilerPreset } from "@vitejs/plugin-react";
 import { nitro } from "nitro/vite";
 import { visualizer } from "rollup-plugin-visualizer";
-import { defineConfig } from "vite";
-
-// ─── Environment flags ────────────────────────────────────────────────────────
-const isProd = process.env.NODE_ENV === "production";
-const isAnalyze = process.env.ANALYZE === "true";
-const cdnOrigin = process.env.VITE_CDN_ORIGIN || "";
+import { defineConfig, loadEnv } from "vite";
 
 // ─── Vendor chunk grouping ─────────────────────────────────────────────────────
 function manualChunks(id: string): string | undefined {
@@ -69,127 +64,105 @@ function manualChunks(id: string): string | undefined {
 }
 
 // ─── Config ───────────────────────────────────────────────────────────────────
-export default defineConfig({
-	base: isProd ? `${cdnOrigin}/` : "/",
-	resolve: {
-		tsconfigPaths: true,
-	},
+export default defineConfig(({ mode }) => {
+	// 1. 確保 Vite 確實讀取到所有環境變數 (包含系統注入與 .env)
+	// process.cwd() 確保在 Bun 執行環境下也能正確指向專案根目錄
+	const env = loadEnv(mode, process.cwd(), "");
+	const isProd =
+		env.NODE_ENV === "production" || process.env.NODE_ENV === "production";
+	const isAnalyze = env.ANALYZE === "true" || process.env.ANALYZE === "true";
+	const cdnOrigin = env.VITE_CDN_ORIGIN || process.env.VITE_CDN_ORIGIN || "";
 
-	optimizeDeps: {
-		include: ["react", "react-dom", "@tanstack/react-router"],
-		exclude: ["bun", "drizzle-orm/bun-sql"],
-	},
+	return {
+		// 2. 設定 base (確保變數成功載入)
+		base: isProd && cdnOrigin ? `${cdnOrigin}/` : "/",
 
-	ssr: {
-		external: ["bun", "drizzle-orm/bun-sql"],
-	},
-
-	plugins: [
-		isAnalyze &&
-			visualizer({
-				open: true,
-				gzipSize: true,
-				brotliSize: true,
-				filename: ".vite/stats.html",
-				template: "treemap", // "sunburst" | "treemap" | "network"
-			}),
-
-		devtools(),
-		tailwindcss(),
-		tanstackStart({
-			prerender: {
-				enabled: true,
-				crawlLinks: false,
-				filter: ({ path }) => {
-					const exactDynamicRoutes = ["/"];
-					if (exactDynamicRoutes.includes(path)) return false;
-					if (path.startsWith("/servers/")) return false;
-					if (path.startsWith("/bots/")) return false;
-					if (path.startsWith("/protected/")) return false;
-					return true;
-				},
-			},
-		}),
-		nitro({ preset: "bun" }),
-		viteReact(),
-		babel({ presets: [reactCompilerPreset()] }),
-	].filter(Boolean),
-
-	build: {
-		// ── Target ────────────────────────────────────────────────────────────────
-		// "esnext" → no downlevelling; Bun + modern browsers understand it natively.
-		// Change to ["es2020", "edge88", "firefox78", "chrome87", "safari14"] if you
-		// need broader browser support.
-		target: "esnext",
-
-		minify: isProd ? "esbuild" : false,
-
-		...(isProd && {
-			minifyOptions: {
-				compress: {
-					drop_console: true,
-					drop_debugger: true,
-				},
-				format: {
-					comments: false, // 相當於 legalComments: 'none'
-				},
-			},
-		}),
-
-		// ── CSS ───────────────────────────────────────────────────────────────────
-		// Split CSS per-chunk so route pages only load their own styles.
-		cssCodeSplit: true,
-
-		// ── Source maps ───────────────────────────────────────────────────────────
-		// false        → no source maps (smallest output, safest for public deploy)
-		// "hidden"     → generates maps but doesn't reference them in bundles
-		//                (upload to Sentry / Datadog without exposing to users)
-		// true/"inline"→ full source maps (dev only)
-		sourcemap: isProd ? false : "inline",
-
-		// ── Misc ──────────────────────────────────────────────────────────────────
-		// Skip gzip size calculation on every chunk → faster build output logging.
-		reportCompressedSize: false,
-
-		// Warn when a single chunk exceeds this size (kB). Adjust to taste.
-		chunkSizeWarningLimit: 1500,
-
-		// ── Rollup options ────────────────────────────────────────────────────────
-		rollupOptions: {
-			output: {
-				/**
-				 * Vendor chunk splitting.
-				 *
-				 * TanStack Router + Start already handle route-level code splitting
-				 * automatically via dynamic imports — no manual config needed there.
-				 *
-				 * Here we split large, rarely-changing vendor libraries into separate
-				 * cacheable chunks so that a UI change in your app code doesn't bust
-				 * the React or TanStack cache entries in the user's browser.
-				 */
-				manualChunks,
-
-				// Deterministic, content-hashed filenames for long-lived caching.
-				chunkFileNames: "assets/[name]-[hash].js",
-				entryFileNames: "assets/[name]-[hash].js",
-				assetFileNames: "assets/[name]-[hash][extname]",
-			},
-
-			/**
-			 * Tree-shaking preset.
-			 *
-			 * "recommended" = safest aggressive mode.
-			 * moduleSideEffects: mark CSS files as having side effects (they inject
-			 * global styles) but treat everything else as pure until proven otherwise.
-			 * This lets Rollup eliminate more dead code from packages that forgot to
-			 * mark themselves as side-effect-free in their package.json.
-			 */
-			treeshake: {
-				annotations: true,
-				propertyReadSideEffects: "always",
-				unknownGlobalSideEffects: true,
-				moduleSideEffects: (id: string) => id.endsWith(".css"),
+		// 3. 🛡️ 終極防線：強制攔截所有編譯後的動態 import 與資源路徑
+		experimental: {
+			renderBuiltUrl(filename) {
+				if (isProd && cdnOrigin) {
+					// 強制把所有的動態 chunk 加上 CDN 前綴
+					return `${cdnOrigin}/${filename}`;
+				}
+				return "/" + filename;
 			},
 		},
-	},
+
+		// ─── 下面的配置完全保持你原本的寫法 ───
+		resolve: {
+			tsconfigPaths: true,
+		},
+
+		optimizeDeps: {
+			include: ["react", "react-dom", "@tanstack/react-router"],
+			exclude: ["bun", "drizzle-orm/bun-sql"],
+		},
+
+		ssr: {
+			external: ["bun", "drizzle-orm/bun-sql"],
+		},
+
+		plugins: [
+			isAnalyze &&
+				visualizer({
+					open: true,
+					gzipSize: true,
+					brotliSize: true,
+					filename: ".vite/stats.html",
+					template: "treemap",
+				}),
+
+			devtools(),
+			tailwindcss(),
+			tanstackStart({
+				prerender: {
+					enabled: true,
+					crawlLinks: false,
+					filter: ({ path }) => {
+						const exactDynamicRoutes = ["/"];
+						if (exactDynamicRoutes.includes(path)) return false;
+						if (path.startsWith("/servers/")) return false;
+						if (path.startsWith("/bots/")) return false;
+						if (path.startsWith("/protected/")) return false;
+						return true;
+					},
+				},
+			}),
+			nitro({ preset: "bun" }),
+			viteReact(),
+			babel({ presets: [reactCompilerPreset()] }),
+		].filter(Boolean),
+
+		build: {
+			target: "esnext",
+			minify: isProd ? "esbuild" : false,
+			...(isProd && {
+				minifyOptions: {
+					compress: {
+						drop_console: true,
+						drop_debugger: true,
+					},
+					format: { comments: false },
+				},
+			}),
+			cssCodeSplit: true,
+			sourcemap: isProd ? false : "inline",
+			reportCompressedSize: false,
+			chunkSizeWarningLimit: 1500,
+			rollupOptions: {
+				output: {
+					manualChunks, // 這裡沿用你原本在上面定義好的 function
+					chunkFileNames: "assets/[name]-[hash].js",
+					entryFileNames: "assets/[name]-[hash].js",
+					assetFileNames: "assets/[name]-[hash][extname]",
+				},
+				treeshake: {
+					annotations: true,
+					propertyReadSideEffects: "always",
+					unknownGlobalSideEffects: true,
+					moduleSideEffects: (id: string) => id.endsWith(".css"),
+				},
+			},
+		},
+	};
 });
