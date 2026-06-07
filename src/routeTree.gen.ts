@@ -21,6 +21,7 @@ import { Route as ProtectedAdminRouteImport } from './routes/protected/admin'
 import { Route as ProtectedAddServerRouteImport } from './routes/protected/add-server'
 import { Route as ProtectedAddBotRouteImport } from './routes/protected/add-bot'
 import { Route as BotsBotIdRouteImport } from './routes/bots/$botId'
+import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as ServersServerIdRouteRouteImport } from './routes/servers/$serverId/route'
 import { Route as ServersServerIdIndexRouteImport } from './routes/servers/$serverId/index'
 import { Route as ServersServerIdPublishRouteImport } from './routes/servers/$serverId/publish'
@@ -93,6 +94,11 @@ const ProtectedAddBotRoute = ProtectedAddBotRouteImport.update({
 const BotsBotIdRoute = BotsBotIdRouteImport.update({
   id: '/bots/$botId',
   path: '/bots/$botId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiHealthRoute = ApiHealthRouteImport.update({
+  id: '/api/health',
+  path: '/api/health',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ServersServerIdRouteRoute = ServersServerIdRouteRouteImport.update({
@@ -168,6 +174,7 @@ export interface FileRoutesByFullPath {
   '/terms': typeof TermsRoute
   '/tutorial': typeof TutorialRoute
   '/servers/$serverId': typeof ServersServerIdRouteRouteWithChildren
+  '/api/health': typeof ApiHealthRoute
   '/bots/$botId': typeof BotsBotIdRoute
   '/protected/add-bot': typeof ProtectedAddBotRoute
   '/protected/add-server': typeof ProtectedAddServerRoute
@@ -194,6 +201,7 @@ export interface FileRoutesByTo {
   '/sitemap.xml': typeof SitemapDotxmlRoute
   '/terms': typeof TermsRoute
   '/tutorial': typeof TutorialRoute
+  '/api/health': typeof ApiHealthRoute
   '/bots/$botId': typeof BotsBotIdRoute
   '/protected/add-bot': typeof ProtectedAddBotRoute
   '/protected/add-server': typeof ProtectedAddServerRoute
@@ -222,6 +230,7 @@ export interface FileRoutesById {
   '/terms': typeof TermsRoute
   '/tutorial': typeof TutorialRoute
   '/servers/$serverId': typeof ServersServerIdRouteRouteWithChildren
+  '/api/health': typeof ApiHealthRoute
   '/bots/$botId': typeof BotsBotIdRoute
   '/protected/add-bot': typeof ProtectedAddBotRoute
   '/protected/add-server': typeof ProtectedAddServerRoute
@@ -251,6 +260,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/tutorial'
     | '/servers/$serverId'
+    | '/api/health'
     | '/bots/$botId'
     | '/protected/add-bot'
     | '/protected/add-server'
@@ -277,6 +287,7 @@ export interface FileRouteTypes {
     | '/sitemap.xml'
     | '/terms'
     | '/tutorial'
+    | '/api/health'
     | '/bots/$botId'
     | '/protected/add-bot'
     | '/protected/add-server'
@@ -304,6 +315,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/tutorial'
     | '/servers/$serverId'
+    | '/api/health'
     | '/bots/$botId'
     | '/protected/add-bot'
     | '/protected/add-server'
@@ -332,6 +344,7 @@ export interface RootRouteChildren {
   TermsRoute: typeof TermsRoute
   TutorialRoute: typeof TutorialRoute
   ServersServerIdRouteRoute: typeof ServersServerIdRouteRouteWithChildren
+  ApiHealthRoute: typeof ApiHealthRoute
   BotsBotIdRoute: typeof BotsBotIdRoute
   ProtectedAddBotRoute: typeof ProtectedAddBotRoute
   ProtectedAddServerRoute: typeof ProtectedAddServerRoute
@@ -435,6 +448,13 @@ declare module '@tanstack/react-router' {
       path: '/bots/$botId'
       fullPath: '/bots/$botId'
       preLoaderRoute: typeof BotsBotIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/health': {
+      id: '/api/health'
+      path: '/api/health'
+      fullPath: '/api/health'
+      preLoaderRoute: typeof ApiHealthRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/servers/$serverId': {
@@ -551,6 +571,7 @@ const rootRouteChildren: RootRouteChildren = {
   TermsRoute: TermsRoute,
   TutorialRoute: TutorialRoute,
   ServersServerIdRouteRoute: ServersServerIdRouteRouteWithChildren,
+  ApiHealthRoute: ApiHealthRoute,
   BotsBotIdRoute: BotsBotIdRoute,
   ProtectedAddBotRoute: ProtectedAddBotRoute,
   ProtectedAddServerRoute: ProtectedAddServerRoute,
