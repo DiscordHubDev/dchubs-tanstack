@@ -14,6 +14,7 @@ type DiscordProfileLike = {
 	banner?: string | null;
 	banner_color?: string | null;
 	discriminator?: string;
+	email?: string | null;
 };
 
 function buildDiscordAvatar(profile: DiscordProfileLike): string {
@@ -126,6 +127,7 @@ export async function createAuth() {
 						avatar,
 						banner: buildDiscordBanner(profile),
 						bannerColor: profile.banner_color || null,
+						email: profile.email || `${profile.id}@discord.local`,
 					};
 				},
 			},
@@ -177,6 +179,7 @@ export async function createAuth() {
 											banner: banner,
 											bannerColor: profile.banner_color || null,
 											updatedAt: nowIsoString,
+											email: profile.email || `${profile.id}@discord.local`,
 										})
 										.where(eq(schema.user.id, session.userId));
 

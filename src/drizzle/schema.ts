@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 import {
 	boolean,
+	customType,
 	doublePrecision,
 	foreignKey,
 	index,
@@ -40,6 +41,23 @@ export const reportType = pgEnum("ReportType", ["bot", "server"]);
 export const status = pgEnum("Status", ["pending", "approved", "rejected"]);
 export const voteType = pgEnum("VoteType", ["server", "bot"]);
 
+const isoDateText = customType<{ data: string; driverData: string }>({
+	dataType() {
+		return "text"; // 告訴資料庫：我底層還是要用 text 欄位
+	},
+	toDriver(value: string | Date) {
+		// 寫入資料庫前攔截：如果 Better Auth 傳了 Date 物件，轉成字串
+		if (value instanceof Date) {
+			return value.toISOString();
+		}
+		return value; // 如果原本就是字串就直接放行
+	},
+	fromDriver(value: string) {
+		// 從資料庫拿出來時：維持字串格式，讓你的 App 其他部分不用改程式碼
+		return value;
+	},
+});
+
 // ==========================================
 // 2. AUTHENTICATION TABLES (BetterAuth / NextAuth)
 // ==========================================
@@ -51,8 +69,8 @@ export const user = pgTable(
 		email: text("email").notNull().unique(),
 		emailVerified: boolean("email_verified").default(false).notNull(),
 		image: text("image"),
-		createdAt: text("created_at").default(sql`(now())`).notNull(),
-		updatedAt: text("updated_at")
+		createdAt: isoDateText("created_at").default(sql`(now())`).notNull(),
+		updatedAt: isoDateText("updated_at")
 			.default(sql`(now())`)
 			.$onUpdate(() => new Date().toISOString())
 			.notNull(),
@@ -61,10 +79,10 @@ export const user = pgTable(
 		banReason: text("ban_reason"),
 		banExpires: timestamp("ban_expires"),
 		discordId: text("discord_id").unique(),
-		username: text("username").default("未知使用者").notNull(),
-		avatar: text("avatar")
-			.default("https://cdn.discordapp.com/embed/avatars/0.png")
-			.notNull(),
+		username: text("username").default("未知使用者"),
+		avatar: text("avatar").default(
+			"https://cdn.discordapp.com/embed/avatars/0.png",
+		),
 		banner: text("banner"),
 		bannerColor: text("banner_color"),
 		bio: text("bio"),
