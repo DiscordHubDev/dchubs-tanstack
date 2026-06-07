@@ -1,16 +1,13 @@
-import { createFileRoute } from "@tanstack/react-router";
+// scripts/update-servers.ts
 import { Data, Effect, Exit } from "effect";
 import { db } from "#/drizzle/db";
-import { server, user } from "#/drizzle/schema"; // 假設從這裡引入 user 表
+import { server, user } from "#/drizzle/schema";
 
-// ==========================================
-// 1. 定義 Effect 錯誤型別
-// ==========================================
 class DiscordApiError extends Data.TaggedError("DiscordApiError")<{
 	message: string;
 	status: number;
 	guildId: string;
-	userId?: string; // 加上 userId 方便追蹤
+	userId?: string;
 }> {}
 class DatabaseError extends Data.TaggedError("DatabaseError")<{
 	message: string;
@@ -20,11 +17,8 @@ class ConfigError extends Data.TaggedError("ConfigError")<{
 	message: string;
 }> {}
 
-// ==========================================
-// 定義 Discord API 資料結構
-// ==========================================
 interface DiscordGuildWithCounts {
-	id: string;
+	/* 略，同你原本的定義 */ id: string;
 	name: string;
 	description: string | null;
 	icon: string | null;
@@ -32,61 +26,41 @@ interface DiscordGuildWithCounts {
 	approximate_member_count: number;
 	approximate_presence_count: number;
 }
-
-// 根據 Discord API 結構定義 User 欄位
 interface DiscordUser {
-	id: string;
+	/* 略，同你原本的定義 */ id: string;
 	username: string;
 	avatar: string | null;
 	banner?: string | null;
 	banner_color?: string | null;
 	global_name?: string | null;
-	email?: string | null; // 注意：Discord API 不提供 email 欄位，這裡保持可選
+	email?: string | null;
 }
-
-// 根據 Discord API 結構定義 Guild Member 欄位
 interface DiscordGuildMember {
-	user: DiscordUser;
+	/* 略，同你原本的定義 */ user: DiscordUser;
 	nick?: string | null;
 	avatar?: string | null;
 	banner?: string | null;
 	roles: string[];
 	joined_at: string;
-	// ... 其他欄位可以視需求加上
 }
 
-// ==========================================
-// 2. Discord API & DB 操作 (Effect 函式)
-// ==========================================
-
-// 2a. 從資料庫撈取所有既有的伺服器清單
 const getAllServersFromDb = () =>
 	Effect.tryPromise({
+		/* 同你原本的實作 */
 		try: async () => {
 			const query = db
 				.select({ id: server.id, ownerId: server.ownerId })
 				.from(server);
-
-			// 💡 偵測是否為開發者環境，若是則加上 limit(5)
-			if (process.env.NODE_ENV === "development") {
-				console.log(
-					"[Dev Mode] Detected: Only fetching the first 5 servers for syncing.",
-				);
-				return await query.limit(5);
-			}
-
+			if (process.env.NODE_ENV === "development") return await query.limit(5);
 			return await query;
 		},
 		catch: (cause) =>
-			new DatabaseError({
-				message: "Failed to fetch servers from database",
-				cause,
-			}),
+			new DatabaseError({ message: "Failed to fetch servers", cause }),
 	});
 
-// 2b. 取得單一 Discord 伺服器資料
 const fetchDiscordServerData = (guildId: string, botToken: string) =>
 	Effect.tryPromise({
+		/* 同你原本的實作 */
 		try: async () => {
 			const res = await fetch(
 				`https://discord.com/api/v10/guilds/${guildId}?with_counts=true`,
@@ -97,27 +71,24 @@ const fetchDiscordServerData = (guildId: string, botToken: string) =>
 					},
 				},
 			);
-
-			if (!res.ok) {
-				throw { status: res.status, message: await res.text() };
-			}
+			if (!res.ok) throw { status: res.status, message: await res.text() };
 			return (await res.json()) as DiscordGuildWithCounts;
 		},
 		catch: (error: any) =>
 			new DiscordApiError({
 				guildId,
-				message: error?.message || "Failed to fetch Server from Discord API",
+				message: error?.message,
 				status: error?.status || 500,
 			}),
 	});
 
-// [新增] 2c. 取得單一 Discord 成員資料 (Owner)
 const fetchDiscordMemberData = (
 	guildId: string,
 	userId: string,
 	botToken: string,
 ) =>
 	Effect.tryPromise({
+		/* 同你原本的實作 */
 		try: async () => {
 			const res = await fetch(
 				`https://discord.com/api/v10/guilds/${guildId}/members/${userId}`,
@@ -128,24 +99,21 @@ const fetchDiscordMemberData = (
 					},
 				},
 			);
-
-			if (!res.ok) {
-				throw { status: res.status, message: await res.text() };
-			}
+			if (!res.ok) throw { status: res.status, message: await res.text() };
 			return (await res.json()) as DiscordGuildMember;
 		},
 		catch: (error: any) =>
 			new DiscordApiError({
 				guildId,
 				userId,
-				message: error?.message || "Failed to fetch Member from Discord API",
+				message: error?.message,
 				status: error?.status || 500,
 			}),
 	});
 
-// 2d. 更新單一伺服器資料
 const upsertServerDb = (guild: DiscordGuildWithCounts, ownerId: string) =>
 	Effect.tryPromise({
+		/* 同你原本的實作 */
 		try: async () => {
 			const iconUrl = guild.icon
 				? `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png`
@@ -153,7 +121,6 @@ const upsertServerDb = (guild: DiscordGuildWithCounts, ownerId: string) =>
 			const bannerUrl = guild.banner
 				? `https://cdn.discordapp.com/banners/${guild.id}/${guild.banner}.png?size=4096`
 				: null;
-
 			const [upserted] = await db
 				.insert(server)
 				.values({
@@ -181,28 +148,23 @@ const upsertServerDb = (guild: DiscordGuildWithCounts, ownerId: string) =>
 					},
 				})
 				.returning();
-
 			return upserted;
 		},
 		catch: (cause) =>
 			new DatabaseError({ message: "Failed to upsert server data", cause }),
 	});
 
-// [新增] 2e. 更新單一使用者 (Owner) 資料
 const upsertUserDb = (member: DiscordGuildMember) =>
 	Effect.tryPromise({
+		/* 同你原本的實作 */
 		try: async () => {
 			const discordUser = member.user;
-
-			// 處理頭像與橫幅網址
 			const avatarUrl = discordUser.avatar
 				? `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png`
 				: "https://cdn.discordapp.com/embed/avatars/0.png";
-
 			const bannerUrl = discordUser.banner
 				? `https://cdn.discordapp.com/banners/${discordUser.id}/${discordUser.banner}.png?size=4096`
 				: null;
-
 			const [upserted] = await db
 				.insert(user)
 				.values({
@@ -211,7 +173,6 @@ const upsertUserDb = (member: DiscordGuildMember) =>
 					avatar: avatarUrl,
 					banner: bannerUrl,
 					bannerColor: discordUser.banner_color || null,
-					// 修正 1: 如果 Discord 沒有回傳 email，則給予空字串（或符合你資料庫防呆的值）
 					email: discordUser.email ?? "",
 					name: discordUser.global_name || discordUser.username,
 				})
@@ -220,107 +181,73 @@ const upsertUserDb = (member: DiscordGuildMember) =>
 					set: {
 						username: discordUser.username,
 						name: discordUser.global_name || discordUser.username,
-						// 修正 2: 移除 email: undefined，避免 Drizzle 解析錯誤
-						// 如果更新時不打算變動 email，直接不寫這個欄位即可
 						avatar: avatarUrl,
 						banner: bannerUrl,
 						bannerColor: discordUser.banner_color || null,
 					},
 				})
 				.returning();
-
 			return upserted;
 		},
 		catch: (cause) =>
 			new DatabaseError({ message: "Failed to upsert user data", cause }),
 	});
 
-// 2f. 核心工作流：同步單一伺服器 (包含 Server 與 Owner 數據)
 const syncSingleServer = (guildId: string, ownerId: string, botToken: string) =>
 	Effect.gen(function* () {
-		// 1. 同步伺服器數據
 		const guildData = yield* fetchDiscordServerData(guildId, botToken);
 		const updatedServer = yield* upsertServerDb(guildData, ownerId);
-
-		// 2. 同步伺服器擁有者(Member)數據
 		const memberData = yield* fetchDiscordMemberData(
 			guildId,
 			ownerId,
 			botToken,
 		);
 		const updatedOwner = yield* upsertUserDb(memberData);
-
+		console.log(`✅ Server 同步成功: ${updatedServer.name}`);
 		return { server: updatedServer, owner: updatedOwner };
 	}).pipe(
-		// catchAll 保證如果 API 噴錯(例如被踢出伺服器導致找不到 member)，不會讓整個迴圈崩潰
 		Effect.catchAll((error) => {
 			console.error(
-				`[Sync Failed] GuildID: ${guildId}, OwnerID: ${ownerId}`,
+				`⚠️ [Sync Failed 跳過] GuildID: ${guildId}, OwnerID: ${ownerId}`,
 				error,
 			);
 			return Effect.succeed(null);
 		}),
 	);
 
-// ==========================================
-// 3. TanStack API Route 實作
-// ==========================================
-export const Route = createFileRoute("/api/cron/update-servers")({
-	server: {
-		handlers: {
-			POST: async () => {
-				const program = Effect.gen(function* () {
-					const botToken = process.env.DISCORD_BOT_TOKEN;
-					if (!botToken) {
-						return yield* Effect.fail(
-							new ConfigError({
-								message: "DISCORD_BOT_TOKEN is not configured.",
-							}),
-						);
-					}
+const syncAllServersProgram = Effect.gen(function* () {
+	const botToken = process.env.DISCORD_BOT_TOKEN;
+	if (!botToken)
+		yield* Effect.fail(
+			new ConfigError({ message: "DISCORD_BOT_TOKEN is not configured." }),
+		);
 
-					// 1. 從 DB 撈出所有需要同步的伺服器
-					const serversToSync = yield* getAllServersFromDb();
+	console.log("🔍 開始抓取資料庫內的伺服器清單...");
+	const serversToSync = yield* getAllServersFromDb();
 
-					// 2. 走訪所有伺服器進行同步 (含 Server 與 Owner)
-					const results = yield* Effect.forEach(
-						serversToSync,
-						(s) => syncSingleServer(s.id, s.ownerId, botToken),
-						{ concurrency: 5 }, // 限制同時 5 個併發
-					);
+	console.log(
+		`🚀 準備併發同步 ${serversToSync.length} 個伺服器 (Concurrency: 5)`,
+	);
+	const results = yield* Effect.forEach(
+		serversToSync,
+		(s) => syncSingleServer(s.id, s.ownerId, botToken!),
+		{ concurrency: 5 },
+	);
 
-					// 3. 過濾掉失敗的項目 (null)
-					const successfulUpdates = results.filter((res) => res !== null);
+	const successfulUpdates = results.filter((res) => res !== null);
+	return {
+		total: serversToSync.length,
+		updated: successfulUpdates.length,
+	};
+});
 
-					return {
-						total: serversToSync.length,
-						updated: successfulUpdates.length,
-						data: successfulUpdates,
-					};
-				});
-
-				const exit = await Effect.runPromiseExit(program);
-
-				// 4. 回傳標準 Response
-				if (Exit.isSuccess(exit)) {
-					return Response.json({ success: true, ...exit.value });
-				} else {
-					const error =
-						exit.cause._tag === "Fail" ? exit.cause.error : exit.cause;
-					console.error("[Cron Sync Critical Error]:", error);
-
-					return Response.json(
-						{
-							success: false,
-							error:
-								error instanceof Data.TaggedError
-									? error
-									: "Unknown Execution Error",
-						},
-						{ status: 500 },
-					);
-				}
-			},
-		},
-	},
+// ─── 執行進入點 ───
+Effect.runPromiseExit(syncAllServersProgram).then((exit) => {
+	if (Exit.isSuccess(exit)) {
+		console.log("🎉 所有伺服器與擁有人資料同步完成:", exit.value);
+		process.exit(0);
+	} else {
+		console.error("❌ 同步任務發生嚴重錯誤:", exit.cause);
+		process.exit(1);
+	}
 });

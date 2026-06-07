@@ -1,10 +1,9 @@
-import { createFileRoute } from "@tanstack/react-router";
+// scripts/check-server.ts
 import { inArray } from "drizzle-orm";
 import { Data, Effect } from "effect";
 import { db } from "#/drizzle/db";
-import { server } from "#/drizzle/schema"; // 確保 schema 名稱一致
+import { server } from "#/drizzle/schema";
 
-// --- 1. 定義明確的 Error 類型 ---
 class DiscordApiError extends Data.TaggedError("DiscordApiError")<{
 	readonly message: string;
 	readonly status?: number;
@@ -27,10 +26,7 @@ interface DiscordUserGuild {
 	features: string[];
 }
 
-// --- 2. Effect 封裝 API 與 DB 操作 ---
-
-// 獲取 Bot 所在的 Guild IDs
-export const getBotGuildIdsEffect = (botToken: string) =>
+const getBotGuildIdsEffect = (botToken: string) =>
 	Effect.tryPromise({
 		try: async () => {
 			const res = await fetch("https://discord.com/api/v10/users/@me/guilds", {
@@ -50,8 +46,7 @@ export const getBotGuildIdsEffect = (botToken: string) =>
 			}),
 	});
 
-// 獲取資料庫中所有的 Server IDs
-export const getAllServerIdsChunkedEffect = () =>
+const getAllServerIdsChunkedEffect = () =>
 	Effect.tryPromise({
 		try: async () => {
 			const result = await db.select({ id: server.id }).from(server);
@@ -63,7 +58,6 @@ export const getAllServerIdsChunkedEffect = () =>
 			}),
 	});
 
-// 封裝刪除操作的 Effect
 const deleteServersEffect = (toDeleteIds: string[]) =>
 	Effect.tryPromise({
 		try: async () => {
@@ -71,7 +65,6 @@ const deleteServersEffect = (toDeleteIds: string[]) =>
 				.delete(server)
 				.where(inArray(server.id, toDeleteIds));
 
-			// 相容不同資料庫驅動 (Pg/MySQL/SQLite) 的刪除數量統計
 			return (
 				(deleteResult as any).rowCount ??
 				(deleteResult as any).rowsAffected ??
@@ -85,56 +78,38 @@ const deleteServersEffect = (toDeleteIds: string[]) =>
 			}),
 	});
 
-// --- 3. 主要同步邏輯 (Effect Pipeline) ---
 const syncServersProgram = (botToken: string) =>
 	Effect.gen(function* () {
-		// 循序執行 Effect，若有 Error 會自動中斷並拋給外層
+		console.log("🔍 開始檢查 Bot 伺服器狀態...");
 		const botGuildIds = yield* getBotGuildIdsEffect(botToken);
 		const allPublishedIds = yield* getAllServerIdsChunkedEffect();
 
-		// 找出需刪除的 ID
 		const toDelete = allPublishedIds.filter((id) => !botGuildIds.includes(id));
 
 		let deletedCount = 0;
 		if (toDelete.length > 0) {
+			console.log(`🗑️ 發現 ${toDelete.length} 個需要刪除的伺服器，執行刪除...`);
 			deletedCount = yield* deleteServersEffect(toDelete);
+		} else {
+			console.log("✅ 沒有需要清理的伺服器。");
 		}
 
 		return { deletedCount, deletedIds: toDelete };
 	});
 
-// --- 4. TanStack Start API Route ---
-export const Route = createFileRoute("/api/cron/check-server")({
-	server: {
-		handlers: {
-			POST: async () => {
-				// 從環境變數或 request headers 取得 Token (請根據你的架構調整)
-				const botToken = process.env.DISCORD_BOT_TOKEN || "YOUR_BOT_TOKEN";
+// ─── 執行進入點 ───
+const botToken = process.env.DISCORD_BOT_TOKEN;
+if (!botToken) {
+	console.error("❌ 找不到環境變數 DISCORD_BOT_TOKEN");
+	process.exit(1);
+}
 
-				// 執行 Effect，並安全地處理 Exit 狀態
-				const exit = await Effect.runPromiseExit(syncServersProgram(botToken));
-
-				if (exit._tag === "Success") {
-					// 成功時回傳標準 Web Response
-					return new Response(JSON.stringify(exit.value), {
-						status: 200,
-						headers: { "Content-Type": "application/json" },
-					});
-				}
-
-				// 捕捉所有 Effect 管線中拋出的錯誤 (DiscordApiError, DbFetchError, DbDeleteError)
-				console.error("❌ sync error:", exit.cause);
-
-				const errorMessage =
-					exit.cause._tag === "Fail" && "message" in exit.cause.error
-						? (exit.cause.error as any).message
-						: "Internal server error";
-
-				return new Response(JSON.stringify({ error: errorMessage }), {
-					status: 500,
-					headers: { "Content-Type": "application/json" },
-				});
-			},
-		},
-	},
+Effect.runPromiseExit(syncServersProgram(botToken)).then((exit) => {
+	if (exit._tag === "Success") {
+		console.log("🎉 同步完成:", exit.value);
+		process.exit(0);
+	} else {
+		console.error("❌ 同步發生錯誤:", exit.cause);
+		process.exit(1);
+	}
 });
