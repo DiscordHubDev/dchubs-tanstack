@@ -639,7 +639,7 @@ function ServersTab({
 					actionButton={
 						isOwner ? (
 							<Link to="/protected/add-server">
-								<Button className="bg-[#5865f2] text-white hover:bg-[#4752c4]">
+								<Button className="mt-5 bg-[#5865f2] text-white hover:bg-[#4752c4]">
 									<Plus size={16} />
 									新增伺服器
 								</Button>
@@ -842,7 +842,7 @@ function BotsTab({
 					actionButton={
 						isOwner ? (
 							<Link to="/protected/add-bot">
-								<Button className="bg-[#5865f2] text-white hover:bg-[#4752c4]">
+								<Button className="mt-5 bg-[#5865f2] text-white hover:bg-[#4752c4]">
 									<Plus size={16} />
 									新增機器人
 								</Button>

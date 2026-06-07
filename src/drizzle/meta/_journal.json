@@ -120,6 +120,13 @@
       "when": 1780814823776,
       "tag": "0016_known_vivisector",
       "breakpoints": true
+    },
+    {
+      "idx": 17,
+      "version": "7",
+      "when": 1780821882728,
+      "tag": "0017_secret_norrin_radd",
+      "breakpoints": true
     }
   ]
 }

@@ -109,7 +109,14 @@ export async function createAuth() {
 				strategy: "jwt",
 			},
 		},
-		account: { modelName: "authAccount", updateAccountOnSignIn: true },
+		account: {
+			modelName: "authAccount",
+			updateAccountOnSignIn: true,
+			accountLinking: {
+				enabled: true,
+				trustedProviders: ["discord"], // 信任 Discord 提供的 Email
+			},
+		},
 		verification: { modelName: "authVerification" },
 
 		socialProviders: {
