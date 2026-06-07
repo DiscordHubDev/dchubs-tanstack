@@ -74,9 +74,6 @@ export default defineConfig(({ mode }) => {
 	const cdnOrigin = env.VITE_CDN_ORIGIN || process.env.VITE_CDN_ORIGIN || "";
 
 	return {
-		// 2. 設定 base (確保變數成功載入)
-		base: isProd && cdnOrigin ? `${cdnOrigin}/` : "/",
-
 		// 3. 🛡️ 終極防線：強制攔截所有編譯後的動態 import 與資源路徑
 		experimental: {
 			renderBuiltUrl(filename) {
@@ -132,6 +129,8 @@ export default defineConfig(({ mode }) => {
 			viteReact(),
 			babel({ presets: [reactCompilerPreset()] }),
 		].filter(Boolean),
+
+		base: "",
 
 		build: {
 			target: "esnext",
