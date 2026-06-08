@@ -64,9 +64,9 @@ export default function Header() {
 					>
 						<Button
 							variant="ghost"
-							className={`cursor-pointer text-white hover:bg-[#36393f] flex items-center gap-2 justify-start bg-discord hover:bg-discord-hover ${
+							className={`cursor-pointer text-white flex items-center gap-2 justify-start bg-discord hover:bg-discord-hover transition-colors ${
 								isMobile ? "w-full px-3 py-2 text-sm h-10" : ""
-							} ${pathname === "/protected/profile" ? "bg-white/10" : ""}`}
+							} ${pathname === "/protected/profile" ? "bg-discord-hover" : ""}`}
 						>
 							<FaUser className="size-4 shrink-0" />
 							<span>個人資料</span>
@@ -75,7 +75,7 @@ export default function Header() {
 					<Button
 						onClick={handleSignOut}
 						variant="destructive"
-						className={`cursor-pointer bg-red-700 hover:bg-red-600 text-white flex items-center gap-2 justify-start ${
+						className={`cursor-pointer bg-red-700 hover:bg-red-600 text-white flex items-center gap-2 justify-start transition-colors ${
 							isMobile ? "w-full px-3 py-2 text-sm h-10" : "px-3"
 						}`}
 					>
@@ -89,7 +89,7 @@ export default function Header() {
 		return (
 			<Button
 				onClick={handleDiscordSignIn}
-				className={`cursor-pointer bg-[#5865f2] text-white hover:bg-[#4752c4] flex items-center gap-2 justify-center ${
+				className={`cursor-pointer text-white flex items-center gap-2 justify-center bg-discord hover:bg-discord-hover transition-colors ${
 					isMobile ? "w-full mt-2" : ""
 				}`}
 			>

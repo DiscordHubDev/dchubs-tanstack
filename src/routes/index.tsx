@@ -386,7 +386,7 @@ function HomePage() {
 		};
 	}, [useClientSideFiltering, clientFiltered, currentPage, serversList.data]);
 
-	const shouldShowSkeleton = serversList.isFetching || isSearching || isPending;
+	const shouldShowSkeleton = isSearching;
 
 	// ── Callbacks ────────────────────────────────────────────────────────────
 
@@ -451,12 +451,8 @@ function HomePage() {
 			const parsed = parseServerCategory(value);
 			if (!parsed) return;
 
-			setIsSearching(true);
+			// 移除 setIsSearching(true) 與 setTimeout 的強制骨架屏邏輯
 			updateSearch({ tab: parsed, page: 1 });
-
-			window.setTimeout(() => {
-				setIsSearching(false);
-			}, 200);
 		},
 		[updateSearch],
 	);
