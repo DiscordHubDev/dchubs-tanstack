@@ -1,7 +1,7 @@
 // scripts/check-server.ts
 import { inArray } from "drizzle-orm";
 import { Data, Effect } from "effect";
-import { db } from "#/drizzle/db";
+import { client, db } from "#/drizzle/db";
 import { server } from "#/drizzle/schema";
 
 class DiscordApiError extends Data.TaggedError("DiscordApiError")<{
@@ -105,6 +105,10 @@ if (!botToken) {
 }
 
 Effect.runPromiseExit(syncServersProgram(botToken)).then((exit) => {
+	// 💡 腳本準備結束，主動關閉連線池
+	console.log("🔌 正在關閉資料庫連線池...");
+	client.close();
+
 	if (exit._tag === "Success") {
 		console.log("🎉 同步完成:", exit.value);
 		process.exit(0);

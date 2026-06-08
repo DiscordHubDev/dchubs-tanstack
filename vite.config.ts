@@ -84,11 +84,42 @@ export default defineConfig(({ mode }) => {
 
 		optimizeDeps: {
 			include: ["react", "react-dom", "@tanstack/react-router"],
-			exclude: ["bun", "drizzle-orm/bun-sql"],
+			exclude: [
+				"bun",
+				"drizzle-orm",
+				"drizzle-orm/bun-sql",
+				"pg",
+				"better-auth",
+				"@aws-sdk/client-s3",
+			],
 		},
 
 		ssr: {
-			external: ["bun", "drizzle-orm/bun-sql"],
+			external: [
+				// ─── 1. 核心運行環境 ───
+				"bun",
+				"bun:sqlite",
+				"node:crypto", // 或是其他 node 原生模組
+
+				// ─── 2. 資料庫與 ORM (前端絕不能直接讀取) ───
+				"drizzle-orm",
+				"drizzle-orm/bun-sql",
+				"pg",
+
+				// ─── 3. 認證系統 (內含金鑰與加密邏輯) ───
+				"better-auth",
+				"@better-auth/drizzle-adapter",
+
+				// ─── 4. 雲端與儲存 SDK (含有 AWS 憑證處理) ───
+				"@aws-sdk/client-s3",
+				"@aws-sdk/lib-storage",
+				"cloudinary",
+
+				// ─── 5. 環境變數驗證與工具 ───
+				"@t3-oss/env-core",
+				"dotenv",
+				"mime-types",
+			],
 		},
 
 		plugins: [
@@ -130,22 +161,16 @@ export default defineConfig(({ mode }) => {
 			babel({ presets: [reactCompilerPreset()] }),
 		].filter(Boolean),
 
-		esbuild: {
-			drop: ["console", "debugger"],
-		},
-
 		build: {
 			target: "esnext",
-			minify: isProd ? "esbuild" : false,
-			...(isProd && {
-				minifyOptions: {
-					compress: {
-						drop_console: true,
-						drop_debugger: true,
-					},
-					format: { comments: false },
-				},
-			}),
+			minify: isProd ? "oxc" : false,
+			oxc: isProd
+				? {
+						transform: {
+							drop: ["console", "debugger"],
+						},
+					}
+				: undefined,
 			cssCodeSplit: true,
 			sourcemap: isProd ? false : "inline",
 			reportCompressedSize: false,

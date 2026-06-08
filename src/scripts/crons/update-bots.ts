@@ -1,7 +1,7 @@
 // scripts/update-bots.ts
 import { eq } from "drizzle-orm";
 import { Data, Effect, Array as EffectArray, Option } from "effect";
-import { db } from "#/drizzle/db";
+import { client, db } from "#/drizzle/db";
 import { bot } from "#/drizzle/schema";
 import { getDiscordRPCWithMember } from "#/features/api/api.function";
 
@@ -161,6 +161,8 @@ const updateBotsProgram = Effect.gen(function* () {
 
 // ─── 執行進入點 ───
 Effect.runPromiseExit(updateBotsProgram).then((exit) => {
+	console.log("🔌 正在關閉資料庫連線池...");
+	client.close();
 	if (exit._tag === "Failure") {
 		console.error("❌ 執行發生錯誤:", exit.cause);
 		process.exit(1);

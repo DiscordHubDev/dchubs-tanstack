@@ -1,6 +1,6 @@
 // scripts/update-servers.ts
 import { Data, Effect, Exit } from "effect";
-import { db } from "#/drizzle/db";
+import { client, db } from "#/drizzle/db";
 import { server, user } from "#/drizzle/schema";
 
 class DiscordApiError extends Data.TaggedError("DiscordApiError")<{
@@ -243,6 +243,8 @@ const syncAllServersProgram = Effect.gen(function* () {
 
 // ─── 執行進入點 ───
 Effect.runPromiseExit(syncAllServersProgram).then((exit) => {
+	console.log("🔌 正在關閉資料庫連線池...");
+	client.close();
 	if (Exit.isSuccess(exit)) {
 		console.log("🎉 所有伺服器與擁有人資料同步完成:", exit.value);
 		process.exit(0);

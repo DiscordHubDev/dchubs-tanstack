@@ -1040,9 +1040,9 @@ function FavoritesTab({
 	return (
 		<div className="mt-6 space-y-8">
 			<div>
-				<h2 className="mb-4 font-bold text-2xl">收藏的伺服器</h2>
+				<h2 className="mb-3 font-bold text-2xl text-white">收藏的伺服器</h2>
 				{favoriteServers.length > 0 ? (
-					<div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+					<div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
 						{favoriteServers.map((server) => (
 							<FavoriteServerCard key={server.id} server={server} />
 						))}
@@ -1051,10 +1051,11 @@ function FavoritesTab({
 					<EmptyState message="沒有收藏的伺服器" />
 				)}
 			</div>
+
 			<div>
-				<h2 className="mb-4 font-bold text-2xl">收藏的機器人</h2>
+				<h2 className="mb-3 font-bold text-2xl text-white">收藏的機器人</h2>
 				{favoriteBots.length > 0 ? (
-					<div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
+					<div className="grid grid-cols-1 gap-3 md:grid-cols-2 lg:grid-cols-3">
 						{favoriteBots.map((bot) => (
 							<FavoriteBotCard key={bot.id} bot={bot} />
 						))}
@@ -1075,9 +1076,14 @@ const FavoriteServerCard = memo(
 			className="block"
 		>
 			<Card className="border-[#1e1f22] bg-[#2b2d31] transition-all duration-200 hover:border-[#5865f2]">
-				<CardHeader className="pb-2">
-					<div className="flex items-center space-x-3">
-						<div className="h-10 w-10 overflow-hidden rounded-full bg-[#36393f]">
+				<CardHeader className="pb-3">
+					{" "}
+					{/* 稍微調整底部的 padding */}
+					<div className="flex items-start space-x-3">
+						{" "}
+						{/* 改為 items-start 避免大頭照因描述變長而歪掉 */}
+						{/* 大頭照 */}
+						<div className="h-10 w-10 shrink-0 overflow-hidden rounded-full bg-[#36393f]">
 							<img
 								src={server.icon || "/placeholder.png?height=40&width=40"}
 								alt={server.name}
@@ -1085,21 +1091,23 @@ const FavoriteServerCard = memo(
 								loading="lazy"
 							/>
 						</div>
-						<div>
+						{/* 文字區塊 */}
+						<div className="flex-1 min-w-0">
+							{" "}
+							{/* 確保 truncate 能正常運作 */}
 							<CardTitle className="truncate text-white">
 								{server.name}
 							</CardTitle>
-							<CardDescription className="mt-1 text-gray-400">
+							<CardDescription className="mt-0.5 text-gray-400 text-xs">
 								{(server.members ?? 0).toLocaleString()} 成員
 							</CardDescription>
+							{/* 移到這裡：與名稱緊緊相依，可用 mt-2 自由控制間距 */}
+							<p className="line-clamp-2 text-gray-300 text-sm mt-2">
+								{server.description ?? ""}
+							</p>
 						</div>
 					</div>
 				</CardHeader>
-				<CardContent>
-					<p className="line-clamp-2 text-gray-300 text-sm">
-						{server.description ?? ""}
-					</p>
-				</CardContent>
 			</Card>
 		</Link>
 	),
@@ -1110,9 +1118,12 @@ const FavoriteBotCard = memo(
 	({ bot }: { bot: UserDetail["favoriteBots"][0] }) => (
 		<Link to="/bots/$botId" params={{ botId: bot.id }} className="block">
 			<Card className="border-[#1e1f22] bg-[#2b2d31] transition-all duration-200 hover:border-[#5865f2]">
-				<CardHeader className="pb-2">
-					<div className="flex items-center space-x-3">
-						<div className="h-10 w-10 overflow-hidden rounded-full bg-[#36393f]">
+				{/* 調整：把 pb-2 改為 pb-3 確保下方有一點呼吸空間 */}
+				<CardHeader className="pb-3">
+					{/* 調整：items-center 改為 items-start */}
+					<div className="flex items-start space-x-3">
+						{/* 大頭照 */}
+						<div className="h-10 w-10 shrink-0 overflow-hidden rounded-full bg-[#36393f]">
 							<img
 								src={bot.icon || "/placeholder.png?height=40&width=40"}
 								alt={bot.name}
@@ -1120,29 +1131,38 @@ const FavoriteBotCard = memo(
 								loading="lazy"
 							/>
 						</div>
-						<div className="flex items-center gap-2">
-							<CardTitle className="truncate text-white">{bot.name}</CardTitle>
-							{bot.verified && (
-								<TooltipProvider>
-									<Tooltip>
-										<TooltipTrigger asChild>
-											<Badge className="5865F2 inline-flex cursor-default items-center gap-1 rounded-full bg-discord px-3 text-sm text-white hover:bg-discord-hover hover:text-white">
-												<FaCheck className="h-3.5 w-3.5" />
-												驗證
-											</Badge>
-										</TooltipTrigger>
-										<TooltipContent>已驗證的 Discord 機器人</TooltipContent>
-									</Tooltip>
-								</TooltipProvider>
-							)}
+
+						{/* 右側文字與標籤內容區塊 */}
+						<div className="flex-1 min-w-0">
+							{/* 名字與驗證標籤 */}
+							<div className="flex items-center gap-2">
+								<CardTitle className="truncate text-white">
+									{bot.name}
+								</CardTitle>
+								{bot.verified && (
+									<TooltipProvider>
+										<Tooltip>
+											<TooltipTrigger asChild>
+												{/* 稍微調整一下 Badge 的 padding (px-2 py-0.5) 和文字大小，讓它精緻一點 */}
+												<Badge className="5865F2 inline-flex cursor-default items-center gap-1 rounded-full bg-discord px-2 py-0.5 text-xs text-white hover:bg-discord-hover hover:text-white shrink-0">
+													<FaCheck className="h-3 w-3" />
+													驗證
+												</Badge>
+											</TooltipTrigger>
+											<TooltipContent>已驗證的 Discord 機器人</TooltipContent>
+										</Tooltip>
+									</TooltipProvider>
+								)}
+							</div>
+
+							{/* 移到這裡：與名字同一個容器，並給予 mt-2 的間距 */}
+							<p className="line-clamp-2 text-gray-300 text-sm mt-2">
+								{bot.description ?? ""}
+							</p>
 						</div>
 					</div>
 				</CardHeader>
-				<CardContent>
-					<p className="line-clamp-2 text-gray-300 text-sm">
-						{bot.description ?? ""}
-					</p>
-				</CardContent>
+				{/* 調整：移除原本的 CardContent */}
 			</Card>
 		</Link>
 	),

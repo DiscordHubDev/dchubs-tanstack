@@ -122,7 +122,7 @@ function BotCardHeader({ item }: { item: PublicBot }) {
 				<TooltipProvider>
 					<Tooltip>
 						<TooltipTrigger asChild>
-							<div className="relative z-20 cursor-pointer text-yellow-600 hover:text-yellow-500">
+							<div className="relative z-20 text-yellow-600 hover:text-yellow-500">
 								<AlertTriangle className="h-5 w-5" />
 							</div>
 						</TooltipTrigger>
