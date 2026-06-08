@@ -15,7 +15,6 @@ import {
 } from "#/lib/effect-utils";
 import { syncToCloudflareKV } from "#/lib/kv-sync";
 import type { ActionResult, ReportStatus } from "#/types/admin";
-import { sendDiscordWebhookFn } from "../webhook/webhook.functions";
 import {
 	BotIdSchema,
 	QuerySchema,

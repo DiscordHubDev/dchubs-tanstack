@@ -64,7 +64,7 @@ export const Route = createFileRoute("/protected/add-server")({
 
 const INITIAL_SERVERS_LOAD = 12;
 const LOAD_MORE_AMOUNT = 8;
-const DEFAULT_BOT_PERMISSIONS = "1126965059046400";
+const DEFAULT_BOT_PERMISSIONS = "1126965059046433";
 
 function buildGuildIconUrl(guild: DiscordGuild): string | null {
 	if (!guild.icon) {

@@ -110,7 +110,6 @@ export async function fetchDiscordGuilds({
 	}
 
 	for (let attempt = 0; attempt <= MAX_RATE_LIMIT_RETRIES; attempt += 1) {
-		// 🚨 這裡使用原生的 fetch，因為我們在失敗時 (429) 需要操作 raw Response
 		const response = await fetch(DISCORD_GUILDS_ENDPOINT, {
 			headers: {
 				Authorization: `${tokenType} ${token}`,

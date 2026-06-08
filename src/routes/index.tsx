@@ -260,6 +260,11 @@ function HomePage() {
 	const [inputValue, setInputValue] = useState(searchQuery);
 	const [customCategories, setCustomCategories] = useState<CategoryType[]>([]);
 
+	const [isMounted, setIsMounted] = useState(false);
+	useEffect(() => {
+		setIsMounted(true);
+	}, []);
+
 	/**
 	 * OPTIMISATION 3 — Lazy filter-bundle activation.
 	 *
@@ -387,6 +392,8 @@ function HomePage() {
 	}, [useClientSideFiltering, clientFiltered, currentPage, serversList.data]);
 
 	const shouldShowSkeleton = isSearching;
+
+	const isStatsLoading = !isMounted || filterBundle.isLoading;
 
 	// ── Callbacks ────────────────────────────────────────────────────────────
 
@@ -715,17 +722,17 @@ function HomePage() {
 								<StatRow
 									label="總伺服器數"
 									value={filterBundleData.stats.totalServers}
-									loading={filterBundle.isLoading}
+									loading={isStatsLoading} // 3. 替換原本的 loading prop
 								/>
 								<StatRow
 									label="總精選伺服器數量"
 									value={filterBundleData.stats.featuredServers}
-									loading={filterBundle.isLoading}
+									loading={isStatsLoading} // 3. 替換原本的 loading prop
 								/>
 								<StatRow
 									label="目前已使用分類數"
 									value={filterBundleData.stats.totalTags}
-									loading={filterBundle.isLoading}
+									loading={isStatsLoading} // 3. 替換原本的 loading prop
 								/>
 							</div>
 						</div>

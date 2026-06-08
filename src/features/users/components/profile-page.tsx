@@ -700,7 +700,7 @@ const ServerCard = memo(
 					await deleteServerFn({ data: { serverId: server.id } });
 
 					await queryClient.invalidateQueries({
-						queryKey: queryKeys.users.settings(userId),
+						queryKey: queryKeys.users.servers(userId),
 					});
 
 					Swal.fire({
@@ -904,7 +904,7 @@ const BotCard = memo(
 					await deleteBotFn({ data: { botId: bot.id } });
 
 					await queryClient.invalidateQueries({
-						queryKey: queryKeys.users.settings(userId),
+						queryKey: queryKeys.users.bots(userId),
 					});
 
 					Swal.fire({
@@ -1291,7 +1291,7 @@ function PinActionButton({ itemName }: { itemName: string }) {
 				showSuccessNotification(`${itemName} 的置頂設定已保留舊版樣式`)
 			}
 		>
-			置頂設定
+			置頂
 		</Button>
 	);
 }

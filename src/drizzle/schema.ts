@@ -10,6 +10,7 @@ import {
 	pgEnum,
 	pgTable,
 	primaryKey,
+	serial,
 	text,
 	timestamp,
 	uniqueIndex,
@@ -826,3 +827,10 @@ export const userFavoriteServers = pgTable(
 		}),
 	],
 );
+
+export const announcements = pgTable("announcements", {
+	id: serial("id").primaryKey(),
+	content: text("content").notNull(),
+	isActive: boolean("is_active").default(true).notNull(),
+	updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
