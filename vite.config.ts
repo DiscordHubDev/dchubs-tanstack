@@ -69,10 +69,10 @@ export default defineConfig(({ mode }) => {
 	const isAnalyze = process.env.ANALYZE === "true";
 
 	return {
-		base:
-			process.env.NODE_ENV === "production"
-				? `${process.env.VITE_CDN_ORIGIN}/`
-				: "/",
+		base: "",
+		// process.env.NODE_ENV === "production"
+		// 	? `${process.env.VITE_CDN_ORIGIN}/`
+		// 	: "/",
 
 		// ─── 下面的配置完全保持你原本的寫法 ───
 		resolve: {
@@ -111,6 +111,14 @@ export default defineConfig(({ mode }) => {
 						if (path.startsWith("/bots/")) return false;
 						if (path.startsWith("/protected/")) return false;
 						return true;
+					},
+				},
+				server: {
+					build: {
+						inlineCss: {
+							enabled: true,
+							transformAssets: true,
+						},
 					},
 				},
 			}),
