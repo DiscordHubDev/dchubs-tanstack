@@ -7,7 +7,7 @@
   },
   "scripts": {
     "dev": "bun --bun vite dev --host 0.0.0.0 --force",
-    "build": "rm -rf .output node_modules/.vite && NODE_ENV=production vite build && bun ./src/scripts/upload-to-r2.ts",
+    "build": "rm -rf .output node_modules/.vite && NODE_ENV=production bun vite build && bun ./src/scripts/upload-to-r2.ts",
     "preview": "bun --bun vite preview",
     "deploy": "bun run build && wrangler deploy",
     "start": "bun --bun .output/server/index.mjs",
