@@ -69,10 +69,7 @@ export default defineConfig(({ mode }) => {
 	const isAnalyze = process.env.ANALYZE === "true";
 
 	return {
-		base:
-			process.env.NODE_ENV === "production"
-				? `${process.env.VITE_CDN_ORIGIN}/`
-				: "/",
+		base: "",
 		// process.env.NODE_ENV === "production"
 		// 	? `${process.env.VITE_CDN_ORIGIN}/`
 		// 	: "/",
