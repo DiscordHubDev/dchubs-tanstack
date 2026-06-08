@@ -63,7 +63,6 @@ export default function Header() {
 						className={isMobile ? "w-full" : ""}
 					>
 						<Button
-							variant="ghost"
 							className={`cursor-pointer text-white flex items-center gap-2 justify-start bg-discord hover:bg-discord-hover transition-colors ${
 								isMobile ? "w-full px-3 py-2 text-sm h-10" : ""
 							} ${pathname === "/protected/profile" ? "bg-discord-hover" : ""}`}
