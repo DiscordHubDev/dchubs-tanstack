@@ -1,5 +1,6 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import BotForm from "#/components/form/BotForm";
+import LoadingPage from "#/components/loading";
 import { checkAuthServerFn } from "#/lib/auth.functions";
 
 const siteUrl =
@@ -31,6 +32,13 @@ export const Route = createFileRoute("/protected/add-bot")({
 		};
 	},
 	component: RouteComponent,
+	pendingComponent: () => (
+		<LoadingPage
+			loadingText="正在加載新增機器人頁面..."
+			subText="請稍候"
+			loaderType="dots"
+		/>
+	),
 });
 
 function RouteComponent() {

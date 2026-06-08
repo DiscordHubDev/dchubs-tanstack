@@ -16,7 +16,6 @@ import type {
 } from "./server-publish.types";
 
 const GUILD_ADMINISTRATOR_PERMISSION = 1n << 3n;
-const GUILD_MANAGE_PERMISSION = 1n << 5n;
 
 function getDiscordAccessTokenEffect(
 	userId: string,
@@ -68,10 +67,7 @@ function hasGuildManagePermission(guild: DiscordGuild): boolean {
 
 	try {
 		const permissions = BigInt(guild.permissions || "0");
-		return (
-			(permissions & GUILD_ADMINISTRATOR_PERMISSION) !== 0n ||
-			(permissions & GUILD_MANAGE_PERMISSION) !== 0n
-		);
+		return (permissions & GUILD_ADMINISTRATOR_PERMISSION) !== 0n;
 	} catch {
 		return false;
 	}

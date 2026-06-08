@@ -10,8 +10,12 @@ import {
 	vote,
 } from "#/drizzle/schema";
 import { ServerNotFoundError } from "#/errors/server-error";
-import { getSessionUserIdEffect } from "#/lib/edge-context";
 import { runEffect, tryEffectPromise } from "#/lib/effect-utils";
+import { getUserBaseProfileEffect } from "../users/users.server";
+import {
+	sendDiscordWebhookEffect,
+	triggerVoteNotificationEffect,
+} from "../webhook/webhook.server";
 import type {
 	ServerDetail,
 	ServerRateResult,
@@ -298,7 +302,13 @@ function voteServerEffect(
 			[
 				dbEffect("Failed to find server for vote", () =>
 					db
-						.select({ id: server.id, upvotes: server.upvotes })
+						.select({
+							id: server.id,
+							upvotes: server.upvotes,
+							voteNotificationUrl: server.voteNotificationUrl,
+							secret: server.secret,
+							name: server.name,
+						})
 						.from(server)
 						.where(eq(server.id, serverId))
 						.limit(1),
@@ -310,7 +320,6 @@ function voteServerEffect(
 
 		const target = targetRows[0];
 		if (!target) {
-			// 在 Effect.gen 中，直接 yield* Effect.fail 即可中斷執行，不需加上 return
 			yield* Effect.fail(new ServerNotFoundError({}));
 		}
 
@@ -326,7 +335,7 @@ function voteServerEffect(
 			};
 		}
 
-		// 3. 執行 Transaction 並直接回傳更新後的票數 (減少一次 DB 查詢)
+		// 3. 執行 Transaction 並直接回傳更新後的票數
 		const updatedRows = yield* dbEffect("Failed to cast server vote", () =>
 			db.transaction(async (tx) => {
 				// 3.1 寫入投票紀錄
@@ -337,7 +346,7 @@ function voteServerEffect(
 					itemType: "server",
 				});
 
-				// 3.2 遞增票數並利用 RETURNING 語法直接獲取最新結果 (需 DB 支援，如 Postgres/SQLite)
+				// 3.2 遞增票數
 				return await tx
 					.update(server)
 					.set({ upvotes: sql`${server.upvotes} + 1` })
@@ -346,10 +355,54 @@ function voteServerEffect(
 			}),
 		);
 
+		// 🚀 4. 獲取使用者資訊 (放在 Transaction 後，確保投票成功才查詢)
+		const userInfo = yield* getUserBaseProfileEffect(userId).pipe(
+			Effect.catchAll(() => Effect.succeed(null)),
+			Effect.map((user) => {
+				if (!user) {
+					return {
+						name: "神祕投票者",
+						avatar: "https://cdn.discordapp.com/embed/avatars/0.png",
+					};
+				}
+				return {
+					name: user.name || user.username || "未命名使用者",
+					avatar: user.avatar,
+				};
+			}),
+		);
+
+		// 5. 觸發 Webhook 通知讓所有成員知道有新投票
+		const discordPayload = {
+			_tag: "vote" as const,
+			type: "server" as const,
+			user: { id: userId, username: userInfo.name }, // 💡 帶入查詢到的用戶名稱
+			target: { id: serverId, name: target.name }, // 💡 修正原本寫死的欄位
+		};
+
+		// yield* sendDiscordWebhookEffect(discordPayload).pipe(Effect.forkDaemon);
+
+		// 6. 觸發自訂投票通知機制，讓伺服器開發者能即時收到通知
+		if (target.voteNotificationUrl) {
+			yield* triggerVoteNotificationEffect(
+				target.voteNotificationUrl,
+				target.secret,
+				{
+					targetId: serverId,
+					userId,
+					user: userInfo, // 🚀 成功將 userInfo 向下傳遞！
+					type: "server",
+					timestamp: new Date().toISOString(),
+					votes: updatedRows?.[0]?.upvotes ?? target.upvotes + 1,
+					targetName: target.name,
+					voteUrl: `https://dchubs.org/servers/${serverId}`,
+				},
+			).pipe(Effect.forkDaemon);
+		}
+
 		return {
 			success: true,
 			message: "投票成功",
-			// 若使用 MySQL 不支援 returning，updatedRows 可能為空，此處提供安全降級
 			upvotes: updatedRows?.[0]?.upvotes ?? target.upvotes + 1,
 			nextVoteAt: new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString(),
 		};

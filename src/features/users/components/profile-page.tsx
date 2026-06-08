@@ -777,6 +777,8 @@ const ServerCard = memo(
 						>
 							管理伺服器
 						</Button>
+
+						<PinActionButton itemName={server.name} />
 						<Button
 							variant="outline"
 							size="sm"
@@ -785,7 +787,6 @@ const ServerCard = memo(
 						>
 							刪除伺服器
 						</Button>
-						<PinActionButton itemName={server.name} />
 					</CardFooter>
 				)}
 			</Card>
@@ -991,6 +992,8 @@ const BotCard = memo(
 						>
 							管理機器人
 						</Button>
+
+						<PinActionButton itemName={bot.name} />
 						<Button
 							variant="outline"
 							size="sm"
@@ -999,7 +1002,6 @@ const BotCard = memo(
 						>
 							刪除機器人
 						</Button>
-						<PinActionButton itemName={bot.name} />
 					</CardFooter>
 				)}
 			</Card>

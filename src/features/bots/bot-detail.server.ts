@@ -12,6 +12,11 @@ import {
 	vote,
 } from "#/drizzle/schema";
 import { runEffect, tryEffectPromise } from "#/lib/effect-utils";
+import { getUserBaseProfileEffect } from "../users/users.server";
+import {
+	sendDiscordWebhookEffect,
+	triggerVoteNotificationEffect,
+} from "../webhook/webhook.server";
 import type {
 	BotDetail,
 	BotRateResult,
@@ -304,22 +309,33 @@ function voteBotEffect(
 	userId: string,
 ): Effect.Effect<BotVoteResult, Error> {
 	return Effect.gen(function* () {
-		const targetRows = yield* dbEffect("Failed to find bot for vote", () =>
-			db
-				.select({ id: bot.id, upvotes: bot.upvotes })
-				.from(bot)
-				.where(and(eq(bot.id, botId), eq(bot.status, "approved")))
-				.limit(1),
+		// 1. 平行執行查詢：同時獲取「機器人資訊」與「最後投票時間」降低 I/O 延遲
+		const [targetRows, recentVoteCreatedAt] = yield* Effect.all(
+			[
+				dbEffect("Failed to find bot for vote", () =>
+					db
+						.select({
+							id: bot.id,
+							upvotes: bot.upvotes,
+							name: bot.name,
+							voteNotificationUrl: bot.voteNotificationUrl,
+							secret: bot.secret,
+						})
+						.from(bot)
+						.where(and(eq(bot.id, botId), eq(bot.status, "approved")))
+						.limit(1),
+				),
+				getRecentVoteCreatedAtEffect(userId, botId),
+			],
+			{ concurrency: "unbounded" },
 		);
+
 		const target = targetRows[0];
 		if (!target) {
 			return yield* Effect.fail(new Error("找不到機器人"));
 		}
 
-		const recentVoteCreatedAt = yield* getRecentVoteCreatedAtEffect(
-			userId,
-			botId,
-		);
+		// 2. 檢查冷卻時間
 		if (recentVoteCreatedAt) {
 			return {
 				success: false,
@@ -331,37 +347,77 @@ function voteBotEffect(
 			};
 		}
 
-		yield* dbEffect("Failed to cast vote", async () => {
-			await db.transaction(async (tx) => {
+		// 3. 執行 Transaction 並直接回傳更新後的票數 (省去最後一次 Select 查詢)
+		const updatedRows = yield* dbEffect("Failed to cast vote", () =>
+			db.transaction(async (tx) => {
+				// 3.1 寫入投票紀錄
 				await tx.insert(vote).values({
 					id: crypto.randomUUID(),
 					userId: userId,
 					itemId: botId,
 					itemType: "bot",
-					createdAt: new Date().toISOString(),
+					// 如果你的 schema 要求 createdAt 必填，請取消下方註解：
+					// createdAt: new Date().toISOString(),
 				});
 
-				await tx
+				// 3.2 遞增票數並利用 RETURNING 獲取最新結果
+				return await tx
 					.update(bot)
 					.set({ upvotes: sql`${bot.upvotes} + 1` })
-					.where(eq(bot.id, botId));
-			});
-		});
-
-		const updatedRows = yield* dbEffect(
-			"Failed to read updated bot votes",
-			() =>
-				db
-					.select({ upvotes: bot.upvotes })
-					.from(bot)
 					.where(eq(bot.id, botId))
-					.limit(1),
+					.returning({ upvotes: bot.upvotes });
+			}),
 		);
+
+		// 🚀 4. 獲取使用者資訊 (確保在 DB 寫入成功後才查詢)
+		const userInfo = yield* getUserBaseProfileEffect(userId).pipe(
+			Effect.catchAll(() => Effect.succeed(null)),
+			Effect.map((user) => {
+				if (!user) {
+					return {
+						name: "神祕投票者",
+						avatar: "https://cdn.discordapp.com/embed/avatars/0.png",
+					};
+				}
+				return {
+					name: user.name || user.username || "未命名使用者",
+					avatar: user.avatar,
+				};
+			}),
+		);
+
+		// 🚀 5. 觸發 DcHubs 全域 Webhook 通知
+		const discordPayload = {
+			_tag: "vote" as const,
+			type: "bot" as const,
+			user: { id: userId, username: userInfo.name },
+			target: { id: botId, name: target.name },
+		};
+
+		// yield* sendDiscordWebhookEffect(discordPayload).pipe(Effect.forkDaemon);
+
+		// 🚀 6. 觸發自訂 Webhook 給機器人開發者，並傳入 userInfo
+		if (target.voteNotificationUrl) {
+			yield* triggerVoteNotificationEffect(
+				target.voteNotificationUrl,
+				target.secret,
+				{
+					targetId: botId,
+					userId,
+					user: userInfo, // 向下傳遞使用者資訊
+					type: "bot",
+					timestamp: new Date().toISOString(),
+					votes: updatedRows?.[0]?.upvotes ?? target.upvotes + 1,
+					targetName: target.name,
+					voteUrl: `https://dchubs.org/bots/${botId}`,
+				},
+			).pipe(Effect.forkDaemon);
+		}
 
 		return {
 			success: true,
 			message: "投票成功",
-			upvotes: updatedRows[0]?.upvotes ?? target.upvotes + 1,
+			upvotes: updatedRows?.[0]?.upvotes ?? target.upvotes + 1,
 			nextVoteAt: new Date(Date.now() + 12 * 60 * 60 * 1000).toISOString(),
 		};
 	});

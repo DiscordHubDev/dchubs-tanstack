@@ -1,6 +1,7 @@
 import { Effect } from "effect";
 import { NotificationFailed } from "#/errors/bot-errors";
 import { fetchJsonEffect } from "#/lib/effect-utils";
+import { getUserBaseProfileEffect } from "../users/users.server";
 import type { WebhookPayload } from "./webhook.type";
 
 const DISCORD_AVATAR =
@@ -30,12 +31,11 @@ interface DiscordWebhookPayload {
 const joinLines = (...lines: string[]) => lines.join("\n");
 
 export function sendDiscordWebhookEffect(
-	payload: WebhookPayload, // 這裡使用你的 WebhookPayloadSchema 型別
+	payload: WebhookPayload,
 ): Effect.Effect<void, NotificationFailed> {
 	return Effect.gen(function* () {
 		const tag = payload._tag;
 
-		// 🗺️ 取得對應的環境變數 URL
 		const webhookUrlMap: Record<string, string | undefined> = {
 			vote: process.env.VOTE_WEBHOOK_URL,
 			approvedBot: process.env.APPROVED_WEBHOOK_URL,
@@ -156,5 +156,86 @@ export function sendDiscordWebhookEffect(
 		}).pipe(Effect.catchAll(() => Effect.fail(new NotificationFailed({}))));
 
 		yield* Effect.logInfo(`Webhook 發送成功 (${tag})`);
+	});
+}
+
+export function triggerVoteNotificationEffect(
+	url: string | null | undefined,
+	secret: string | null | undefined,
+	payload: {
+		targetId: string;
+		userId: string;
+		user: {
+			name: string;
+			avatar: string | null | undefined;
+		};
+		type: "server" | "bot";
+		timestamp: string;
+		votes: number;
+		targetName: string;
+		voteUrl?: string;
+	},
+): Effect.Effect<void, never> {
+	return Effect.gen(function* () {
+		if (!url) return;
+
+		const isDiscordWebhook = url.startsWith(
+			"https://discord.com/api/webhooks/",
+		);
+
+		const headers: Record<string, string> = {
+			"Content-Type": "application/json",
+		};
+		let body: string;
+
+		if (isDiscordWebhook) {
+			// 2. 隨機生成一個顏色
+			const randomColor = Math.floor(Math.random() * 16777216);
+
+			// 3. 動態決定超連結文字，如果沒給 voteUrl 就用 DcHubs 首頁
+			const linkUrl = payload.voteUrl || "https://dchubs.org";
+
+			// 4. Discord Webhook 專用 Embed 格式 (將文字全部參數化)
+			body = JSON.stringify({
+				username: "DcHubs投票通知",
+				avatar_url: "https://dchubs.org/icon.png",
+				embeds: [
+					{
+						author: {
+							name: payload.user.name,
+							icon_url:
+								payload.user.avatar ??
+								"https://cdn.discordapp.com/embed/avatars/0.png",
+						},
+						title: `❤️ | 感謝投票！`,
+						// 這裡使用 payload.targetName 動態帶入「伺服器」或「機器人」的名字
+						description: `感謝您的支持與投票！您的每一票都是讓 **${payload.targetName}** 變得更好的動力。\n\n請記得每 12 小時可以再回來 [DcHubs](${linkUrl}) 投票一次，讓更多人發現吧！✨`,
+						color: randomColor,
+						footer: {
+							text: "Powered by DcHubs Vote System",
+							icon_url: "https://dchubs.org/icon.png",
+						},
+					},
+				],
+			});
+		} else {
+			if (secret) {
+				headers["Authorization"] = secret;
+			}
+			body = JSON.stringify({
+				...payload,
+				timestamp: new Date().toISOString(),
+			});
+		}
+
+		yield* Effect.tryPromise({
+			try: () =>
+				fetch(url, {
+					method: "POST",
+					headers: headers,
+					body: body,
+				}),
+			catch: () => new Error("Webhook failed"),
+		}).pipe(Effect.ignore);
 	});
 }
