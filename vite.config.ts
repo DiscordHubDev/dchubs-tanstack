@@ -130,6 +130,10 @@ export default defineConfig(({ mode }) => {
 			babel({ presets: [reactCompilerPreset()] }),
 		].filter(Boolean),
 
+		esbuild: {
+			drop: ["console", "debugger"],
+		},
+
 		build: {
 			target: "esnext",
 			minify: isProd ? "esbuild" : false,
