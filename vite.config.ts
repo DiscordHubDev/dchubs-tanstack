@@ -144,6 +144,7 @@ export default defineConfig(({ mode }) => {
 			reportCompressedSize: false,
 			chunkSizeWarningLimit: 1500,
 			rollupOptions: {
+				external: ["bun", "bun:sqlite"],
 				output: {
 					manualChunks, // 這裡沿用你原本在上面定義好的 function
 					chunkFileNames: "assets/[name]-[hash].js",
