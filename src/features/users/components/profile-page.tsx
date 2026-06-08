@@ -1277,7 +1277,7 @@ function PinActionButton({ itemName }: { itemName: string }) {
 export function UserSettingsForm({ user }: { user: UserSettings }) {
 	const queryClient = useQueryClient();
 
-	// 👉 1. 建立 state 來控制 NSFW 過濾器的狀態（假設 true 為啟用過濾/隱藏成人內容）
+	// 👉 1. 建立 state 來控制 NSFW 過濾器的狀態
 	const [nsfwFilter, setNsfwFilter] = useState<boolean>(user.nsfw ?? true);
 
 	const mutation = useMutation({
@@ -1292,18 +1292,37 @@ export function UserSettingsForm({ user }: { user: UserSettings }) {
 					updateUserSettingsFn({ data: input }),
 				),
 			),
-		onSuccess: async (result) => {
+		// 注意這裡多接收了 variables 參數，可以用來比對使用者送出了什麼
+		onSuccess: async (result, variables) => {
 			if (result.error) {
 				showErrorNotification(result.error);
 				return;
 			}
 			showSuccessNotification(result.success ?? "已成功儲存");
-			await queryClient.invalidateQueries({
-				queryKey: queryKeys.users.detail(user.id),
-			});
-			await queryClient.invalidateQueries({
-				queryKey: queryKeys.users.current(),
-			});
+
+			// 將所有需要過期的 Query 收集起來，使用 Promise.all 並行處理以提升效率
+			const invalidatePromises = [
+				queryClient.invalidateQueries({
+					queryKey: queryKeys.users.detail(user.id),
+				}),
+				queryClient.invalidateQueries({
+					queryKey: queryKeys.users.current(),
+				}),
+			];
+
+			// 👉 只有在 nsfw 設定真正發生改變時，才去清除列表的快取
+			if (variables.nsfw !== user.nsfw) {
+				invalidatePromises.push(
+					queryClient.invalidateQueries({
+						queryKey: [...queryKeys.servers.all, "list"],
+					}),
+					queryClient.invalidateQueries({
+						queryKey: [...queryKeys.bots.all, "list"],
+					}),
+				);
+			}
+
+			await Promise.all(invalidatePromises);
 		},
 		onError: () => {
 			showErrorNotification("儲存失敗");
@@ -1314,7 +1333,7 @@ export function UserSettingsForm({ user }: { user: UserSettings }) {
 	const handleNsfwChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
 		const willEnableFilter = e.target.checked;
 
-		// 1. 先讓狀態跟著使用者的操作改變（避免瀏覽器原生行為與 React 脫鉤）
+		// 1. 先讓狀態跟著使用者的操作改變
 		setNsfwFilter(willEnableFilter);
 
 		if (!willEnableFilter) {
@@ -1329,7 +1348,6 @@ export function UserSettingsForm({ user }: { user: UserSettings }) {
 				cancelButtonText: "否",
 				background: "#36393f",
 				color: "#fff",
-				// 允許點擊外面或按 ESC 關閉，並視為「否」
 				allowOutsideClick: false,
 				allowEscapeKey: false,
 			});
@@ -1357,7 +1375,7 @@ export function UserSettingsForm({ user }: { user: UserSettings }) {
 			// 👉 4. 提交時帶上 nsfwFilter 狀態
 			mutation.mutate({ bio, social, nsfw: nsfwFilter });
 		},
-		[mutation, nsfwFilter], // 記得將 nsfwFilter 加入依賴陣列
+		[mutation, nsfwFilter],
 	);
 
 	const socialEntries = Object.entries(SOCIAL_PLATFORMS);

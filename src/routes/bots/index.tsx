@@ -328,11 +328,6 @@ function BotsPage() {
 		};
 	}, [useClientSideFiltering, clientFiltered, currentPage, botList.data]);
 
-	// isPending 覆蓋 useTransition 的過渡期（tab 切換 / 搜尋提交）
-	// isFetching 覆蓋 useSuspenseQuery 的背景請求期
-	// 原本的 isSearching + setTimeout 已完全由兩者取代，可刪除
-	const shouldShowSkeleton = botList.isFetching || isPending;
-
 	const updateSearch = useCallback(
 		(patch: Partial<BotHomeSearch>, options?: { resetScroll?: boolean }) => {
 			startTransition(() => {
@@ -587,24 +582,33 @@ function BotsPage() {
 							<TabsContent value={activeTab} className="mt-6">
 								<div className="mb-4 flex items-center justify-between">
 									<h2 className="font-bold text-2xl">{activeCategoryLabel}</h2>
-									{!shouldShowSkeleton && displayData.total > 0 && (
+									{/* 直接顯示分頁資訊，如果資料尚未備妥，整個區塊會被外層 Suspense 替換，不用擔心出錯 */}
+									{displayData.total > 0 && (
 										<div className="text-gray-400 text-sm">
 											第 {displayData.page} 頁，共 {displayData.totalPages} 頁
 										</div>
 									)}
 								</div>
 
+								{/* 將原本的 BotList 骨架屏放到 fallback 中 */}
 								<Suspense
-									fallback={<div className="h-40 rounded-lg bg-[#2b2d31]" />}
+									fallback={
+										<BotList
+											bots={[]}
+											isLoading={true}
+											skeletonCount={ITEMS_PER_PAGE}
+										/>
+									}
 								>
+									{/* 這裡的 BotList 保證一定有資料才會渲染，所以不需要傳 isLoading 了 */}
 									<BotList
 										bots={displayData.bots}
-										isLoading={shouldShowSkeleton}
+										isLoading={false}
 										skeletonCount={ITEMS_PER_PAGE}
 									/>
 								</Suspense>
 
-								{!shouldShowSkeleton && displayData.totalPages > 1 && (
+								{displayData.totalPages > 1 && (
 									<div className="mt-6">
 										<Suspense
 											fallback={
