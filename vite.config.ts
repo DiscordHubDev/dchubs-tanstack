@@ -5,7 +5,7 @@ import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import viteReact, { reactCompilerPreset } from "@vitejs/plugin-react";
 import { nitro } from "nitro/vite";
 import { visualizer } from "rollup-plugin-visualizer";
-import { defineConfig, loadEnv } from "vite";
+import { defineConfig } from "vite";
 
 // ─── Vendor chunk grouping ─────────────────────────────────────────────────────
 function manualChunks(id: string): string | undefined {
@@ -83,7 +83,39 @@ export default defineConfig(({ mode }) => {
 		},
 
 		optimizeDeps: {
-			include: ["react", "react-dom", "@tanstack/react-router"],
+			include: [
+				"react",
+				"react-dom",
+				"@tanstack/react-router",
+				// 強制預優化 Radix UI 底層，避免開發時載入過多碎檔案
+				"@radix-ui/react-accordion",
+				"@radix-ui/react-alert-dialog",
+				"@radix-ui/react-aspect-ratio",
+				"@radix-ui/react-avatar",
+				"@radix-ui/react-checkbox",
+				"@radix-ui/react-collapsible",
+				"@radix-ui/react-dialog",
+				"@radix-ui/react-dropdown-menu",
+				"@radix-ui/react-hover-card",
+				"@radix-ui/react-label",
+				"@radix-ui/react-popover",
+				"@radix-ui/react-progress",
+				"@radix-ui/react-radio-group",
+				"@radix-ui/react-scroll-area",
+				"@radix-ui/react-select",
+				"@radix-ui/react-separator",
+				"@radix-ui/react-slider",
+				"@radix-ui/react-slot",
+				"@radix-ui/react-switch",
+				"@radix-ui/react-tabs",
+				"@radix-ui/react-toast",
+				"@radix-ui/react-toggle",
+				"@radix-ui/react-toggle-group",
+				"@radix-ui/react-tooltip",
+				"lucide-react",
+				"clsx",
+				"tailwind-merge",
+			],
 			exclude: [
 				"bun",
 				"drizzle-orm",

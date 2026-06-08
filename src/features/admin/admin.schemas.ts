@@ -49,3 +49,9 @@ export const QuerySchema = Schema.Struct({
 		Schema.Number.pipe(Schema.int(), Schema.between(1, 100)),
 	).pipe(Schema.withDecodingDefault(() => 20)),
 });
+
+export const RejectBotPayload = Schema.Struct({
+	userIds: Schema.Array(Schema.String),
+	botName: Schema.String,
+	reason: Schema.String.pipe(Schema.minLength(1)),
+});

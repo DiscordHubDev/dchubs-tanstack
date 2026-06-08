@@ -50,15 +50,15 @@ export const Route = createFileRoute("/protected/admin")({
 });
 
 function PanelSkeleton() {
-	const skeletonRows = Array.from({ length: 3 }, () => ({
-		id: crypto.randomUUID(),
-	}));
+	// 💡 改用穩定的靜態陣列，不再呼叫隨機函式
+	const skeletonRows = [1, 2, 3];
 
 	return (
 		<div className="animate-pulse space-y-3 rounded-md border border-[#202225] bg-[#2b2d31] p-6">
 			{skeletonRows.map((row, i) => (
 				<div
-					key={row.id}
+					// biome-ignore lint/suspicious/noArrayIndexKey: safe
+					key={i}
 					className="h-4 rounded bg-[#36393F]"
 					style={{ width: `${80 - i * 15}%` }}
 				/>

@@ -35,6 +35,7 @@ export interface SendNotificationParams {
 	content: string;
 	priority?: "info" | "warning" | "error" | "success";
 	userIds: string[];
+	label?: string; // 新增可選參數，允許前端指定通知標籤
 }
 
 const DISCORD_BOT_TOKEN = process.env.DISCORD_BOT_TOKEN;
@@ -73,6 +74,7 @@ export async function sendNotification({
 	content,
 	priority = "info",
 	userIds = [],
+	label, // 新增可選參數
 }: SendNotificationParams) {
 	if (!DISCORD_BOT_TOKEN) {
 		throw new Error("Missing DISCORD_BOT_TOKEN environment variable");
@@ -82,20 +84,48 @@ export async function sendNotification({
 		return { success: true, message: "No users provided" };
 	}
 
-	// 定義通知顏色
-	const colorMap = {
-		info: 3447003,
-		warning: 15105570,
-		error: 15158332,
-		success: 3066993,
+	// 定義各個層級的預設 Meta 資料
+	const priorityMeta = {
+		info: { color: 3447003, emoji: "ℹ️", defaultLabel: "系統資訊 (Info)" },
+		warning: {
+			color: 15105570,
+			emoji: "⚠️",
+			defaultLabel: "警告通知 (Warning)",
+		},
+		error: { color: 15158332, emoji: "🚨", defaultLabel: "錯誤警報 (Error)" },
+		success: {
+			color: 3066993,
+			emoji: "✅",
+			defaultLabel: "成功通知 (Success)",
+		},
 	};
+
+	const meta = priorityMeta[priority] || priorityMeta.info;
+
+	// 決定最終要顯示的 label：有傳入就用傳入的，沒有就用預設的
+	const displayLabel = label || meta.defaultLabel;
+
+	// 優化內文排版：使用引言區塊 (Blockquote) 來凸顯 teaser
+	let formattedDescription = "";
+	if (teaser) {
+		formattedDescription += `> **${teaser}**\n\n`;
+	}
+	formattedDescription += content;
 
 	const payload = {
 		embeds: [
 			{
-				title: subject,
-				description: `${teaser ? `**${teaser}**\n\n` : ""}${content}`,
-				color: colorMap[priority],
+				// Author 區塊，顯示自訂或預設標籤
+				author: {
+					name: displayLabel,
+				},
+				title: `${meta.emoji} ${subject}`,
+				description: formattedDescription,
+				color: meta.color,
+				footer: {
+					text: "系統通知 - Powered by DcHubs",
+					icon_url: "https://dchubs.org/icon.png",
+				},
 				timestamp: new Date().toISOString(),
 			},
 		],
@@ -119,7 +149,6 @@ export async function sendNotification({
 				),
 			);
 
-			// 如果成功發送，回傳 userId
 			return userId;
 		} catch (error) {
 			const errorMessage =
@@ -128,10 +157,8 @@ export async function sendNotification({
 		}
 	});
 
-	// 使用 allSettled 確保個別用戶發送失敗時，不影響其他人
 	const results = await Promise.allSettled(tasks);
 
-	// 整理結果
 	const failures = results.filter(
 		(r) => r.status === "rejected",
 	) as PromiseRejectedResult[];
@@ -254,6 +281,7 @@ export const reviewBotFn = createServerFn({ method: "POST" })
 				teaser: `${app.name} 已通過審核`,
 				content: `您好！機器人「${app.name}」已核准上架，感謝您的耐心等待。`,
 				priority: "success",
+				label: "機器人審核通知",
 				userIds: devIds,
 			}).catch((e) =>
 				console.error(`[Discord 私訊通知失敗] BotID: ${app.id}, Error:`, e),
@@ -381,84 +409,77 @@ export const rejectBotServerFn = createServerFn({ method: "POST" })
 	.inputValidator(effectInputValidator(RejectBotSchema))
 	.handler(async ({ data, context }) => {
 		const { botId, reason } = data;
-
-		// 1. Verify Admin Permissions
 		const user = context.user;
-		if (!context.edgeContext.isAdmin || !user.discordId) {
+
+		// 1. 驗證管理員權限
+		if (!context.edgeContext.isAdmin || !user?.discordId) {
 			throw new Error("未登入或無管理權限");
 		}
 
-		// 2. Execute Database Operations inside a Transaction
-		const result = await Effect.runPromise(
-			Effect.tryPromise({
-				try: async () =>
-					await db.transaction(async (tx) => {
-						// A. Fetch Bot and its associated developers (Secure source of truth)
-						const botRecord = await tx.query.bot.findFirst({
-							where: eq(bot.id, botId),
-							with: { developers: { with: { user: true } } },
-						});
+		// 2. 執行資料庫 Transaction (使用純 async/await，更簡潔且自帶回滾機制)
+		const transactionResult = await db
+			.transaction(async (tx) => {
+				// A. 獲取 Bot 與其關聯的開發者
+				const botRecord = await tx.query.bot.findFirst({
+					where: eq(bot.id, botId),
+					with: { developers: { with: { user: true } } },
+				});
 
-						if (!botRecord) {
-							throw new Error("BotNotFound");
-						}
+				if (!botRecord) {
+					// 拋出錯誤會自動觸發 Drizzle Transaction Rollback
+					throw new Error("BotNotFound");
+				}
 
-						// B. Update Bot Status
-						await tx
-							.update(bot)
-							.set({
-								status: "rejected",
-								rejectionReason: reason,
-								handledAt: new Date().toISOString(),
-								handledById: user.discordId,
-							})
-							.where(eq(bot.id, botId));
+				// B. 更新 Bot 狀態
+				await tx
+					.update(bot)
+					.set({
+						status: "rejected",
+						rejectionReason: reason,
+						handledAt: new Date().toISOString(),
+						handledById: user.discordId,
+					})
+					.where(eq(bot.id, botId));
 
-						// C. Insert In-App Notification Logs
-						const devIds = botRecord.developers.map((d) => d.user.id);
-						if (devIds.length > 0) {
-							await tx.insert(notification).values(
-								devIds.map((devId) => ({
-									id: crypto.randomUUID(),
-									name: "機器人申請狀態更新",
-									userId: devId,
-									subject: "機器人申請已被拒絕",
-									teaser: `您的機器人 "${botRecord.name}" 申請已被拒絕。`,
-									content: `拒絕原因：${reason}`,
-									priority: "warning" as const,
-								})),
-							);
-						}
-						return {
-							botName: botRecord.name,
-							developerIds: devIds,
-						};
-					}),
-				catch: (error) => {
-					if (error instanceof Error && error.message === "BotNotFound") {
-						return new Error("BotNotFound");
-					}
-					return new Error("DatabaseError");
-				},
-			}).pipe(Effect.mapError((e) => e.message)),
-		);
+				// C. 寫入站內通知記錄
+				const devIds = botRecord.developers.map((d) => d.user.id);
+				if (devIds.length > 0) {
+					const notifications = devIds.map((devId) => ({
+						id: crypto.randomUUID(),
+						name: "機器人申請狀態更新",
+						userId: devId,
+						subject: "機器人申請已被拒絕",
+						teaser: `您的機器人 "${botRecord.name}" 申請已被拒絕。`,
+						content: `拒絕原因：${reason}`,
+						priority: "warning" as const,
+					}));
 
-		if (result instanceof Error) {
-			throw new Error(result.message);
-		}
+					await tx.insert(notification).values(notifications);
+				}
 
-		// 3. Trigger External Notifications (Non-blocking)
-		const { botName, developerIds } = result as {
-			botName: string;
-			developerIds: string[];
-		};
+				return {
+					botName: botRecord.name,
+					developerIds: devIds,
+				};
+			})
+			.catch((error) => {
+				// 統一在此捕捉 Transaction 內拋出的錯誤
+				if (error instanceof Error && error.message === "BotNotFound") {
+					throw error;
+				}
+				console.error("Database Transaction Error:", error);
+				throw new Error("DatabaseError");
+			});
 
-		// We don't await this to prevent blocking the response
+		// 3. 觸發外部通知 (Non-blocking)
+		const { botName, developerIds } = transactionResult;
+
 		sendNotification({
-			subject: `機器人申請已被拒絕: ${botName}`,
+			label: "機器人審核通知",
+			subject: `機器人申請已被拒絕： ${botName}`,
 			teaser: `您的機器人 "${botName}" 申請已被拒絕。`,
 			content: `拒絕原因：${reason}`,
-			priority: "warning",
+			priority: "error",
 			userIds: developerIds,
 		}).catch((e) => console.error("Failed to send rejection DMs:", e));
 
@@ -476,18 +497,28 @@ export const resolveReportServerFn = createServerFn({ method: "POST" })
 	)
 	.handler(async ({ data, context }) => {
 		const { reportId, status, resolutionNote } = data;
-		const handledById = context.user.discordId;
+		const handledById = context.user?.discordId;
+
+		// 安全防護：確保管理者 ID 存在
+		if (!handledById) {
+			throw new Error("未授權的操作或讀取不到 Discord ID");
+		}
 
 		const [updated] = await db
 			.update(report)
 			.set({
-				status: status,
-				resolutionNote: resolutionNote,
+				status,
+				resolutionNote,
 				handledById,
 				handledAt: new Date().toISOString(),
 			})
 			.where(eq(report.id, reportId))
 			.returning();
+
+		// 核心修正：防止查無資料時，updated 為 undefined 導致程式崩潰
+		if (!updated) {
+			throw new Error("ReportNotFound");
+		}
 
 		return {
 			...updated,
@@ -509,7 +540,7 @@ export const getUsersFn = createServerFn({ method: "GET" })
 				const searchCondition = search
 					? or(
 							ilike(user.name, `%${search}%`),
-							ilike(user.email, `%${search}%`),
+							ilike(user.username, `%${search}%`),
 							ilike(user.id, `%${search}%`),
 						)
 					: undefined;
@@ -557,25 +588,40 @@ export const toggleUserBanFn = createServerFn({ method: "POST" })
 	.handler(async ({ data }) => {
 		const request = getRequest();
 
-		// 更新資料庫的 Effect (呼叫 Better Auth API)
+		const cookieHeader = request.headers.get("cookie") ?? "";
+
+		const filteredCookies = cookieHeader
+			.split(";")
+			.map((c) => c.trim())
+			.filter((c) => {
+				const value = c.split("=").slice(1).join("=").trim();
+				const dotCount = (value.match(/\./g) ?? []).length;
+				return dotCount < 2; // 過濾掉 JWT (含 2 個 ".")
+			})
+			.join("; ");
+
+		const authHeaders = new Headers();
+		if (filteredCookies) {
+			authHeaders.set("cookie", filteredCookies);
+		}
+		if (request.headers.get("authorization")) {
+			authHeaders.set("authorization", request.headers.get("authorization")!);
+		}
+
 		const toggleDbEffect = Effect.tryPromise({
 			try: () => {
-				if (data.isBanned) {
-					return auth.api.banUser({
-						body: {
-							userId: data.targetUserId,
-							banReason: data.reason,
-						},
-						headers: request.headers,
-					});
-				} else {
-					return auth.api.unbanUser({
-						body: {
-							userId: data.targetUserId,
-						},
-						headers: request.headers,
-					});
-				}
+				const body = {
+					userId: data.targetUserId,
+					banReason: data.isBanned ? data.reason : undefined,
+				};
+
+				// 使用篩選過的 authHeaders
+				return data.isBanned
+					? auth.api.banUser({ body, headers: authHeaders })
+					: auth.api.unbanUser({
+							body: { userId: data.targetUserId },
+							headers: authHeaders,
+						});
 			},
 			catch: (error) => new Error(`Better Auth 狀態更新失敗: ${error}`),
 		});

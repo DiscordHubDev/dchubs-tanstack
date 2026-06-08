@@ -16,7 +16,6 @@ import { fetchJsonEffect, runEffect, toErrorMessage } from "#/lib/effect-utils";
 import type { BotInfo } from "#/lib/types";
 import { fetchBotRpcEffect } from "#/utils/fetch-rpc";
 import { sendNotificationEffect } from "../notifications/notifications.server";
-import { sendDiscordWebhookEffect } from "../webhook/webhook.server";
 import type {
 	DeleteBotImageInput,
 	SendPendingWebhookInput,
@@ -33,7 +32,7 @@ import type {
 } from "./bot-submit.types";
 
 const SUBMIT_SUCCESS_MESSAGE =
-	"✅ 機器人已成功提交，請等待審核人員審核，審核結果將會在網站的收件匣和官方群組的通知中出現。";
+	"✅ 機器人已成功提交，請等待審核人員審核，審核結果將會通過 Discord 私訊和官方群組的通知中出現。";
 
 type SubmitBotMode = "create" | "edit";
 
@@ -63,6 +62,7 @@ type BotPayload = {
 		banner: string | null;
 		voteNotificationUrl: string | null;
 		secret: string | null;
+		status: "pending" | "approved" | "rejected";
 	};
 	commands: NormalizedCommand[];
 	developerNames: string[];
@@ -223,18 +223,27 @@ function fetchDiscordUserEffect(
 
 function getExistingBotEffect(
 	botId: string,
-): Effect.Effect<boolean, SubmitBotFailed> {
+): Effect.Effect<
+	{ id: string; status: "pending" | "approved" | "rejected" } | undefined,
+	SubmitBotFailed
+> {
 	return dbEffect("Failed to inspect existing bot", () =>
-		db.select({ id: bot.id }).from(bot).where(eq(bot.id, botId)).limit(1),
-	).pipe(Effect.map((rows) => Boolean(rows[0])));
+		db
+			.select({ id: bot.id, status: bot.status })
+			.from(bot)
+			.where(eq(bot.id, botId))
+			.limit(1),
+	).pipe(Effect.map((rows) => rows[0])); // 直接回傳第一筆資料，若無則自然為 undefined
 }
-
 function buildBotPayload(
 	input: SubmitBotInput,
 	botId: string,
 	rpc: DiscordBotRPCInfo,
 	botInfo: BotInfo,
-	exists: boolean,
+	// 1. 將這裡的型別改為接收物件或 undefined
+	existingBot:
+		| { id: string; status: "pending" | "approved" | "rejected" }
+		| undefined,
 ): BotPayload {
 	const mode = input.mode ?? "create";
 	const tags = normalizeList(input.form.tags);
@@ -246,6 +255,15 @@ function buildBotPayload(
 	const bannerUrl =
 		normalizeOptionalString(input.banner) ??
 		resolveBotBannerUrl(botInfo.banner_url);
+
+	const isResubmission =
+		mode === "create" && existingBot?.status === "rejected";
+
+	// 如果是新建或是重新提交，狀態重置為 pending；否則（純粹的 update）維持原狀態
+	const determineStatus = () => {
+		if (mode === "create" || isResubmission) return "pending";
+		return existingBot?.status || "pending";
+	};
 
 	return {
 		botId,
@@ -266,10 +284,11 @@ function buildBotPayload(
 			voteNotificationUrl: normalizeOptionalString(input.form.webhook_url),
 			secret: normalizeOptionalString(input.form.secret),
 			nsfw: input.form.nsfw,
+			status: determineStatus(),
 		},
 		commands,
 		developerNames,
-		exists,
+		exists: existingBot !== undefined,
 	};
 }
 
@@ -316,6 +335,10 @@ function persistBotEffect(
 						voteNotificationUrl: payload.botRow.voteNotificationUrl,
 						secret: payload.botRow.secret,
 						nsfw: payload.botRow.nsfw,
+						status: payload.botRow.status as
+							| "pending"
+							| "approved"
+							| "rejected",
 					})
 					.where(eq(bot.id, payload.botId));
 			} else {
@@ -338,7 +361,7 @@ function persistBotEffect(
 					servers: 0,
 					users: 0,
 					upvotes: 0,
-					status: "pending",
+					status: payload.botRow.status as "pending" | "approved" | "rejected",
 					nsfw: payload.botRow.nsfw,
 				});
 			}
@@ -381,6 +404,7 @@ function notifyDevelopersEffect(
 		subject: "機器人已提交",
 		content: SUBMIT_SUCCESS_MESSAGE,
 		teaser: "你的機器人已成功提交，正在審核中。",
+		label: "機器人審核通知",
 		isSystem: true,
 	});
 }
@@ -444,7 +468,11 @@ function submitPipeline(
 		console.log("🔥 收到前端的 developers:", input.form.developers);
 		const botId = yield* parseClientId(input.form.botInvite);
 		const exists = yield* getExistingBotEffect(botId);
-		if ((input.mode ?? "create") === "create" && exists) {
+		if (
+			(input.mode ?? "create") === "create" &&
+			exists &&
+			exists.status !== "rejected"
+		) {
 			return yield* Effect.fail(new BotAlreadyExists({ id: botId }));
 		}
 

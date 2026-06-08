@@ -64,7 +64,7 @@ export const Route = createFileRoute("/protected/add-server")({
 
 const INITIAL_SERVERS_LOAD = 12;
 const LOAD_MORE_AMOUNT = 8;
-const DEFAULT_BOT_PERMISSIONS = "1126965059046433";
+const DEFAULT_BOT_PERMISSIONS = "3221228577";
 
 function buildGuildIconUrl(guild: DiscordGuild): string | null {
 	if (!guild.icon) {
@@ -198,12 +198,12 @@ function RouteComponent() {
 			const inviteUrl = buildBotInviteUrl({
 				clientId,
 				guildId,
-				permissions: data?.botInvitePermissions ?? DEFAULT_BOT_PERMISSIONS,
+				permissions: DEFAULT_BOT_PERMISSIONS,
 			});
 
 			window.location.assign(inviteUrl);
 		},
-		[data?.botInviteClientId, data?.botInvitePermissions],
+		[data?.botInviteClientId],
 	);
 
 	const handleScroll = useCallback(() => {

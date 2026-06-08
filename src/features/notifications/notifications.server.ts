@@ -36,6 +36,7 @@ export function sendNotificationEffect(
 		const content = input.content.trim();
 		const teaser = input.teaser?.trim() || content.slice(0, 140);
 		const priority = input.priority ?? "info";
+		const label = input.label?.trim();
 
 		yield* Effect.tryPromise({
 			try: () =>
@@ -44,6 +45,7 @@ export function sendNotificationEffect(
 					content,
 					teaser,
 					priority,
+					label,
 					userIds: [userId],
 				}),
 			catch: () => new NotificationFailed({}),

@@ -12,20 +12,20 @@ import {
 	AlertTriangle,
 	CheckCircle2,
 	Loader2,
-	Mail,
 	Search,
 	ShieldAlert,
 	User as UserIcon,
-} from "lucide-react";
+} from "lucide-react"; // 移除了 Mail icon
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { user as userSchema } from "#/drizzle/schema";
 import { queryKeys } from "#/lib/query-keys";
+import { SOCIAL_PLATFORMS } from "#/lib/socal";
+import type { SocialData } from "#/types/social";
 import { Badge } from "../../../components/ui/badge";
 import { Button } from "../../../components/ui/button";
 import {
 	Card,
 	CardContent,
-	CardDescription,
 	CardHeader,
 	CardTitle,
 } from "../../../components/ui/card";
@@ -41,14 +41,10 @@ import { Textarea } from "../../../components/ui/textarea";
 import { toggleUserBanFn } from "../admin.functions";
 import { adminUsersInfiniteQueryOptions } from "../admin.query";
 
-// 假設你將原本的 adminUsersQueryOptions 改寫成支援分頁與搜尋的版本：
-// import { fetchAdminUsersInfinite } from "../admin.query";
-
 type UserType = InferSelectModel<typeof userSchema>;
 
 // ── Custom Hooks ──────────────────────────────────────────
 
-// 防抖 Hook：避免使用者每打一個字就發送一次 API 請求
 function useDebounce<T>(value: T, delay: number): T {
 	const [debouncedValue, setDebouncedValue] = useState<T>(value);
 	useEffect(() => {
@@ -70,7 +66,7 @@ const DATE_FORMATTER = new Intl.DateTimeFormat("zh-TW", {
 const formatDate = (d: Date | string | null) =>
 	d ? DATE_FORMATTER.format(new Date(d)) : "—";
 
-// ── UserCard (保持優化過 memo) ──────────────────────────────
+// ── UserCard ──────────────────────────────────────────────
 
 const UserCard = memo(
 	({ user, onView }: { user: UserType; onView: (user: UserType) => void }) => {
@@ -85,31 +81,34 @@ const UserCard = memo(
 				<div className="space-y-3">
 					<div className="flex items-start gap-3 sm:gap-4">
 						<img
-							src={user.image ?? user.avatar ?? "/placeholder.png"}
+							src={
+								user.image ??
+								user.avatar ??
+								"https://cdn.discordapp.com/embed/avatars/0.png"
+							}
 							alt={user.name}
-							// 圖片破圖時自動替換為 placeholder
 							onError={(e) => {
-								e.currentTarget.src = "/placeholder.png";
+								e.currentTarget.src =
+									"https://cdn.discordapp.com/embed/avatars/0.png";
 							}}
 							className="h-10 w-10 flex-shrink-0 rounded-full object-cover shadow-sm transition-transform duration-300 group-hover:scale-105 sm:h-12 sm:w-12"
 							loading="lazy"
 						/>
-						{/* 略：其餘 UI 結構與你提供的相同 */}
 						<div className="min-w-0 flex-1">
 							<div className="flex items-center gap-2">
 								<h3 className="line-clamp-1 break-words font-semibold text-zinc-100 text-base sm:text-lg">
 									{user.name}
 								</h3>
-								{user.emailVerified && (
-									<CheckCircle2 className="h-3.5 w-3.5 text-emerald-400" />
-								)}
+								{/* 如果有需要，可以保留某種驗證標籤，但這裡已移除信箱驗證 */}
 							</div>
-							<p className="mt-0.5 line-clamp-1 break-words text-zinc-400 text-xs sm:text-sm">
-								{user.email}
-							</p>
+							{/* 改為顯示 Username 幫助辨識 */}
+							{user.username && (
+								<p className="mt-0.5 line-clamp-1 break-words text-zinc-400 text-xs sm:text-sm">
+									@{user.username}
+								</p>
+							)}
 						</div>
 					</div>
-					{/* ... 略 ... */}
 				</div>
 			</button>
 		);
@@ -117,22 +116,18 @@ const UserCard = memo(
 );
 UserCard.displayName = "UserCard";
 
+// ── UserDetailsDialog ──────────────────────────────────────
+
 const UserDetailsDialog = memo(
 	({
 		user,
-
 		isOpen,
-
 		onClose,
-
 		onToggleBan,
 	}: {
 		user: UserType | null;
-
 		isOpen: boolean;
-
 		onClose: () => void;
-
 		onToggleBan: (user: UserType) => void;
 	}) => {
 		if (!user) return null;
@@ -145,29 +140,22 @@ const UserDetailsDialog = memo(
 					<DialogHeader>
 						<DialogTitle className="flex items-center gap-2 text-xl sm:text-2xl">
 							<UserIcon className="h-5 w-5 flex-shrink-0 text-indigo-400 sm:h-6 sm:w-6" />
-
 							<span className="line-clamp-1 break-words font-bold tracking-tight">
 								用戶詳細資訊
 							</span>
 						</DialogTitle>
-
 						<DialogDescription className="text-zinc-400">
 							內部系統用戶狀態與權限管理
 						</DialogDescription>
 					</DialogHeader>
-
-					{/* Banner 區域 (如果有的話) */}
 
 					{user.bannerColor || user.banner ? (
 						<div
 							className="h-24 w-full rounded-xl object-cover shadow-sm"
 							style={{
 								backgroundColor: user.bannerColor ?? "#202021",
-
 								backgroundImage: user.banner ? `url(${user.banner})` : "none",
-
 								backgroundSize: "cover",
-
 								backgroundPosition: "center",
 							}}
 						/>
@@ -186,7 +174,6 @@ const UserDetailsDialog = memo(
 									<h3 className="break-words font-semibold text-lg sm:text-xl">
 										{user.name}
 									</h3>
-
 									{isBanned && (
 										<Badge
 											variant="destructive"
@@ -198,26 +185,17 @@ const UserDetailsDialog = memo(
 								</div>
 
 								<div className="mt-2 space-y-1 text-zinc-400">
-									<p className="flex items-center gap-2 text-sm">
-										<Mail className="h-4 w-4" />
-
-										{user.email}
-
-										{user.emailVerified ? (
-											<span className="text-emerald-400">(已驗證)</span>
-										) : (
-											<span className="text-rose-400">(未驗證)</span>
-										)}
-									</p>
-
+									{/* 移除了 Email 與信箱驗證區塊 */}
 									{user.username && (
 										<p className="text-sm">
-											使用者名稱: <strong>{user.username}</strong>
+											使用者名稱:{" "}
+											<strong className="text-zinc-200">{user.username}</strong>
 										</p>
 									)}
 									{user.name && (
 										<p className="text-sm">
-											全域名稱: <strong>{user.name}</strong>
+											全域名稱:{" "}
+											<strong className="text-zinc-200">{user.name}</strong>
 										</p>
 									)}
 								</div>
@@ -229,7 +207,6 @@ const UserDetailsDialog = memo(
 								<h4 className="mb-2 font-medium text-sm text-zinc-300">
 									自我介紹 (Bio)
 								</h4>
-
 								<p className="mt-2 whitespace-pre-wrap break-words rounded-md bg-[#202021] p-3 text-sm text-zinc-300">
 									{user.bio}
 								</p>
@@ -239,7 +216,6 @@ const UserDetailsDialog = memo(
 						<div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
 							<div className="rounded-lg border border-zinc-800/50 bg-[#202021] p-3">
 								<h4 className="font-medium text-sm text-zinc-400">用戶 ID</h4>
-
 								<p className="mt-1.5 break-all font-mono text-xs text-zinc-300">
 									{user.id}
 								</p>
@@ -249,7 +225,6 @@ const UserDetailsDialog = memo(
 								<h4 className="font-medium text-sm text-zinc-400">
 									Discord ID
 								</h4>
-
 								<p className="mt-1.5 break-all font-mono text-sm text-zinc-300">
 									{user.discordId ?? "未綁定"}
 								</p>
@@ -259,7 +234,6 @@ const UserDetailsDialog = memo(
 								<h4 className="font-medium text-sm text-zinc-400">
 									角色 (Role)
 								</h4>
-
 								<p className="mt-1.5 text-sm text-indigo-300 font-semibold">
 									{user.role ?? "User"}
 								</p>
@@ -267,50 +241,29 @@ const UserDetailsDialog = memo(
 
 							<div className="rounded-lg border border-zinc-800/50 bg-[#202021] p-3">
 								<h4 className="font-medium text-sm text-zinc-400">創建時間</h4>
-
 								<p className="mt-1.5 text-sm text-zinc-300">
 									{formatDate(user.createdAt)}
 								</p>
 							</div>
-
-							<div className="rounded-lg border border-zinc-800/50 bg-[#202021] p-3">
-								<h4 className="font-medium text-sm text-zinc-400">最後更新</h4>
-
-								<p className="mt-1.5 text-sm text-zinc-300">
-									{formatDate(user.updatedAt)}
-								</p>
-							</div>
-
-							{isBanned && (
-								<div className="rounded-lg border border-rose-900/50 bg-rose-950/20 p-3 sm:col-span-2">
-									<h4 className="flex items-center gap-2 font-medium text-sm text-rose-400">
-										<AlertTriangle className="h-4 w-4" /> 封鎖原因
-									</h4>
-
-									<p className="mt-1.5 text-sm text-rose-200">
-										{user.banReason ?? "未提供原因"}
-									</p>
-
-									{user.banExpires && (
-										<p className="mt-1 text-xs text-rose-400/80">
-											到期時間: {formatDate(user.banExpires)}
-										</p>
-									)}
-								</div>
-							)}
 						</div>
 
-						{user.social && (
-							<div>
-								<h4 className="mb-2 font-medium text-sm text-zinc-300">
-									社群連結 (Social)
+						{isBanned && (
+							<div className="rounded-lg border border-rose-900/50 bg-rose-950/20 p-3 sm:col-span-2">
+								<h4 className="flex items-center gap-2 font-medium text-sm text-rose-400">
+									<AlertTriangle className="h-4 w-4" /> 封鎖原因
 								</h4>
-
-								<pre className="mt-2 overflow-x-auto rounded-md bg-[#202021] p-3 text-xs text-zinc-300">
-									{JSON.stringify(user.social, null, 2)}
-								</pre>
+								<p className="mt-1.5 text-sm text-rose-200">
+									{user.banReason ?? "未提供原因"}
+								</p>
+								{user.banExpires && (
+									<p className="mt-1 text-xs text-rose-400/80">
+										到期時間: {formatDate(user.banExpires)}
+									</p>
+								)}
 							</div>
 						)}
+
+						{user.social && <SocialLinks userSocial={user.social} />}
 					</div>
 
 					<div className="mt-6 flex flex-col-reverse justify-end gap-3 sm:flex-row">
@@ -321,7 +274,6 @@ const UserDetailsDialog = memo(
 						>
 							關閉
 						</Button>
-
 						<Button
 							className={`w-full text-white shadow-md transition-all active:scale-95 sm:w-auto ${
 								isBanned
@@ -346,37 +298,28 @@ const UserDetailsDialog = memo(
 		);
 	},
 );
-
 UserDetailsDialog.displayName = "UserDetailsDialog";
 
 // ── Ban/Unban Confirm dialog ───────────────────────────────
+// (維持不變)
 
 const BanConfirmDialog = memo(
 	({
 		user,
-
 		isOpen,
-
 		onClose,
-
 		onConfirm,
-
 		isLoading,
 	}: {
 		user: UserType | null;
-
 		isOpen: boolean;
-
 		onClose: () => void;
-
 		onConfirm: (reason: string) => void;
-
 		isLoading: boolean;
 	}) => {
 		const [reason, setReason] = useState("");
 
 		if (!user) return null;
-
 		const isCurrentlyBanned = user.banned ?? false;
 
 		return (
@@ -389,7 +332,6 @@ const BanConfirmDialog = memo(
 							) : (
 								<AlertTriangle className="h-5 w-5 flex-shrink-0 text-rose-500" />
 							)}
-
 							{isCurrentlyBanned ? "確認解除封鎖" : "確認封鎖用戶"}
 						</DialogTitle>
 
@@ -408,14 +350,11 @@ const BanConfirmDialog = memo(
 
 						{!isCurrentlyBanned && (
 							<div className="space-y-2">
-								{/* 1. 加上 htmlFor */}
-
 								<label htmlFor="ban-reason" className="text-sm text-zinc-400">
 									封鎖原因 (選填)
 								</label>
-
 								<Textarea
-									id="ban-reason" // 2. 加上對應的 id
+									id="ban-reason"
 									placeholder="請輸入封鎖原因..."
 									value={reason}
 									onChange={(e) => setReason(e.target.value)}
@@ -456,8 +395,86 @@ const BanConfirmDialog = memo(
 		);
 	},
 );
-
 BanConfirmDialog.displayName = "BanConfirmDialog";
+
+interface SocialLinksProps {
+	userSocial: any; // 接收來自後端的原始資料
+}
+
+function SocialLinks({
+	userSocial,
+}: {
+	userSocial: SocialLinksProps["userSocial"];
+}) {
+	// 1. 安全地解析後端傳過來的資料結構
+	const parseSocialData = (): SocialData => {
+		if (!userSocial) return {};
+		try {
+			// 處理範例中陣列包 JSON 字串的情況：([{}, "{\"discord\":\"...\"}"])
+			if (Array.isArray(userSocial)) {
+				const jsonStr = userSocial.find(
+					(item) => typeof item === "string" && item.startsWith("{"),
+				);
+				return jsonStr ? JSON.parse(jsonStr) : {};
+			}
+			if (typeof userSocial === "object") return userSocial;
+			if (typeof userSocial === "string") return JSON.parse(userSocial);
+		} catch (e) {
+			console.error("解析社群資料失敗:", e);
+		}
+		return {};
+	};
+
+	const socialData = parseSocialData();
+
+	// 2. 過濾出「有填寫」且「存在於你定義的 SOCIAL_PLATFORMS 中」的項目
+	const activeSocials = Object.entries(socialData).filter(([key, value]) => {
+		const hasValue = value && typeof value === "string" && value.trim() !== "";
+		const isPlatformSupported = key.toLowerCase() in SOCIAL_PLATFORMS;
+		return hasValue && isPlatformSupported;
+	});
+
+	// 如果一個都沒填，就隱藏整個區塊
+	if (activeSocials.length === 0) return null;
+
+	return (
+		<div className="mt-4">
+			{/* 延續你原本 UI 的標題風格 */}
+			<h4 className="mb-3 font-medium text-sm text-zinc-300 tracking-wide">
+				社群連結 (Social)
+			</h4>
+
+			{/* 整合現代化、有質感的按鈕列表 */}
+			<div className="flex flex-wrap gap-2">
+				{activeSocials.map(([key, value]) => {
+					// 這裡的 key 對應到你的 discord, twitter, github 等
+					const platformKey = key.toLowerCase();
+					const platform = SOCIAL_PLATFORMS[platformKey];
+
+					if (!platform || !value) return null;
+
+					const Icon = platform.icon;
+					// 呼叫你寫好的 link 函式自動轉換成完整網址，如果沒有 link 函式則退回原本的值
+					const targetUrl = platform.link ? platform.link(value) : value;
+
+					return (
+						<a
+							key={key}
+							href={targetUrl}
+							target="_blank"
+							rel="noopener noreferrer"
+							className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-400 text-xs font-medium transition-all duration-200 hover:text-zinc-100 hover:bg-zinc-800 hover:border-zinc-700"
+						>
+							{/* 直接渲染你配置的 FaIcon */}
+							<Icon className="w-4 h-4" />
+							<span>{platform.name}</span>
+						</a>
+					);
+				})}
+			</div>
+		</div>
+	);
+}
 
 const EmptyState = ({ message }: { message: string }) => (
 	<div className="flex min-h-[200px] flex-col items-center justify-center rounded-xl border border-dashed border-zinc-800 bg-[#2b2d31]/20 py-12 text-center text-zinc-500">
@@ -471,38 +488,33 @@ const EmptyState = ({ message }: { message: string }) => (
 export default function UserManagement() {
 	const queryClient = useQueryClient();
 
-	// 搜尋與防抖狀態
 	const [search, setSearch] = useState("");
-	const debouncedSearch = useDebounce(search, 500); // 使用 500ms 防抖
+	const debouncedSearch = useDebounce(search, 500);
 
 	const [selectedUser, setSelectedUser] = useState<UserType | null>(null);
 	const [isDetailOpen, setIsDetailOpen] = useState(false);
 	const [actionUser, setActionUser] = useState<UserType | null>(null);
 	const [isActionOpen, setIsActionOpen] = useState(false);
 
-	// 🚀 優化重點：使用 useInfiniteQuery 進行後端分頁與搜尋
 	const { data, isLoading, isFetchingNextPage, hasNextPage, fetchNextPage } =
 		useInfiniteQuery(adminUsersInfiniteQueryOptions(debouncedSearch));
 
-	// 將所有分頁的資料攤平以便渲染
 	const users = useMemo(() => {
 		return data?.pages.flatMap((page) => page?.users || []) || [];
 	}, [data]);
 
 	const observerTarget = useRef<HTMLDivElement>(null);
 
-	// 🚀 2. 使用 useEffect 設定 Intersection Observer
 	useEffect(() => {
 		const observer = new IntersectionObserver(
 			(entries) => {
-				// 當目標進入可視範圍，且還有下一頁、當前沒有在載入中時，觸發載入
 				if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
 					fetchNextPage();
 				}
 			},
 			{
-				threshold: 0.1, // 元素只要出現 10% 就觸發
-				rootMargin: "100px", // 提早 100px 觸發，讓滾動體驗更滑順
+				threshold: 0.1,
+				rootMargin: "100px",
 			},
 		);
 
@@ -518,7 +530,6 @@ export default function UserManagement() {
 		};
 	}, [fetchNextPage, hasNextPage, isFetchingNextPage]);
 
-	// 觸發封鎖/解封
 	const toggleBanMutation = useMutation({
 		mutationFn: (payload: {
 			targetUserId: string;
@@ -538,7 +549,6 @@ export default function UserManagement() {
 
 	const handleOpenDetail = useCallback((user: UserType) => {
 		setSelectedUser(user);
-
 		setIsDetailOpen(true);
 	}, []);
 
@@ -546,8 +556,6 @@ export default function UserManagement() {
 		setActionUser(user);
 		setIsActionOpen(true);
 	}, []);
-
-	// 優化 🚀: 將關閉邏輯用 useCallback 包起來，避免破壞子元件的 React.memo
 
 	const handleCloseDetail = useCallback(() => {
 		setIsDetailOpen(false);
@@ -562,18 +570,14 @@ export default function UserManagement() {
 	const handleConfirmAction = useCallback(
 		(reason: string) => {
 			if (!actionUser) return;
-
 			const nextBanState = !(actionUser.banned ?? false);
 
 			toggleBanMutation.mutate({
 				targetUserId: actionUser.id,
-
 				isBanned: nextBanState,
-
 				reason: nextBanState ? reason : undefined,
 			});
 		},
-
 		[actionUser, toggleBanMutation],
 	);
 
@@ -591,7 +595,7 @@ export default function UserManagement() {
 					<div className="relative group">
 						<Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
 						<Input
-							placeholder="透過後端即時搜尋用戶名稱、信箱或 ID..."
+							placeholder="透過後端即時搜尋名稱 (Name)、使用者名稱 (Username) 或 ID..."
 							className="h-11 rounded-xl border-zinc-800 bg-[#2b2d31]/50 pl-10"
 							value={search}
 							onChange={(e) => setSearch(e.target.value)}
@@ -619,7 +623,6 @@ export default function UserManagement() {
 									))}
 								</div>
 
-								{/* 🚀 3. 將原本的按鈕替換為 Observer Target */}
 								{hasNextPage && (
 									<div
 										ref={observerTarget}
@@ -638,7 +641,6 @@ export default function UserManagement() {
 									</div>
 								)}
 
-								{/* 當全部載入完畢時，可選擇性顯示提示 */}
 								{!hasNextPage && users.length > 0 && (
 									<div className="mt-6 text-center text-sm text-zinc-500 opacity-50">
 										已經到底囉！
@@ -649,8 +651,6 @@ export default function UserManagement() {
 					</div>
 				</div>
 			</CardContent>
-
-			{/* 檢視細節對話框 */}
 
 			<UserDetailsDialog
 				user={selectedUser}

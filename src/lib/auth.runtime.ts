@@ -1,6 +1,6 @@
 import { betterAuth } from "better-auth";
 import { drizzleAdapter } from "better-auth/adapters/drizzle";
-import { jwt } from "better-auth/plugins";
+import { admin, jwt } from "better-auth/plugins";
 import { tanstackStartCookies } from "better-auth/tanstack-start";
 import { eq } from "drizzle-orm";
 import { db } from "#/drizzle/db";
@@ -42,6 +42,11 @@ export async function createAuth() {
 	const isProd = process.env.NODE_ENV === "production";
 
 	return betterAuth({
+		roles: {
+			admin: {
+				label: "Admin",
+			},
+		},
 		onInit: () => {
 			console.log("🔥 Better Auth 初始化成功！Hooks 即將掛載...");
 		},
@@ -61,6 +66,9 @@ export async function createAuth() {
 		trustProxy: true,
 
 		plugins: [
+			admin({
+				adminRoles: ["admin"],
+			}),
 			jwt({
 				jwt: {
 					expirationTime: "1h", // 這個 plugin 的 JWT 是給第三方 API 用的，保留沒問題

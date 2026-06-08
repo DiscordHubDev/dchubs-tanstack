@@ -958,13 +958,13 @@ export default function BotForm({
 
 					await Swal.fire({
 						icon: "success",
-						title: "創建成功",
-						text: "機器人已成功建立！",
-						confirmButtonText: "前往機器人頁面",
+						title: "發布成功",
+						text: "請等待審核，審核通過後機器人便會出現在列表中。",
+						confirmButtonText: "前往個人頁面",
 					}).then(() => {
 						void navigate({
-							to: "/bots/$botId",
-							params: { botId: response.botId },
+							to: "/protected/profile",
+							search: { tab: "bots" },
 						});
 					});
 				}

@@ -2,7 +2,6 @@ import { createServerFn } from "@tanstack/react-start";
 import { Effect } from "effect";
 import { authMiddleware } from "#/lib/auth-middleware";
 import { effectInputValidator } from "#/lib/effect-utils";
-import { deleteServer } from "../servers/servers.server";
 import { BotListInputSchema } from "./bots.schemas";
 import {
 	deleteBot,

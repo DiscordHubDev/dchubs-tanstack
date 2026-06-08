@@ -14,6 +14,7 @@ export const SendNotificationSchema = Schema.Struct({
 	teaser: Schema.optional(Schema.String),
 	priority: Schema.optional(PrioritySchema),
 	isSystem: Schema.optional(Schema.Boolean),
+	label: Schema.optional(Schema.String),
 });
 
 export type SendNotificationInput = Schema.Schema.Type<

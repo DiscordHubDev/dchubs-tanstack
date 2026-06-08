@@ -9,12 +9,10 @@ import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
 import { ErrorState } from "#/components/ErrorState";
-import { GlobalAnnouncement } from "#/components/GlobalAnnouncement";
 // --- Components & Layouts ---
 import { AppSidebar } from "#/components/layout/app-sidebar";
 import NotFound from "#/components/notFound";
 import { SidebarInset, SidebarProvider } from "#/components/ui/sidebar";
-import { getGlobalAnnouncement } from "#/features/announcement/announcement.function";
 // --- Utils & Assets ---
 import { getSession, type NormalizedSession } from "#/lib/auth.functions";
 import { TooltipProvider } from "@/components/ui/tooltip";
@@ -81,12 +79,6 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
 	beforeLoad: async () => {
 		const session = await getSession();
 		return { session };
-	},
-	loader: async () => {
-		const res = await getGlobalAnnouncement();
-		return {
-			announcement: res.success ? res.data : null,
-		};
 	},
 	head: ({ matches }) => {
 		const breadcrumbMatches = matches.filter((m) => m.pathname !== "");
@@ -174,7 +166,6 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
 // 4. 根文檔元件
 // ==========================================
 function RootDocument({ children }: { children: ReactNode }) {
-	const { announcement } = Route.useLoaderData();
 	return (
 		<html
 			lang="zh-TW"

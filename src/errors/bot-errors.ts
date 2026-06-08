@@ -29,3 +29,13 @@ export class ImageUploadFailed extends Data.TaggedError("ImageUploadFailed")<{
 export class ForbiddenError extends Data.TaggedError("ForbiddenError")<{
 	message: string;
 }> {}
+
+export class DatabaseError extends Data.TaggedError("DatabaseError")<{
+	cause: unknown;
+}> {}
+export class BotNotFoundError extends Data.TaggedError("BotNotFoundError")<{
+	botName: string;
+}> {}
+export class InvalidJsonError extends Data.TaggedError("InvalidJsonError")<{
+	cause: unknown;
+}> {}

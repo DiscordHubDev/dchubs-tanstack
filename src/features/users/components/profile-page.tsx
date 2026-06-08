@@ -16,6 +16,7 @@ import {
 	Settings,
 	Star,
 	Users,
+	X,
 } from "lucide-react";
 import {
 	type FormEvent,
@@ -1024,6 +1025,14 @@ function BotStatusIndicator({ status }: { status: string }) {
 			<div className="mt-2 flex items-center text-green-500 text-sm">
 				<CheckCircle size={14} className="mr-1" />
 				<span>機器人已通過審核</span>
+			</div>
+		);
+	}
+	if (status === "rejected") {
+		return (
+			<div className="mt-2 flex items-center text-red-500 text-sm">
+				<X size={14} className="mr-1" />
+				<span>機器人遭到拒絕</span>
 			</div>
 		);
 	}
