@@ -30,7 +30,10 @@ const s3Client = new S3Client({
 
 // 2. 定義本機與遠端路徑
 // 🔴 修正點：加上 .output 的小數點，並使用 process.cwd() 確保相對路徑絕對正確
-const LOCAL_DIR = path.resolve(process.cwd(), ".output/public/assets");
+const LOCAL_DIR = path.resolve(
+	process.cwd(),
+	"node_modules/.nitro/vite/services/ssr/assets",
+);
 const REMOTE_PREFIX = "assets/"; // 對應 s3://dchubs/assets/
 
 async function cleanUpStaleFiles(localFiles: string[]) {
