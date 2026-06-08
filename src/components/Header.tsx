@@ -1,6 +1,6 @@
 import { Link, useLocation } from "@tanstack/react-router";
 import { Image } from "@unpic/react";
-import { Menu, X } from "lucide-react";
+import { LogOut, Menu, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { FaUser } from "react-icons/fa";
 import { FaDiscord } from "react-icons/fa6";
@@ -49,40 +49,97 @@ export default function Header() {
 		void signOut();
 	};
 
+	// 抽離登入/登出按鈕群，方便在桌面版與行動版重複使用，保持程式碼簡潔
+	const AuthButtons = ({ isMobile = false }: { isMobile?: boolean }) => {
+		if (isSignedIn) {
+			return (
+				<div
+					className={`flex ${isMobile ? "flex-col gap-2 mt-2 w-full" : "items-center gap-3"}`}
+				>
+					<Link
+						to="/protected/profile"
+						preload="intent"
+						onClick={() => isMobile && setIsOpen(false)}
+						className={isMobile ? "w-full" : ""}
+					>
+						<Button
+							variant="ghost"
+							className={`cursor-pointer text-white hover:bg-[#36393f] flex items-center gap-2 justify-start ${
+								isMobile ? "w-full px-3 py-2 text-sm h-10" : ""
+							} ${pathname === "/protected/profile" ? "bg-white/10" : ""}`}
+						>
+							<FaUser className="size-4 shrink-0" />
+							<span>個人資料</span>
+						</Button>
+					</Link>
+					<Button
+						onClick={handleSignOut}
+						variant="destructive"
+						className={`cursor-pointer bg-red-700 hover:bg-red-600 text-white flex items-center gap-2 justify-start ${
+							isMobile ? "w-full px-3 py-2 text-sm h-10" : "px-3"
+						}`}
+					>
+						<LogOut className="size-4 shrink-0" />
+						<span>登出</span>
+					</Button>
+				</div>
+			);
+		}
+
+		return (
+			<Button
+				onClick={handleDiscordSignIn}
+				className={`cursor-pointer bg-[#5865f2] text-white hover:bg-[#4752c4] flex items-center gap-2 justify-center ${
+					isMobile ? "w-full mt-2" : ""
+				}`}
+			>
+				<FaDiscord className="size-5" />
+				<span>登入 Discord</span>
+			</Button>
+		);
+	};
+
 	return (
 		<nav
 			className={`sticky top-0 z-50 w-full border-b transition-all duration-300 ${
 				isScrolled
-					? "border-white/10 bg-[#2b2d31]/70 backdrop-blur-xl"
+					? "border-white/10 bg-[#2b2d31]/80 backdrop-blur-xl"
 					: "border-[#1e1f22] bg-[#2b2d31]"
 			}`}
 		>
 			<div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
-				<div className="flex h-16 items-center justify-between gap-3">
-					<div className="flex min-w-0 items-center gap-2 md:gap-4">
-						<SidebarTrigger className="-mt-1 cursor-pointer md:hidden" />
+				<div className="flex h-16 items-center justify-between gap-4">
+					{/* 左側：Logo 與 導覽連結 */}
+					<div className="flex min-w-0 items-center gap-2 md:gap-6">
+						{/* 行動端側邊欄觸發按鈕 */}
+						<SidebarTrigger className="cursor-pointer md:hidden text-white" />
+
+						{/* Logo */}
 						<Link
 							to="/"
-							className="flex shrink-0 items-center font-bold text-white text-xl"
+							className="flex shrink-0 items-center font-bold text-white text-xl hover:opacity-90 transition-opacity"
 						>
-							<span className="mr-2">
-								<Image
-									src="/favicon.ico"
-									alt="DiscordHubs Logo"
-									width={24}
-									height={24}
-									className="rounded-full"
-								/>
-							</span>
-							DiscordHubs
+							<Image
+								src="/favicon.ico"
+								alt="DiscordHubs Logo"
+								width={26}
+								height={26}
+								className="rounded-full mr-2 shrink-0"
+							/>
+							<span className="truncate">DiscordHubs</span>
 						</Link>
 
-						<div className="hidden items-center gap-2 md:flex">
+						{/* 桌面版導覽連結 (md 以上顯示) */}
+						<div className="hidden items-center gap-1 md:flex">
 							{links.map(({ to, label }) => (
 								<Link key={to} to={to}>
 									<Button
 										variant="ghost"
-										className={`cursor-pointer text-white hover:bg-[#36393f] ${pathname === to ? "bg-white/10" : ""}`}
+										className={`cursor-pointer text-white hover:bg-[#36393f] ${
+											pathname === to
+												? "bg-white/10 font-semibold"
+												: "font-normal"
+										}`}
 									>
 										{label}
 									</Button>
@@ -91,89 +148,49 @@ export default function Header() {
 						</div>
 					</div>
 
-					<div className="hidden items-center gap-2 md:flex">
-						{isSignedIn ? (
-							<>
-								<Link
-									to="/protected/profile"
-									preload="intent"
-									className="discord"
-								>
-									<FaUser />
-									個人資料
-								</Link>
-								<Button
-									onClick={handleSignOut}
-									className="cursor-pointer bg-red-700 px-2 text-white hover:bg-red-600"
-								>
-									<X />
-									登出
-								</Button>
-							</>
-						) : (
-							<Button
-								onClick={handleDiscordSignIn}
-								className="cursor-pointer bg-[#5865f2] text-white hover:bg-[#4752c4]"
-							>
-								<FaDiscord />
-								登入 Discord
-							</Button>
-						)}
+					{/* 右側：桌面版使用者功能 (md 以上顯示) */}
+					<div className="hidden items-center md:flex">
+						<AuthButtons />
 					</div>
 
-					<button
-						type="button"
-						onClick={() => setIsOpen((prev) => !prev)}
-						className="text-white md:hidden"
-						aria-label="切換選單"
-					>
-						{isOpen ? <X className="size-5" /> : <Menu className="size-5" />}
-					</button>
+					{/* 右側：行動版主選單漢堡按鈕 (md 以下顯示) */}
+					<div className="flex items-center md:hidden">
+						<button
+							type="button"
+							onClick={() => setIsOpen((prev) => !prev)}
+							className="inline-flex items-center justify-center rounded-md p-2 text-gray-400 hover:bg-[#36393f] hover:text-white focus:outline-none"
+							aria-label="切換選單"
+						>
+							{isOpen ? <X className="size-6" /> : <Menu className="size-6" />}
+						</button>
+					</div>
 				</div>
+			</div>
 
-				{isOpen && (
-					<div className="flex flex-col gap-2 pb-4 md:hidden">
+			{/* 行動端下拉選單選單 (md 以下顯示) */}
+			{isOpen && (
+				<div className="border-t border-white/5 bg-[#2b2d31] px-4 pt-2 pb-4 md:hidden shadow-xl">
+					<div className="space-y-1">
 						{links.map(({ to, label }) => (
 							<Link
 								key={to}
 								to={to}
 								onClick={() => setIsOpen(false)}
-								className={`w-full rounded-md px-3 py-2 text-sm text-white hover:bg-[#36393f] ${pathname === to ? "bg-white/10" : ""}`}
+								className={`block w-full rounded-md px-3 py-2 text-base font-medium text-white hover:bg-[#36393f] transition-colors ${
+									pathname === to ? "bg-white/10 font-semibold" : ""
+								}`}
 							>
 								{label}
 							</Link>
 						))}
-
-						{isSignedIn ? (
-							<>
-								<Link
-									to="/protected/profile"
-									preload="intent"
-									onClick={() => setIsOpen(false)}
-									className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-white hover:bg-[#36393f]"
-								>
-									<FaUser />
-									個人資料
-								</Link>
-								<Button
-									onClick={handleSignOut}
-									className="mt-1 cursor-pointer bg-[#4f545c] text-white hover:bg-[#3f434a]"
-								>
-									登出
-								</Button>
-							</>
-						) : (
-							<Button
-								onClick={handleDiscordSignIn}
-								className="mt-1 cursor-pointer bg-[#5865f2] text-white hover:bg-[#4752c4]"
-							>
-								<FaDiscord />
-								登入 Discord
-							</Button>
-						)}
 					</div>
-				)}
-			</div>
+
+					{/* 行動端認證按鈕 */}
+					<div className="mt-4 pt-4 border-t border-white/5">
+						<AuthButtons isMobile />
+					</div>
+				</div>
+			)}
 		</nav>
 	);
 }

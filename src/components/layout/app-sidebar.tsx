@@ -1,5 +1,5 @@
 import { Separator } from "@radix-ui/react-separator";
-import { useRouteContext } from "@tanstack/react-router";
+import { useLocation, useRouteContext } from "@tanstack/react-router";
 import {
 	BookCheckIcon,
 	BookOpen,
@@ -118,6 +118,9 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 	const isMobile = useIsMobile();
 	const { setOpenMobile } = useSidebar();
 
+	const location = useLocation();
+	const pathname = location.pathname;
+
 	const status = session ? "authenticated" : "unauthenticated";
 
 	useEffect(() => {
@@ -129,22 +132,25 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 			title: "返回首頁",
 			url: "/",
 			icon: Home,
-			isActive: true,
+			isActive: pathname === "/",
 		},
 		{
 			title: "教學頁面",
 			url: "/tutorial",
 			icon: BookOpen,
+			isActive: pathname.startsWith("/tutorial"), // 使用 startsWith 可涵蓋子路由 (例如 /tutorial/1)
 		},
 		{
 			title: "加入官方群",
 			url: "https://discord.com/invite/puQ9DPdG3M",
 			icon: Sparkles,
+			isActive: false, // 外部連結不需要 active 狀態
 		},
 		{
 			title: "邀請官方機器人",
 			url: "https://discord.com/oauth2/authorize?client_id=1324996138251583580&permissions=1126965059046400&integration_type=0&scope=bot",
 			icon: BotIcon,
+			isActive: false, // 外部連結不需要 active 狀態
 		},
 	];
 
