@@ -25,10 +25,15 @@ const securityHeadersMiddleware = createMiddleware().server(
 			// 3. 組合 CSP：將你的網域白名單與 Nonce 結合
 			const cspDirectives = [
 				"default-src 'self'",
-				// 加入 nonce 驗證，並保留你原本的信任來源
-				`script-src 'self' 'nonce-${nonce}' 'strict-dynamic' https://assets.dchubs.org https://ajax.cloudflare.com https://static.cloudflareinsights.com`,
-				// Style 通常也會受到限制，若你的 UI 庫需要 inline-style，可視情況補回 'unsafe-inline'
+
+				// 🟢 修正 1: 移除 'strict-dynamic'。
+				// 保留 'self' 與 CDN 網域，並加上 'unsafe-inline' 與 'unsafe-eval' 以防 React/Vite 內部依賴
+				"script-src 'self' 'unsafe-inline' 'unsafe-eval' https://assets.dchubs.org https://ajax.cloudflare.com https://static.cloudflareinsights.com",
+
+				// 🟢 修正 2: 確保 style 也允許你的 CDN 與 inline-style (Shadcn 有時會用到動態 style)
 				"style-src 'self' 'unsafe-inline' https://assets.dchubs.org",
+
+				// 以下維持你的設定
 				"img-src 'self' data: https://cdn.discordapp.com https://gallery.dawngs.top https://res.cloudinary.com blob:",
 				"frame-src https://discord.com https://www.youtube.com",
 				"connect-src 'self' https://cloudflareinsights.com",
