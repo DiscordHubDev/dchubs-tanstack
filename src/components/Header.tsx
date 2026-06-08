@@ -64,7 +64,7 @@ export default function Header() {
 					>
 						<Button
 							variant="ghost"
-							className={`cursor-pointer text-white hover:bg-[#36393f] flex items-center gap-2 justify-start ${
+							className={`cursor-pointer text-white hover:bg-[#36393f] flex items-center gap-2 justify-start bg-discord hover:bg-discord-hover ${
 								isMobile ? "w-full px-3 py-2 text-sm h-10" : ""
 							} ${pathname === "/protected/profile" ? "bg-white/10" : ""}`}
 						>
