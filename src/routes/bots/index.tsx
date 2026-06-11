@@ -43,6 +43,7 @@ import {
 	paginateBots,
 	sortBotsByCategory,
 } from "#/features/bots/bots.utils";
+import { botCategories } from "#/lib/categories";
 import type { CategoryType } from "#/lib/types";
 
 // ─── 分類設定：單一來源，TabsTrigger / label / prefetch 全部從這裡取 ────────────
@@ -273,12 +274,39 @@ function BotsPage() {
 
 	const mergedCategories = useMemo(() => {
 		const map = new Map<string, CategoryType>();
+		// 用來記錄已經載入的「標籤名稱」，避免 API 抓到重複名稱的標籤
+		const nameSet = new Set<string>();
+
+		// [區塊 A] 預設機器人標籤
+		const formattedBotCategories = botCategories.map((c) => ({
+			...c,
+			id: `bot-${c.id}`,
+		}));
+
+		for (const item of formattedBotCategories) {
+			map.set(item.id, item);
+			nameSet.add(item.name.toLowerCase()); // 登記名稱
+		}
+
+		// [區塊 B] 載入來自 API 的其他機器人歷史標籤
 		for (const item of filterBundle.data?.categories ?? []) {
-			map.set(item.id, item);
+			const nameKey = item.name.toLowerCase();
+			// 只有當預設標籤裡「沒有」這個名字時，才把它加進來 (歸類到自訂)
+			if (!nameSet.has(nameKey)) {
+				map.set(item.id, item);
+				nameSet.add(nameKey);
+			}
 		}
+
+		// [區塊 C] 載入使用者剛剛手動新增的自訂標籤
 		for (const item of customCategories) {
-			map.set(item.id, item);
+			const nameKey = item.name.toLowerCase();
+			if (!nameSet.has(nameKey)) {
+				map.set(item.id, item);
+				nameSet.add(nameKey);
+			}
 		}
+
 		return [...map.values()];
 	}, [filterBundle.data?.categories, customCategories]);
 
@@ -408,6 +436,7 @@ function BotsPage() {
 		[commitSearch, isComposing],
 	);
 
+	// 5. 處理標籤選擇變更 (更新網址)
 	const handleCategoryChange = useCallback(
 		(ids: string[]) => {
 			updateSearch({
@@ -420,6 +449,7 @@ function BotsPage() {
 
 	const handleAddCustomCategory = useCallback(
 		(categoryName: string) => {
+			// 檢查是否已經有同名的標籤 (不分大小寫)
 			if (
 				mergedCategories.some(
 					(item) => item.name.toLowerCase() === categoryName.toLowerCase(),
@@ -428,12 +458,14 @@ function BotsPage() {
 				return;
 			}
 
+			// 建立新標籤
 			const nextCategory: CategoryType = {
 				id: `custom-${Date.now()}`,
 				name: categoryName,
 				color: "bg-sky-500",
 			};
 
+			// 更新狀態，並自動將新標籤設為選取狀態
 			setCustomCategories((previous) => [...previous, nextCategory]);
 			handleCategoryChange([...selectedCategoryIds, nextCategory.id]);
 		},

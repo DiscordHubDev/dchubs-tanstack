@@ -45,6 +45,7 @@ import type {
 import { effectValidator } from "#/features/servers/server-publish.validators";
 import { userGetBaseProfileByNameOrIdQueryOptions } from "#/features/users/users.query";
 import type { DevUser } from "#/features/users/users.types";
+import { botCategories } from "#/lib/categories";
 import { toErrorMessage } from "#/lib/effect-utils";
 import type { CategoryType, Screenshot } from "#/lib/types";
 import { Checkbox } from "../ui/checkbox";
@@ -70,64 +71,6 @@ type MediaState = {
 	screenshots: MediaItem[];
 	banner: MediaItem | undefined;
 };
-
-const botCategories: CategoryType[] = [
-	{
-		id: "1",
-		name: "音樂",
-		color: "bg-blue-500",
-	},
-	{
-		id: "2",
-		name: "遊戲",
-		color: "bg-green-500",
-	},
-	{
-		id: "3",
-		name: "管理",
-		color: "bg-yellow-500",
-	},
-	{
-		id: "4",
-		name: "工具",
-		color: "bg-purple-500",
-	},
-	{
-		id: "5",
-		name: "社群",
-		color: "bg-pink-500",
-	},
-	{
-		id: "6",
-		name: "娛樂",
-		color: "bg-red-500",
-	},
-	{
-		id: "7",
-		name: "多功能",
-		color: "bg-rose-500",
-	},
-	{
-		id: "8",
-		name: "AI",
-		color: "bg-fuchsia-500",
-	},
-	{
-		id: "9",
-		name: "安全",
-		color: "bg-teal-500",
-	},
-	{
-		id: "10",
-		name: "經濟",
-		color: "bg-emerald-500",
-	},
-	{
-		id: "11",
-		name: "紀錄",
-		color: "bg-indigo-500",
-	},
-];
 
 const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
 const MAX_GIF_SIZE_BYTES = 10 * 1024 * 1024;

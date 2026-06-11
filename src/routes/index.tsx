@@ -36,6 +36,7 @@ import {
 	sortServersByCategory,
 } from "#/features/servers/servers.utils";
 import { signIn, useSession } from "#/lib/auth-client";
+import { ServerCategories } from "#/lib/categories";
 import type { CategoryType } from "#/lib/types";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
@@ -239,7 +240,6 @@ function HomePage() {
 	const { status } = useSession();
 	const autoSignInTriggeredRef = useRef(false);
 	const [isPending, startTransition] = useTransition();
-	const loaderData = Route.useLoaderData();
 
 	const activeTab = (search.tab ?? DEFAULT_CATEGORY) as ServerCategory;
 	const currentPage = search.page ?? 1;
@@ -340,12 +340,32 @@ function HomePage() {
 
 	// ── Derived state ────────────────────────────────────────────────────────
 
+	// 3. 整合所有標籤 (預設 + API + 自訂)
 	const mergedCategories = useMemo(() => {
 		const map = new Map<string, CategoryType>();
-		for (const item of filterBundleData.categories) map.set(item.id, item);
-		for (const item of customCategories) map.set(item.id, item);
+
+		// [區塊 A] 預設伺服器標籤 (加上 server- 前綴避免 ID 衝突)
+		const formattedServerCategories = ServerCategories.map((c) => ({
+			...c,
+			id: `server-${c.id}`,
+		}));
+
+		for (const item of formattedServerCategories) {
+			map.set(item.id, item);
+		}
+
+		// [區塊 B] 載入來自 API 的標籤
+		for (const item of filterBundle.data?.categories ?? []) {
+			map.set(item.id, item);
+		}
+
+		// [區塊 C] 載入使用者的自訂標籤 (確保這段有被執行)
+		for (const item of customCategories) {
+			map.set(item.id, item);
+		}
+
 		return [...map.values()];
-	}, [filterBundleData.categories, customCategories]);
+	}, [filterBundle.data?.categories, customCategories]); // 確保 customCategories 在依賴陣列中
 
 	const useClientSideFiltering = Boolean(
 		searchQuery.trim() || selectedCategoryIds.length,
@@ -496,20 +516,17 @@ function HomePage() {
 
 	const handleCategoryChange = useCallback(
 		(ids: string[]) => {
-			// Activate filter bundle when the user first picks a category
-			if (ids.length && !filterBundleEnabled) {
-				setFilterBundleEnabled(true);
-			}
 			updateSearch({
 				categories: ids.length ? ids.join(",") : undefined,
 				page: 1,
 			});
 		},
-		[updateSearch, filterBundleEnabled],
+		[updateSearch],
 	);
 
 	const handleAddCustomCategory = useCallback(
 		(categoryName: string) => {
+			// 檢查是否已經有同名的標籤 (不分大小寫)
 			if (
 				mergedCategories.some(
 					(item) => item.name.toLowerCase() === categoryName.toLowerCase(),
@@ -518,12 +535,14 @@ function HomePage() {
 				return;
 			}
 
+			// 建立新標籤 (ID 必須包含 custom- 前綴，才能配合 CategorySearch 裡的頁籤邏輯)
 			const nextCategory: CategoryType = {
 				id: `custom-${Date.now()}`,
 				name: categoryName,
-				color: "bg-sky-500",
+				color: "bg-sky-500", // 預設給一個顏色
 			};
 
+			// 更新狀態，並自動將新標籤設為選取狀態
 			setCustomCategories((previous) => [...previous, nextCategory]);
 			handleCategoryChange([...selectedCategoryIds, nextCategory.id]);
 		},
