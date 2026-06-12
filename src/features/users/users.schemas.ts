@@ -53,3 +53,8 @@ export const ApiJwtPayloadSchema = Schema.Struct({
 	// 補上缺少的 jti
 	jti: Schema.String,
 });
+
+export const PinItemInputSchema = Schema.Struct({
+	id: NonEmptyString,
+	type: Schema.Literal("bot", "server"),
+});

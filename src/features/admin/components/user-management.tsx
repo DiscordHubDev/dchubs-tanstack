@@ -17,6 +17,7 @@ import {
 	User as UserIcon,
 } from "lucide-react"; // 移除了 Mail icon
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
+import Swal from "sweetalert2";
 import type { user as userSchema } from "#/drizzle/schema";
 import { queryKeys } from "#/lib/query-keys";
 import { SOCIAL_PLATFORMS } from "#/lib/socal";
@@ -70,8 +71,6 @@ const formatDate = (d: Date | string | null) =>
 
 const UserCard = memo(
 	({ user, onView }: { user: UserType; onView: (user: UserType) => void }) => {
-		const isBanned = user.banned ?? false;
-
 		return (
 			<button
 				type="button"
@@ -95,10 +94,15 @@ const UserCard = memo(
 							loading="lazy"
 						/>
 						<div className="min-w-0 flex-1">
-							<div className="flex items-center gap-2">
-								<h3 className="line-clamp-1 break-words font-semibold text-zinc-100 text-base sm:text-lg">
+							<div className="flex flex-row items-center gap-2">
+								<h3 className="flex-1 line-clamp-1 break-words font-semibold text-zinc-100 text-base sm:text-lg">
 									{user.name}
 								</h3>
+								{user.banned && (
+									<Badge variant="destructive" className="bg-rose-500 text-xs">
+										已封鎖
+									</Badge>
+								)}
 								{/* 如果有需要，可以保留某種驗證標籤，但這裡已移除信箱驗證 */}
 							</div>
 							{/* 改為顯示 Username 幫助辨識 */}
@@ -179,7 +183,7 @@ const UserDetailsDialog = memo(
 											variant="destructive"
 											className="bg-rose-500 text-xs"
 										>
-											Banned
+											已封鎖
 										</Badge>
 									)}
 								</div>
@@ -536,10 +540,17 @@ export default function UserManagement() {
 			isBanned: boolean;
 			reason?: string;
 		}) => toggleUserBanFn({ data: payload }),
-		onSuccess: () => {
+		onSuccess: async () => {
 			queryClient.invalidateQueries({ queryKey: queryKeys.admin.users() });
 			setIsActionOpen(false);
 			setIsDetailOpen(false);
+			await Swal.fire({
+				icon: "success",
+				title: "操作成功",
+				text: `已${actionUser?.banned ? "解封" : "封禁"} ${actionUser?.name}`,
+				confirmButtonText: "好的",
+				heightAuto: false,
+			});
 		},
 		onError: (err) => {
 			console.error("操作失敗", err);

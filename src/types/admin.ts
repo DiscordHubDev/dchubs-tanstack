@@ -134,10 +134,3 @@ export interface SeverityLevel {
 	readonly color: string;
 	readonly icon: LucideIcon;
 }
-
-// ── 6. Server action return types (保持不變) ─────────────
-export interface ActionResult<T = void> {
-	readonly success: boolean;
-	readonly data?: T;
-	readonly error?: string;
-}

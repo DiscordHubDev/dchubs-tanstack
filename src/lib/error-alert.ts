@@ -78,6 +78,8 @@ async function showAlert(item: ErrorAlertItem) {
 	isShowingAlert = true;
 	activeAlert = item;
 
+	let unhideObserver: MutationObserver | null = null;
+
 	try {
 		const Swal = await getSwal();
 		await Swal.fire({
@@ -86,8 +88,34 @@ async function showAlert(item: ErrorAlertItem) {
 			text: item.message,
 			confirmButtonText: "關閉",
 			heightAuto: false,
+			didOpen: (popup) => {
+				const container = popup.closest(
+					".swal2-container",
+				) as HTMLElement | null;
+				if (!container) return;
+
+				const unhide = () => {
+					container.removeAttribute("aria-hidden");
+					container.removeAttribute("inert");
+				};
+
+				unhide();
+				const observer = new MutationObserver(unhide);
+				observer.observe(container, {
+					attributes: true,
+					attributeFilter: ["aria-hidden", "inert"],
+				});
+
+				// 賦值給外層
+				unhideObserver = observer;
+			},
 		});
 	} finally {
+		// 這裡進行傳統的 null 檢查，可以幫 TypeScript 重新建立型別防線
+		if (unhideObserver) {
+			(unhideObserver as MutationObserver).disconnect();
+		}
+		unhideObserver = null;
 		activeAlert = null;
 		isShowingAlert = false;
 		void processQueue();

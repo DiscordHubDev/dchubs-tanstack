@@ -1,12 +1,9 @@
 import { createServerFn } from "@tanstack/react-start";
 import { Schema } from "effect";
 import { authMiddleware, protectedMiddleware } from "#/lib/auth-middleware";
+import { effectInputValidator, runEffect, toResult } from "#/lib/effect-utils";
 import {
-	effectInputValidator,
-	runEffect,
-	runEffectSafe,
-} from "#/lib/effect-utils";
-import {
+	PinItemInputSchema,
 	toggleFavoriteInputEffectSchema,
 	updateUserSettingsInputEffectSchema,
 	upsertUserFromSessionInputEffectSchema,
@@ -23,6 +20,7 @@ import {
 	getUserFavoritesEffect,
 	getUserServersEffect,
 	getUserSettingsEffect,
+	pinItemLogicEffect,
 	toggleFavoriteForCurrentUser,
 	updateUserSettingsForCurrentUser,
 	upsertUserFromSession,
@@ -121,6 +119,14 @@ export const createOrRegenerateApiTokenFn = createServerFn({ method: "POST" })
 	.inputValidator(strictValidator)
 	.handler(async ({ context }) => {
 		return createOrRegenerateApiTokenForCurrentUser(context.user.discordId);
+	});
+
+export const pinItemFn = createServerFn({ method: "POST" })
+	.middleware([protectedMiddleware])
+	.inputValidator(effectInputValidator(PinItemInputSchema))
+	.handler(async ({ data }) => {
+		const { id, type } = data;
+		return toResult(pinItemLogicEffect(id, type));
 	});
 
 // Compatible aliases for legacy naming.

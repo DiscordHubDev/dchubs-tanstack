@@ -7,6 +7,10 @@ import type { DiscordGuild } from "#/features/servers/add-server.types";
 import { useGuilds } from "#/hooks/use-guilds";
 import { checkAuthServerFn } from "#/lib/auth.functions";
 
+const siteUrl =
+	(typeof process !== "undefined" ? process.env.BETTER_AUTH_URL : undefined) ||
+	"https://dchubs.org";
+
 export const Route = createFileRoute("/protected/add-server")({
 	beforeLoad: async ({ location }) => {
 		const authStatus = await checkAuthServerFn();
@@ -20,6 +24,16 @@ export const Route = createFileRoute("/protected/add-server")({
 
 		return {
 			userId: authStatus.userId,
+		};
+	},
+
+	head: ({ match }) => {
+		const publishTitle = "新增伺服器 | DiscordHubs";
+		const publishCanonical = new URL(match.pathname, siteUrl).toString();
+
+		return {
+			meta: [{ title: publishTitle }],
+			links: [{ rel: "canonical", href: publishCanonical }],
 		};
 	},
 

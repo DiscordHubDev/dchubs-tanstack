@@ -556,11 +556,6 @@ export type DeveloperListFieldProps = {
 };
 
 export function DeveloperListField({ field }: DeveloperListFieldProps) {
-	console.log("DeveloperListField render", {
-		value: field.state.value,
-		errors: field.state.meta.errors,
-	});
-
 	const developers = Array.isArray(field.state.value)
 		? (field.state.value as DeveloperItem[])
 		: [];

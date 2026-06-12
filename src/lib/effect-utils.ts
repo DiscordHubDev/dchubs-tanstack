@@ -1,4 +1,10 @@
-import { Cause, Effect, type Either, ParseResult, Schema } from "effect";
+import { Cause, Effect, type Either, ParseResult, pipe, Schema } from "effect";
+
+export interface ActionResult<T = void> {
+	readonly success: boolean;
+	readonly data?: T;
+	readonly error?: string;
+}
 
 export function toErrorMessage(error: unknown): string {
 	if (ParseResult.isParseError(error)) {
@@ -31,6 +37,27 @@ export function toError(error: unknown, fallback: string): Error {
 export function runEffect<A, E>(effect: Effect.Effect<A, E>): Promise<A> {
 	return Effect.runPromise(effect);
 }
+
+export const fromDrizzle = <A>(query: () => Promise<A>) =>
+	Effect.tryPromise({
+		try: query,
+		catch: (e) => new Error(e instanceof Error ? e.message : "資料庫操作失敗"),
+	});
+
+/**
+ * 執行 Effect 並將結果轉換為 ActionResult 格式
+ */
+export const toResult = <A>(
+	effect: Effect.Effect<A, Error>,
+): Promise<ActionResult<A>> =>
+	pipe(
+		effect,
+		Effect.match({
+			onSuccess: (data) => ({ success: true as const, data }),
+			onFailure: (e) => ({ success: false as const, error: e.message }),
+		}),
+		Effect.runPromise,
+	);
 
 export function runEffectSafe<A, E>(
 	effect: Effect.Effect<A, E>,

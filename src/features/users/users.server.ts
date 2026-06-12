@@ -996,6 +996,75 @@ function verifyStoredApiJwtEffect(
 	});
 }
 
+export const pinItemLogicEffect = (id: string, type: "bot" | "server") =>
+	Effect.gen(function* (_) {
+		const table = type === "bot" ? bot : server;
+
+		// 1. 從資料庫取得項目狀態
+		const [item] = yield* _(
+			Effect.tryPromise({
+				try: () => db.select().from(table).where(eq(table.id, id)),
+				catch: () => new Error("資料庫查詢失敗，請稍後再試"),
+			}),
+		);
+
+		if (!item) {
+			return yield* _(
+				Effect.fail(
+					new Error(`找不到指定的 ${type === "bot" ? "機器人" : "伺服器"}`),
+				),
+			);
+		}
+
+		// 2. 驗證 12 小時間隔 (檢查 pinExpiry)
+		const now = new Date();
+
+		if (item.pinExpiry) {
+			// 關鍵修復：確保將 DB 取出的時間字串強制視為 UTC 時間解析
+			// 如果字串沒有 'Z' 結尾，就手動幫它加上去，避免 JS 當作本地時區
+			const expiryStr = item.pinExpiry.endsWith("Z")
+				? item.pinExpiry
+				: `${item.pinExpiry}Z`;
+
+			const expiryDate = new Date(expiryStr);
+
+			if (expiryDate.getTime() > now.getTime()) {
+				const diffHours = Number(
+					((expiryDate.getTime() - now.getTime()) / (1000 * 60 * 60)).toFixed(
+						1,
+					),
+				);
+				return yield* _(
+					Effect.fail(
+						new Error(`置頂冷卻中！請等待約 ${diffHours} 小時後再試。`),
+					),
+				);
+			}
+		}
+
+		// 3. 計算新的到期時間 (當前時間 + 12 小時)
+		const newExpiry = new Date(now.getTime() + 12 * 60 * 60 * 1000);
+
+		// 4. 更新資料庫
+		yield* _(
+			Effect.tryPromise({
+				try: () =>
+					db
+						.update(table)
+						.set({
+							pin: true,
+							// 寫入時一樣使用 ISOString，但為了防止某些驅動層轉型問題
+							// 你也可以考慮日後將 schema 的 timestamp 改為 timestamp({ withTimezone: true, mode: 'date' })
+							pinExpiry: newExpiry.toISOString(),
+						})
+						.where(eq(table.id, id)),
+				catch: () => new Error("更新置頂狀態失敗，請聯絡管理員"),
+			}),
+		);
+
+		return `${item.name} 已成功置頂 12 小時！`;
+	});
+
 export function verifyAccessToken(token: string): Promise<{ userId: string }> {
 	return runEffect(verifyStoredApiJwtEffect(token, "access"));
 }

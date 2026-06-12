@@ -1,35 +1,13 @@
 // admin.server.ts
 
 import { eq } from "drizzle-orm";
-import { Effect, pipe } from "effect";
 import { db } from "#/drizzle/db";
 import { bot } from "#/drizzle/schema";
 import { fetchJsonEffect, runEffect } from "#/lib/effect-utils";
-import type { ActionResult } from "#/types/admin";
 
 /**
  * 將 Drizzle query 包裝為 Effect，並將捕捉到的錯誤轉換為 typed failures
  */
-export const fromDrizzle = <A>(query: () => Promise<A>) =>
-	Effect.tryPromise({
-		try: query,
-		catch: (e) => new Error(e instanceof Error ? e.message : "資料庫操作失敗"),
-	});
-
-/**
- * 執行 Effect 並將結果轉換為 ActionResult 格式
- */
-export const toResult = <A>(
-	effect: Effect.Effect<A, Error>,
-): Promise<ActionResult<A>> =>
-	pipe(
-		effect,
-		Effect.match({
-			onSuccess: (data) => ({ success: true as const, data }),
-			onFailure: (e) => ({ success: false as const, error: e.message }),
-		}),
-		Effect.runPromise,
-	);
 
 export const fetchAndUpdateServerCount = async (botId: string) => {
 	try {

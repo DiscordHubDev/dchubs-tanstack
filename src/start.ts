@@ -36,7 +36,7 @@ const securityHeadersMiddleware = createMiddleware().server(
 				// 以下維持你的設定
 				"img-src 'self' data: https://cdn.discordapp.com https://gallery.dawngs.top https://res.cloudinary.com blob:",
 				"frame-src https://discord.com https://www.youtube.com",
-				"connect-src 'self' https://cloudflareinsights.com",
+				"connect-src 'self' https://cloudflareinsights.com https://static.cloudflareinsights.com",
 				"object-src 'none'",
 				"frame-ancestors 'self'",
 				"base-uri 'self'",

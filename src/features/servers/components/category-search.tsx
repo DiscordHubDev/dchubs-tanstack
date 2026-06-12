@@ -91,7 +91,6 @@ export default function CategorySearch({
 				<div className="flex items-center ju gap-2 border-b border-white/10 pb-2">
 					{(
 						[
-							{ id: "all", label: "全部" },
 							{ id: "preset", label: "預設" },
 							{ id: "custom", label: "自訂" },
 						] as const

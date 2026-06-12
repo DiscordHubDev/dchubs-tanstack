@@ -55,6 +55,7 @@ import { deleteBotFn } from "#/features/bots/bots.functions";
 import { deleteServerFn } from "#/features/servers/servers.functions";
 import {
 	createOrRegenerateApiTokenFn,
+	pinItemFn,
 	updateUserSettingsFn,
 } from "#/features/users/users.functions";
 // 假設你已經將 API 拆分為以下 Query Options 來支援懶載入
@@ -779,7 +780,7 @@ const ServerCard = memo(
 							管理伺服器
 						</Button>
 
-						<PinActionButton itemName={server.name} />
+						<PinButton itemId={server.id} itemType="server" />
 						<Button
 							variant="outline"
 							size="sm"
@@ -994,7 +995,7 @@ const BotCard = memo(
 							管理機器人
 						</Button>
 
-						<PinActionButton itemName={bot.name} />
+						<PinButton itemId={bot.id} itemType="bot" />
 						<Button
 							variant="outline"
 							size="sm"
@@ -1291,16 +1292,55 @@ const UserHeader = memo(({ user }: { user: UserBaseProfile }) => {
 });
 UserHeader.displayName = "UserHeader";
 
-function PinActionButton({ itemName }: { itemName: string }) {
+interface PinButtonProps {
+	itemId: string;
+	itemType: "bot" | "server";
+}
+
+export function PinButton({ itemId, itemType }: PinButtonProps) {
+	const [isLoading, setIsLoading] = useState(false);
+
+	const handlePinClick = async () => {
+		setIsLoading(true);
+
+		try {
+			const result = await pinItemFn({ data: { id: itemId, type: itemType } });
+
+			if (result.success) {
+				Swal.fire({
+					icon: "success",
+					title: "置頂成功",
+					text: result.data,
+					confirmButtonColor: "#5865f2",
+				});
+			} else {
+				Swal.fire({
+					icon: "error",
+					title: "置頂失敗",
+					text: result.error, // 顯示被 Effect 捕捉的錯誤訊息 (如: 冷卻中、查詢失敗等)
+					confirmButtonColor: "#5865f2",
+				});
+			}
+		} catch (error) {
+			Swal.fire({
+				icon: "error",
+				title: "系統錯誤",
+				text: "無法連線至伺服器，請稍後再試。",
+				confirmButtonColor: "#5865f2",
+			});
+		} finally {
+			setIsLoading(false);
+		}
+	};
+
 	return (
 		<Button
 			variant="outline"
-			className="h-10 w-full cursor-pointer border-[#5865f2] text-white hover:bg-[#5865f2] hover:text-[#5865f2]"
-			onClick={() =>
-				showSuccessNotification(`${itemName} 的置頂設定已保留舊版樣式`)
-			}
+			className="h-10 w-full cursor-pointer border-[#5865f2] text-white hover:bg-[#5865f2] hover:text-[#5865f2] disabled:opacity-50 disabled:cursor-not-allowed"
+			onClick={handlePinClick}
+			disabled={isLoading}
 		>
-			置頂
+			{isLoading ? "處理中..." : "置頂"}
 		</Button>
 	);
 }
