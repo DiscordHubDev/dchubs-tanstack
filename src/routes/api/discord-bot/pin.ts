@@ -16,8 +16,7 @@ export const Route = createFileRoute("/api/discord-bot/pin")({
 				try {
 					// 🔒 1. 驗證 Authorization Header，
 					const authHeader = request.headers.get("Authorization");
-					const expectedToken =
-						process.env.API_SECRET_TOKEN || "YOUR_SECRET_TOKEN";
+					const expectedToken = process.env.API_CRON_TOKEN;
 
 					if (!authHeader || authHeader !== `Bearer ${expectedToken}`) {
 						return Response.json({ error: "未授權的請求" }, { status: 401 });
