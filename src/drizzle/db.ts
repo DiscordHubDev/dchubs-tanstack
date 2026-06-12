@@ -21,7 +21,7 @@ export const client =
 		max: maxConnections,
 		idleTimeout: 30,
 		// 建議加上 connectionTimeout 避免網路問題導致請求無窮等待
-		connectionTimeout: 10,
+		connectionTimeout: 3,
 	});
 
 if (process.env.NODE_ENV !== "production") {
