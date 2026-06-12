@@ -39,6 +39,13 @@ declare module "@tanstack/react-router" {
 // ==========================================
 const THEME_INIT_SCRIPT = `(function(){try{var root=document.documentElement;root.classList.remove('light');root.classList.add('dark');root.setAttribute('data-theme','dark');root.style.colorScheme='dark';window.localStorage.setItem('theme','dark');}catch(e){}})();`;
 
+const VITE_PRELOAD_ERROR_SCRIPT = `
+  window.addEventListener('vite:preloadError', function(event) {
+    console.warn('偵測到資源預載入失敗，正在強制重新整理以獲取最新版本...');
+    window.location.reload();
+  });
+`;
+
 const keywords = [
 	"熱門 Discord 伺服器",
 	"中文 Discord 伺服器",
@@ -175,6 +182,10 @@ function RootDocument({ children }: { children: ReactNode }) {
 			suppressHydrationWarning
 		>
 			<head>
+				<script
+					// biome-ignore lint/security/noDangerouslySetInnerHtml:  reload when deployment fails or new deployment
+					dangerouslySetInnerHTML={{ __html: VITE_PRELOAD_ERROR_SCRIPT }}
+				/>
 				{/* biome-ignore lint/security/noDangerouslySetInnerHtml: Just Theme */}
 				<script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
 				<script
