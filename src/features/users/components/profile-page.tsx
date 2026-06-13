@@ -712,10 +712,25 @@ const ServerCard = memo(
 						background: "#1e1f22",
 						color: "#fff",
 					});
-				} catch (error) {
+				} catch (error: any) {
+					let errorTitle = "錯誤！";
+					let errorText = "刪除失敗，請稍後再試。";
+
+					// 判斷後端丟出的錯誤訊息
+					if (error.message?.includes("NOT_THE_OWNER")) {
+						errorTitle = "權限不足！";
+						errorText = "你不是該伺服器的擁有者，無法將其刪除。";
+					} else if (error.message?.includes("SERVER_NOT_FOUND")) {
+						errorTitle = "找不到伺服器！";
+						errorText = "該伺服器不存在或已被刪除。";
+					} else if (error.message?.includes("UNAUTHORIZED")) {
+						errorTitle = "未登入！";
+						errorText = "請先登入後再執行此操作。";
+					}
+
 					Swal.fire({
-						title: "錯誤！",
-						text: "刪除失敗，請稍後再試。",
+						title: errorTitle,
+						text: errorText,
 						icon: "error",
 						background: "#1e1f22",
 						color: "#fff",
@@ -905,21 +920,37 @@ const BotCard = memo(
 				try {
 					await deleteBotFn({ data: { botId: bot.id } });
 
+					// 成功後的 Query 沖刷邏輯 (請根據你的 queryKey 調整)
 					await queryClient.invalidateQueries({
 						queryKey: queryKeys.users.bots(userId),
 					});
 
 					Swal.fire({
 						title: "已刪除！",
-						text: "機器人成功移除。",
+						text: "機器人已成功移除。",
 						icon: "success",
 						background: "#1e1f22",
 						color: "#fff",
 					});
-				} catch (error) {
+				} catch (error: any) {
+					let errorTitle = "錯誤！";
+					let errorText = "刪除失敗，請稍後再試。";
+
+					// 判斷後端拋出的錯誤訊息
+					if (error.message?.includes("NOT_THE_DEVELOPER")) {
+						errorTitle = "權限不足！";
+						errorText = "你不是該機器人的開發者，無法將其刪除。";
+					} else if (error.message?.includes("BOT_NOT_FOUND")) {
+						errorTitle = "找不到機器人！";
+						errorText = "該機器人不存在或已被刪除。";
+					} else if (error.message?.includes("UNAUTHORIZED")) {
+						errorTitle = "未登入！";
+						errorText = "請先登入後再執行此操作。";
+					}
+
 					Swal.fire({
-						title: "錯誤！",
-						text: "刪除失敗，請稍後再試。",
+						title: errorTitle,
+						text: errorText,
 						icon: "error",
 						background: "#1e1f22",
 						color: "#fff",

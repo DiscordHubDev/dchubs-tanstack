@@ -20,6 +20,7 @@ export const ServerListInputSchema = Schema.Struct({
 
 export const DeleteServerInputSchema = Schema.Struct({
 	serverId: Schema.String,
+	userId: Schema.optional(Schema.String),
 });
 
 export const HomeSearchSchema = Schema.Struct({

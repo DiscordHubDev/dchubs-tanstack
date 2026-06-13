@@ -277,6 +277,35 @@ export async function listServerFilterBundle(
 	return runEffect(listServerFilterBundleEffect(userId, userNsfw));
 }
 
-export async function deleteServer(serverId: string): Promise<void> {
-	await db.delete(server).where(eq(server.id, serverId));
+export async function deleteServer(
+	serverId: string,
+	userId: string,
+): Promise<{ success: boolean; reason?: string }> {
+	if (!userId) {
+		return { success: false, reason: "UNAUTHORIZED" };
+	}
+
+	// 同時比對 serverId 與 ownerId，並加上 .returning()
+	const deletedRows = await db
+		.delete(server)
+		.where(and(eq(server.id, serverId), eq(server.ownerId, userId)))
+		.returning({ id: server.id }); // 讓 Postgres 回傳被刪除的資料 ID
+
+	// 如果 deletedRows 是空的，代表沒有符合條件的資料被刪除
+	if (deletedRows.length === 0) {
+		// 為了前端能精準顯示，我們可以再確認一下是「伺服器不存在」還是「權限不對」
+		const serverExists = await db
+			.select({ id: server.id })
+			.from(server)
+			.where(eq(server.id, serverId))
+			.then((res) => res.length > 0);
+
+		if (!serverExists) {
+			return { success: false, reason: "SERVER_NOT_FOUND" };
+		}
+
+		return { success: false, reason: "NOT_THE_OWNER" };
+	}
+
+	return { success: true };
 }

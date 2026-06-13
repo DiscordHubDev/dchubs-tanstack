@@ -1,4 +1,4 @@
-import { and, desc, eq, gte, sql } from "drizzle-orm";
+import { and, desc, eq, exists, gte, sql } from "drizzle-orm";
 import { Effect } from "effect";
 import { db } from "#/drizzle/db";
 import { bot, botDevelopers, userFavoriteBots } from "#/drizzle/schema";
@@ -308,6 +308,48 @@ export function isDeveloperEffect(botId: string, discordId: string) {
 	});
 }
 
-export async function deleteBot(botId: string): Promise<void> {
-	await db.delete(bot).where(eq(bot.id, botId));
+export async function deleteBot(
+	botId: string,
+	userId: string,
+): Promise<{ success: boolean; reason?: string }> {
+	if (!userId) {
+		return { success: false, reason: "UNAUTHORIZED" };
+	}
+
+	// 執行刪除，但條件是：該 botId 的擁有者/開發者列表中必須包含當前的 userId
+	const deletedRows = await db
+		.delete(bot)
+		.where(
+			and(
+				eq(bot.id, botId),
+				// 子查詢：檢查 _BotDevelopers 是否存在一筆資料為 A = botId 且 B = userId
+				exists(
+					db
+						.select()
+						.from(botDevelopers)
+						.where(
+							and(eq(botDevelopers.a, bot.id), eq(botDevelopers.b, userId)),
+						),
+				),
+			),
+		)
+		.returning({ id: bot.id });
+
+	// 如果沒有刪除任何東西，代表要嘛機器人不存在，要嘛該使用者不是開發者
+	if (deletedRows.length === 0) {
+		// 檢查機器人是否存在
+		const botExists = await db
+			.select({ id: bot.id })
+			.from(bot)
+			.where(eq(bot.id, botId))
+			.then((res) => res.length > 0);
+
+		if (!botExists) {
+			return { success: false, reason: "BOT_NOT_FOUND" };
+		}
+
+		return { success: false, reason: "NOT_THE_DEVELOPER" };
+	}
+
+	return { success: true };
 }

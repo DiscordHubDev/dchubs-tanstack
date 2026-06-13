@@ -1,4 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
+import { eq } from "drizzle-orm";
+import { db } from "#/drizzle/db";
+import { server } from "#/drizzle/schema";
 import { authMiddleware } from "#/lib/auth-middleware";
 import { effectInputValidator } from "#/lib/effect-utils";
 import {
@@ -31,6 +34,17 @@ export const deleteServerFn = createServerFn({
 })
 	.middleware([authMiddleware])
 	.inputValidator(effectInputValidator(DeleteServerInputSchema))
-	.handler(async ({ data }) => {
-		await deleteServer(data.serverId);
+	.handler(async ({ data, context }) => {
+		const userId = context.user?.discordId;
+
+		if (!userId) {
+			throw new Error("UNAUTHORIZED");
+		}
+
+		const result = await deleteServer(data.serverId, userId);
+
+		if (!result.success) {
+			// 直接將 reason 丟給前端處理
+			throw new Error(result.reason);
+		}
 	});
