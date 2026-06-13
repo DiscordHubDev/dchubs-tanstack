@@ -19,17 +19,34 @@ type DiscordProfileLike = {
 
 function buildDiscordAvatar(profile: DiscordProfileLike): string {
 	if (!profile.avatar) {
-		const base = Number(profile.discriminator || "0") % 5;
-		return `https://cdn.discordapp.com/embed/avatars/${base}.png`;
+		// 判斷是新版帳號還是舊版帳號
+		if (
+			!profile.discriminator ||
+			profile.discriminator === "0" ||
+			profile.discriminator === "0000"
+		) {
+			// 新版帳號：使用 User ID 進行位移運算，預設頭像有 6 種 (0-5)
+			const userIdNum = BigInt(profile.id);
+			const base = Number((userIdNum >> 22n) % 6n);
+			return `https://cdn.discordapp.com/embed/avatars/${base}.png`;
+		} else {
+			// 舊版帳號：使用 discriminator % 5
+			const base = Number(profile.discriminator) % 5;
+			return `https://cdn.discordapp.com/embed/avatars/${base}.png`;
+		}
 	}
 
-	const format = profile.avatar.startsWith("a_") ? "gif" : "png";
-	return `https://cdn.discordapp.com/avatars/${profile.id}/${profile.avatar}.${format}`;
+	// 支援動態頭像 (GIF)
+	const format = profile.avatar.startsWith("a_") ? "gif" : "webp";
+	return `https://cdn.discordapp.com/avatars/${profile.id}/${profile.avatar}.${format}?size=1024`;
 }
 
 function buildDiscordBanner(profile: DiscordProfileLike): string | null {
 	if (!profile.banner) return null;
-	return `https://cdn.discordapp.com/banners/${profile.id}/${profile.banner}.png?size=4096`;
+
+	// 橫幅同樣支援動態 (GIF)
+	const format = profile.banner.startsWith("a_") ? "gif" : "webp";
+	return `https://cdn.discordapp.com/banners/${profile.id}/${profile.banner}.${format}?size=4096`;
 }
 
 export async function createAuth() {

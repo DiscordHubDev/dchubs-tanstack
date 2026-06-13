@@ -44,22 +44,41 @@ export function fetchUserEffect(userId: string) {
 	}).pipe(
 		// 1. 先驗證原始資料結構
 		Effect.flatMap(Schema.decodeUnknown(DiscordUserSchema)),
+
 		// 2. 轉換並計算衍生欄位
 		Effect.map((userData) => {
 			const isAvatarGif = userData.avatar?.startsWith("a_");
 			const isBannerGif = userData.banner?.startsWith("a_");
 
-			// 拼接 Avatar URL (如果是預設頭像，使用 discriminator 計算)
-			const avatarUrl = userData.avatar
-				? `https://cdn.discordapp.com/avatars/${userData.id}/${userData.avatar}.${isAvatarGif ? "gif" : "png"}?size=1024`
-				: `https://cdn.discordapp.com/embed/avatars/${Number(userData.discriminator) % 5}.png`;
+			// --- 拼接 Avatar URL ---
+			let avatarUrl: string;
+			if (userData.avatar) {
+				avatarUrl = `https://cdn.discordapp.com/avatars/${userData.id}/${userData.avatar}.${isAvatarGif ? "gif" : "png"}?size=1024`;
+			} else {
+				// 判斷是否為新版無 discriminator 的帳號 (新版可能回傳 "0"、"0000" 或未定義)
+				const isNewUsernameSystem =
+					!userData.discriminator ||
+					userData.discriminator === "0" ||
+					userData.discriminator === "0000";
 
-			// 拼接 Banner URL
+				if (isNewUsernameSystem) {
+					// 新版帳號：使用 User ID 進行位移運算，預設頭像有 6 種 (0-5)
+					const userIdNum = BigInt(userData.id);
+					const base = Number((userIdNum >> 22n) % 6n);
+					avatarUrl = `https://cdn.discordapp.com/embed/avatars/${base}.png`;
+				} else {
+					// 舊版帳號：使用 discriminator % 5
+					const base = Number(userData.discriminator) % 5;
+					avatarUrl = `https://cdn.discordapp.com/embed/avatars/${base}.png`;
+				}
+			}
+
+			// --- 拼接 Banner URL ---
 			const bannerUrl = userData.banner
 				? `https://cdn.discordapp.com/banners/${userData.id}/${userData.banner}.${isBannerGif ? "gif" : "png"}?size=4096`
 				: null;
 
-			// 計算 Accent Color
+			// --- 計算 Accent Color ---
 			let accentColorHex: string;
 			if (
 				userData.accent_color !== null &&
@@ -67,7 +86,9 @@ export function fetchUserEffect(userId: string) {
 			) {
 				accentColorHex = `#${userData.accent_color.toString(16).padStart(6, "0")}`;
 			} else {
-				const hash = djb2Hash(userData.avatar || "default");
+				// 優化：若沒有 avatar，使用唯一值 id 作為 Hash 基礎，避免所有沒頭像的人顏色都相同
+				const hashSeed = userData.avatar || `default-${userData.id}`;
+				const hash = djb2Hash(hashSeed);
 				const hue = hash % 360;
 				accentColorHex = hslToHex(hue, 60, 55);
 			}
@@ -79,6 +100,7 @@ export function fetchUserEffect(userId: string) {
 				accentColorHex,
 			};
 		}),
+		// 3. 統一錯誤處理
 		Effect.mapError((error) => new Error(`獲取 Discord 用戶失敗: ${error}`)),
 	);
 }

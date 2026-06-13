@@ -116,10 +116,10 @@ const upsertServerDb = (guild: DiscordGuildWithCounts, ownerId: string) =>
 		/* 同你原本的實作 */
 		try: async () => {
 			const iconUrl = guild.icon
-				? `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png`
+				? `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.webp`
 				: null;
 			const bannerUrl = guild.banner
-				? `https://cdn.discordapp.com/banners/${guild.id}/${guild.banner}.png?size=4096`
+				? `https://cdn.discordapp.com/banners/${guild.id}/${guild.banner}.webp?size=4096`
 				: null;
 			const [upserted] = await db
 				.insert(server)
@@ -160,10 +160,10 @@ const upsertUserDb = (member: DiscordGuildMember) =>
 		try: async () => {
 			const discordUser = member.user;
 			const avatarUrl = discordUser.avatar
-				? `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.png`
+				? `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.webp`
 				: "https://cdn.discordapp.com/embed/avatars/0.png";
 			const bannerUrl = discordUser.banner
-				? `https://cdn.discordapp.com/banners/${discordUser.id}/${discordUser.banner}.png?size=4096`
+				? `https://cdn.discordapp.com/banners/${discordUser.id}/${discordUser.banner}.webp?size=4096`
 				: null;
 			const [upserted] = await db
 				.insert(user)
