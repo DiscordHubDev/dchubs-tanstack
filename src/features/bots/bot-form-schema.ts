@@ -52,6 +52,33 @@ export const BotFormSchema = Schema.Struct({
 	secret: BotSecretSchema,
 	webhook_url: BotWebhookUrlSchema,
 	nsfw: Schema.Boolean,
+	customEmbed: Schema.optional(
+		Schema.Struct({
+			username: Schema.optional(Schema.String),
+			avatar_url: Schema.optional(Schema.String),
+			content: Schema.optional(Schema.String),
+			color: Schema.optional(Schema.String),
+			authorName: Schema.optional(Schema.String),
+			authorUrl: Schema.optional(Schema.String),
+			authorIconUrl: Schema.optional(Schema.String),
+			title: Schema.optional(Schema.String),
+			url: Schema.optional(Schema.String),
+			description: Schema.optional(Schema.String),
+			imageUrl: Schema.optional(Schema.String),
+			thumbnailUrl: Schema.optional(Schema.String),
+			footerText: Schema.optional(Schema.String),
+			footerIconUrl: Schema.optional(Schema.String),
+			fields: Schema.optional(
+				Schema.Array(
+					Schema.Struct({
+						name: Schema.String,
+						value: Schema.String,
+						inline: Schema.Boolean,
+					}),
+				),
+			),
+		}),
+	),
 });
 
 export type BotFormData = Schema.Schema.Type<typeof BotFormSchema>;

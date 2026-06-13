@@ -1,5 +1,6 @@
 import { and, asc, desc, eq, gte, ne, sql } from "drizzle-orm";
 import { Effect } from "effect";
+import { custom } from "zod";
 import { db } from "#/drizzle/db";
 import {
 	bot,
@@ -320,6 +321,7 @@ function voteBotEffect(
 							name: bot.name,
 							voteNotificationUrl: bot.voteNotificationUrl,
 							secret: bot.secret,
+							customEmbed: bot.customEmbed,
 						})
 						.from(bot)
 						.where(and(eq(bot.id, botId), eq(bot.status, "approved")))
@@ -356,8 +358,6 @@ function voteBotEffect(
 					userId: userId,
 					itemId: botId,
 					itemType: "bot",
-					// 如果你的 schema 要求 createdAt 必填，請取消下方註解：
-					// createdAt: new Date().toISOString(),
 				});
 
 				// 3.2 遞增票數並利用 RETURNING 獲取最新結果
@@ -386,7 +386,6 @@ function voteBotEffect(
 			}),
 		);
 
-		// 🚀 5. 觸發 DcHubs 全域 Webhook 通知
 		const discordPayload = {
 			_tag: "vote" as const,
 			type: "bot" as const,
@@ -394,7 +393,7 @@ function voteBotEffect(
 			target: { id: botId, name: target.name },
 		};
 
-		// yield* sendDiscordWebhookEffect(discordPayload).pipe(Effect.forkDaemon);
+		yield* sendDiscordWebhookEffect(discordPayload).pipe(Effect.forkDaemon);
 
 		// 🚀 6. 觸發自訂 Webhook 給機器人開發者，並傳入 userInfo
 		if (target.voteNotificationUrl) {
@@ -410,6 +409,7 @@ function voteBotEffect(
 					votes: updatedRows?.[0]?.upvotes ?? target.upvotes + 1,
 					targetName: target.name,
 					voteUrl: `https://dchubs.org/bots/${botId}`,
+					customEmbed: target.customEmbed,
 				},
 			).pipe(Effect.forkDaemon);
 		}

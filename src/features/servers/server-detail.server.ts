@@ -1,5 +1,6 @@
 import { and, desc, eq, gte, ne, sql } from "drizzle-orm";
 import { Effect } from "effect";
+import { custom } from "zod";
 import { db } from "#/drizzle/db";
 import {
 	report,
@@ -308,6 +309,7 @@ function voteServerEffect(
 							voteNotificationUrl: server.voteNotificationUrl,
 							secret: server.secret,
 							name: server.name,
+							customEmbed: server.customEmbed,
 						})
 						.from(server)
 						.where(eq(server.id, serverId))
@@ -372,15 +374,15 @@ function voteServerEffect(
 			}),
 		);
 
-		// 5. 觸發 Webhook 通知讓所有成員知道有新投票
 		const discordPayload = {
 			_tag: "vote" as const,
 			type: "server" as const,
-			user: { id: userId, username: userInfo.name }, // 💡 帶入查詢到的用戶名稱
-			target: { id: serverId, name: target.name }, // 💡 修正原本寫死的欄位
+			user: { id: userId, username: userInfo.name },
+			target: { id: serverId, name: target.name },
+			customEmbed: target.customEmbed,
 		};
 
-		// yield* sendDiscordWebhookEffect(discordPayload).pipe(Effect.forkDaemon);
+		yield* sendDiscordWebhookEffect(discordPayload).pipe(Effect.forkDaemon);
 
 		// 6. 觸發自訂投票通知機制，讓伺服器開發者能即時收到通知
 		if (target.voteNotificationUrl) {
@@ -396,6 +398,7 @@ function voteServerEffect(
 					votes: updatedRows?.[0]?.upvotes ?? target.upvotes + 1,
 					targetName: target.name,
 					voteUrl: `https://dchubs.org/servers/${serverId}`,
+					customEmbed: target.customEmbed,
 				},
 			).pipe(Effect.forkDaemon);
 		}

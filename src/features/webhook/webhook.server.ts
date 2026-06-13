@@ -1,7 +1,7 @@
 import { Effect } from "effect";
 import { NotificationFailed } from "#/errors/bot-errors";
 import { fetchJsonEffect } from "#/lib/effect-utils";
-import { getUserBaseProfileEffect } from "../users/users.server";
+import type { CustomEmbedData } from "#/types/custom_embed";
 import type { WebhookPayload } from "./webhook.type";
 
 const DISCORD_AVATAR =
@@ -174,6 +174,7 @@ export function triggerVoteNotificationEffect(
 		votes: number;
 		targetName: string;
 		voteUrl?: string;
+		customEmbed?: CustomEmbedData | null;
 	},
 ): Effect.Effect<void, never> {
 	return Effect.gen(function* () {
@@ -189,35 +190,86 @@ export function triggerVoteNotificationEffect(
 		let body: string;
 
 		if (isDiscordWebhook) {
-			// 2. 隨機生成一個顏色
-			const randomColor = Math.floor(Math.random() * 16777216);
+			const custom = payload.customEmbed;
 
-			// 3. 動態決定超連結文字，如果沒給 voteUrl 就用 DcHubs 首頁
+			// 處理顏色：如果有自訂顏色（支援 HEX），將其轉為十進位；否則隨機生成
+			let embedColor = Math.floor(Math.random() * 16777216);
+			if (custom?.color) {
+				const cleanColor = custom.color.replace("#", "");
+				const parsedColor = parseInt(cleanColor, 16);
+				if (!Number.isNaN(parsedColor)) {
+					embedColor = parsedColor;
+				}
+			}
+
 			const linkUrl = payload.voteUrl || "https://dchubs.org";
 
-			// 4. Discord Webhook 專用 Embed 格式 (將文字全部參數化)
-			body = JSON.stringify({
-				username: "DcHubs投票通知",
-				avatar_url: "https://dchubs.org/icon.png",
-				embeds: [
-					{
-						author: {
-							name: payload.user.name,
-							icon_url:
-								payload.user.avatar ??
-								"https://cdn.discordapp.com/embed/avatars/0.png",
+			// 如果有自訂 embed，就組裝自訂格式；否則使用預設模板
+			if (custom) {
+				body = JSON.stringify({
+					username: custom.username || "DcHubs投票通知",
+					avatar_url: custom.avatar_url || "https://dchubs.org/icon.png",
+					content: custom.content || undefined, // Discord 的普通文字訊息層
+					embeds: [
+						{
+							title: custom.title || undefined,
+							url: custom.url || undefined,
+							description: custom.description || undefined,
+							color: embedColor,
+							author: custom.authorName
+								? {
+										name: custom.authorName,
+										url: custom.authorUrl || undefined,
+										icon_url: custom.authorIconUrl || undefined,
+									}
+								: undefined,
+							thumbnail: custom.thumbnailUrl
+								? {
+										url: custom.thumbnailUrl,
+									}
+								: undefined,
+							image: custom.imageUrl
+								? {
+										url: custom.imageUrl,
+									}
+								: undefined,
+							footer: custom.footerText
+								? {
+										text: custom.footerText,
+										icon_url: custom.footerIconUrl || undefined,
+									}
+								: undefined,
+							fields:
+								custom.fields && custom.fields.length > 0
+									? custom.fields
+									: undefined,
 						},
-						title: `❤️ | 感謝投票！`,
-						// 這裡使用 payload.targetName 動態帶入「伺服器」或「機器人」的名字
-						description: `感謝您的支持與投票！您的每一票都是讓 **${payload.targetName}** 變得更好的動力。\n\n請記得每 12 小時可以再回來 [DcHubs](${linkUrl}) 投票一次，讓更多人發現吧！✨`,
-						color: randomColor,
-						footer: {
-							text: "Powered by DcHubs Vote System",
-							icon_url: "https://dchubs.org/icon.png",
+					],
+				});
+			} else {
+				// 預設的 Discord Webhook Embed 格式
+				body = JSON.stringify({
+					username: "DcHubs投票通知",
+					avatar_url: "https://dchubs.org/icon.png",
+					embeds: [
+						{
+							author: {
+								name: payload.user.name,
+								icon_url:
+									payload.user.avatar ??
+									"https://cdn.discordapp.com/embed/avatars/0.png",
+							},
+							title: `❤️ | 感謝投票！`,
+							description: `感謝您的支持與投票！您的每一票都是讓 **${payload.targetName}** 變得更好的動力。\n\n請記得每 12 小時可以再回來 [DcHubs](${linkUrl}) 投票一次，讓更多人發現吧！✨`,
+							color: embedColor,
+							footer: {
+								text: "Powered by DcHubs Vote System",
+								icon_url: "https://dchubs.org/icon.png",
+							},
 						},
-					},
-				],
-			});
+					],
+				});
+			}
 		} else {
 			if (secret) {
 				headers["Authorization"] = secret;

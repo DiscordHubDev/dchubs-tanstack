@@ -18,6 +18,7 @@ import {
 } from "#/lib/effect-utils";
 import { syncToCloudflareKV } from "#/lib/kv-sync";
 import type { ReportStatus } from "#/types/admin";
+import { sendDiscordWebhookFn } from "../webhook/webhook.functions";
 import {
 	BotIdSchema,
 	QuerySchema,
@@ -286,38 +287,36 @@ export const reviewBotFn = createServerFn({ method: "POST" })
 				console.error(`[Discord 私訊通知失敗] BotID: ${app.id}, Error:`, e),
 			);
 
-			// TODO: 生產環境時取消註解
-			// B. 發送 Discord 群組 Webhook 通知
-			// sendDiscordWebhookFn({
-			// 	data: {
-			// 		_tag: "approvedBot",
-			// 		bot: {
-			// 			id: app.id,
-			// 			name: app.name,
-			// 			prefix: app.prefix,
-			// 			description: app.description ?? "",
-			// 			inviteUrl: app.inviteUrl ?? "",
-			// 			tags: app.tags ?? [],
-			// 			icon: app.icon,
-			// 			banner: app.banner,
-			// 			developers: developersList.map((d) => ({
-			// 				id: d.b,
-			// 				username: d.user?.username || "未知",
-			// 			})),
-			// 		},
-			// 	},
-			// })
-			// 	.then((res) => {
-			// 		if (!res?.success) {
-			// 			console.warn(
-			// 				`[Webhook 處理失敗] BotID: ${app.id}, Reason:`,
-			// 				res?.error,
-			// 			);
-			// 		}
-			// 	})
-			// 	.catch((e) =>
-			// 		console.error(`[Webhook 發送異常] BotID: ${app.id}, Error:`, e),
-			// 	);
+			sendDiscordWebhookFn({
+				data: {
+					_tag: "approvedBot",
+					bot: {
+						id: app.id,
+						name: app.name,
+						prefix: app.prefix,
+						description: app.description ?? "",
+						inviteUrl: app.inviteUrl ?? "",
+						tags: app.tags ?? [],
+						icon: app.icon,
+						banner: app.banner,
+						developers: developersList.map((d) => ({
+							id: d.b,
+							username: d.user?.username || "未知",
+						})),
+					},
+				},
+			})
+				.then((res) => {
+					if (!res?.success) {
+						console.warn(
+							`[Webhook 處理失敗] BotID: ${app.id}, Reason:`,
+							res?.error,
+						);
+					}
+				})
+				.catch((e) =>
+					console.error(`[Webhook 發送異常] BotID: ${app.id}, Error:`, e),
+				);
 
 			// C. 觸發背景更新伺服器數量任務
 			fetchAndUpdateServerCount(app.id);

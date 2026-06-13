@@ -16,6 +16,7 @@ import {
 	uniqueIndex,
 	varchar,
 } from "drizzle-orm/pg-core";
+import type { CustomEmbedData } from "#/types/custom_embed";
 import type { SocialData } from "#/types/social";
 
 // ==========================================
@@ -206,7 +207,8 @@ export const bot = pgTable(
 		isAdmin: boolean().default(false).notNull(),
 		pin: boolean().default(false).notNull(),
 		pinExpiry: timestamp({ precision: 3, mode: "string" }),
-		nsfw: boolean().default(false).notNull(), // <- 新增欄位
+		nsfw: boolean().default(false).notNull(),
+		customEmbed: jsonb("custom_field").$type<CustomEmbedData>(),
 	},
 	(table) => [
 		index("Bot_approvedAt_idx").using(
@@ -310,7 +312,8 @@ export const server = pgTable(
 		secret: text(),
 		pin: boolean().default(false).notNull(),
 		pinExpiry: timestamp({ precision: 3, mode: "string" }),
-		nsfw: boolean().default(false).notNull(), // <- 新增欄位
+		nsfw: boolean().default(false).notNull(),
+		customEmbed: jsonb("custom_field").$type<CustomEmbedData>(),
 	},
 	(table) => [
 		index("Server_createdAt_idx").using(

@@ -14,8 +14,10 @@ import {
 } from "#/errors/bot-errors";
 import { fetchJsonEffect, runEffect, toErrorMessage } from "#/lib/effect-utils";
 import type { BotInfo } from "#/lib/types";
+import { formatCustomEmbedData } from "#/utils/embed";
 import { fetchBotRpcEffect } from "#/utils/fetch-rpc";
 import { sendNotificationEffect } from "../notifications/notifications.server";
+import { sendDiscordWebhookEffect } from "../webhook/webhook.server";
 import type {
 	DeleteBotImageInput,
 	SendPendingWebhookInput,
@@ -63,6 +65,7 @@ type BotPayload = {
 		voteNotificationUrl: string | null;
 		secret: string | null;
 		status: "pending" | "approved" | "rejected";
+		customEmbed?: any; // 👉 新增 customEmbed，型別為 any，實際上會存入 JSON 物件
 	};
 	commands: NormalizedCommand[];
 	developerNames: string[];
@@ -240,7 +243,6 @@ function buildBotPayload(
 	botId: string,
 	rpc: DiscordBotRPCInfo,
 	botInfo: BotInfo,
-	// 1. 將這裡的型別改為接收物件或 undefined
 	existingBot:
 		| { id: string; status: "pending" | "approved" | "rejected" }
 		| undefined,
@@ -259,7 +261,10 @@ function buildBotPayload(
 	const isResubmission =
 		mode === "create" && existingBot?.status === "rejected";
 
-	// 如果是新建或是重新提交，狀態重置為 pending；否則（純粹的 update）維持原狀態
+	console.log("Form Embed Data:", input.form.customEmbed);
+
+	// 解析前端傳來的 customEmbed
+	// 注意：若 TypeScript 報錯 SubmitBotInput 不包含 customEmbed，請記得於對應的 Type 定義中補上
 	const determineStatus = () => {
 		if (mode === "create" || isResubmission) return "pending";
 		return existingBot?.status || "pending";
@@ -285,6 +290,7 @@ function buildBotPayload(
 			secret: normalizeOptionalString(input.form.secret),
 			nsfw: input.form.nsfw,
 			status: determineStatus(),
+			customEmbed: formatCustomEmbedData(input.form.customEmbed),
 		},
 		commands,
 		developerNames,
@@ -314,6 +320,11 @@ function persistBotEffect(
 	payload: BotPayload,
 	developerIds: readonly string[],
 ): Effect.Effect<void, SubmitBotFailed> {
+	const finalStatus =
+		payload.botRow.status === "rejected"
+			? "pending"
+			: (payload.botRow.status as "pending" | "approved" | "rejected");
+
 	return dbEffect("Failed to persist bot", () =>
 		db.transaction(async (tx) => {
 			if (payload.exists) {
@@ -335,10 +346,8 @@ function persistBotEffect(
 						voteNotificationUrl: payload.botRow.voteNotificationUrl,
 						secret: payload.botRow.secret,
 						nsfw: payload.botRow.nsfw,
-						status: payload.botRow.status as
-							| "pending"
-							| "approved"
-							| "rejected",
+						customEmbed: formatCustomEmbedData(payload.botRow.customEmbed),
+						status: finalStatus, // 👉 2. 這裡改用計算後的 finalStatus
 					})
 					.where(eq(bot.id, payload.botId));
 			} else {
@@ -361,7 +370,8 @@ function persistBotEffect(
 					servers: 0,
 					users: 0,
 					upvotes: 0,
-					status: payload.botRow.status as "pending" | "approved" | "rejected",
+					customEmbed: formatCustomEmbedData(payload.botRow.customEmbed),
+					status: finalStatus, // 👉 3. 這裡也改用計算後的 finalStatus
 					nsfw: payload.botRow.nsfw,
 				});
 			}
@@ -468,11 +478,11 @@ function submitPipeline(
 		console.log("🔥 收到前端的 developers:", input.form.developers);
 		const botId = yield* parseClientId(input.form.botInvite);
 		const exists = yield* getExistingBotEffect(botId);
-		if (
-			(input.mode ?? "create") === "create" &&
-			exists &&
-			exists.status !== "rejected"
-		) {
+
+		// 提取 mode 變數，方便後續重複判斷，並給予預設值 "create"
+		const isCreateMode = (input.mode ?? "create") === "create";
+
+		if (isCreateMode && exists && exists.status !== "rejected") {
 			return yield* Effect.fail(new BotAlreadyExists({ id: botId }));
 		}
 
@@ -483,20 +493,27 @@ function submitPipeline(
 			payload.developerNames,
 		);
 		yield* persistBotEffect(payload, developerIds);
-		yield* notifyDevelopersEffect(input);
 
-		// TODO: 生產環境時取消註解
-		// yield* sendDiscordWebhookEffect({
-		// 	_tag: "pendingBot",
-		// 	avatarUrl:
-		// 		payload.botRow.icon || "https://cdn.discordapp.com/embed/avatars/0.png",
-		// 	data: {
-		// 		botName: payload.botRow.name,
-		// 		botPrefix: payload.botRow.prefix || "",
-		// 		botDescription: payload.botRow.description || "",
-		// 		tags: payload.botRow.tags || [],
-		// 	},
-		// });
+		// 👇 1. 只有在 create 模式下才通知開發者
+		if (isCreateMode) {
+			yield* notifyDevelopersEffect(input);
+		}
+
+		// 👇 2. 只有在 create 模式下才發送 Discord Webhook
+		if (isCreateMode) {
+			yield* sendDiscordWebhookEffect({
+				_tag: "pendingBot",
+				avatarUrl:
+					payload.botRow.icon ||
+					"https://cdn.discordapp.com/embed/avatars/0.png",
+				data: {
+					botName: payload.botRow.name,
+					botPrefix: payload.botRow.prefix || "",
+					botDescription: payload.botRow.description || "",
+					tags: payload.botRow.tags || [],
+				},
+			});
+		}
 
 		return botId;
 	}).pipe(Effect.tapError((error) => Effect.sync(() => console.error(error))));

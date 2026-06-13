@@ -127,6 +127,13 @@
       "when": 1780821882728,
       "tag": "0017_secret_norrin_radd",
       "breakpoints": true
+    },
+    {
+      "idx": 18,
+      "version": "7",
+      "when": 1781355080800,
+      "tag": "0018_yielding_miek",
+      "breakpoints": true
     }
   ]
 }

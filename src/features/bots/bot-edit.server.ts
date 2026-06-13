@@ -35,19 +35,6 @@ function normalizeList(values: string[] | null | undefined): string[] {
 	return values.map((value) => value.trim()).filter(Boolean);
 }
 
-function isDeveloperEffect(
-	botId: string,
-	userId: string,
-): Effect.Effect<boolean, BotEditFailed> {
-	return dbEffect("Failed to verify bot developer", () =>
-		db
-			.select({ id: botDevelopers.a })
-			.from(botDevelopers)
-			.where(and(eq(botDevelopers.a, botId), eq(botDevelopers.b, userId)))
-			.limit(1),
-	).pipe(Effect.map((rows) => Boolean(rows[0])));
-}
-
 function getBotEditBundleEffect(
 	botId: string,
 	userId: string,
@@ -70,6 +57,7 @@ function getBotEditBundleEffect(
 						secret: bot.secret,
 						voteNotificationUrl: bot.voteNotificationUrl,
 						nsfw: bot.nsfw,
+						customEmbed: bot.customEmbed,
 					},
 					hasAccess: sql<boolean>`count(${botDevelopers.b}) FILTER (WHERE ${botDevelopers.b} = ${userId}) > 0`,
 				})
@@ -147,6 +135,21 @@ function getBotEditBundleEffect(
 			screenshots: normalizeList(currentBot.screenshots),
 			banner: currentBot.banner ?? undefined,
 			nsfw: currentBot.nsfw ?? false,
+			customEmbed: currentBot.customEmbed ?? {
+				content: "",
+				color: "#5865F2",
+				authorName: "",
+				authorUrl: "",
+				authorIconUrl: "",
+				title: "",
+				url: "",
+				description: "",
+				imageUrl: "",
+				thumbnailUrl: "",
+				footerText: "",
+				footerIconUrl: "",
+				fields: [],
+			},
 		};
 
 		return {

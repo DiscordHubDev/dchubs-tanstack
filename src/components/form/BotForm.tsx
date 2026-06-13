@@ -1,6 +1,7 @@
-import { type AnyFieldApi, useForm, useStore } from "@tanstack/react-form";
+import { type AnyFieldApi, useForm } from "@tanstack/react-form";
 import { useQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
+import { useSelector } from "@tanstack/react-store";
 import { Effect, Schema } from "effect";
 import {
 	AlertTriangle,
@@ -48,6 +49,9 @@ import type { DevUser } from "#/features/users/users.types";
 import { botCategories } from "#/lib/categories";
 import { toErrorMessage } from "#/lib/effect-utils";
 import type { CategoryType, Screenshot } from "#/lib/types";
+import type { CustomEmbedData } from "#/types/custom_embed";
+import DiscordEmbedPreview from "../DiscordEmbedPreview";
+import EmbedFieldsListField from "../EmbedFieldsListField";
 import { Checkbox } from "../ui/checkbox";
 
 type BotFormDefaultValues = Partial<BotFormData> & {
@@ -745,6 +749,7 @@ export function DeveloperListField({ field }: DeveloperListFieldProps) {
 	);
 }
 
+// Embed
 export default function BotForm({
 	mode = "create",
 	defaultValues,
@@ -778,9 +783,27 @@ export default function BotForm({
 			secret: "",
 			webhook_url: "",
 			nsfw: false,
+			customEmbed: {
+				username: "Dchubs 投票通知",
+				avatar_url:
+					"https://cdn.discordapp.com/avatars/1324996138251583580/14bdbdc05d5e5bb8512b84e3019c7b65.webp?size=1024",
+				content: "",
+				color: "#5865F2",
+				authorName: "",
+				authorUrl: "",
+				authorIconUrl: "",
+				title: "",
+				url: "",
+				description: "",
+				imageUrl: "",
+				thumbnailUrl: "",
+				footerText: "",
+				footerIconUrl: "",
+				fields: [],
+			},
 			...(defaultValues || {}),
 			...persistedValues,
-		},
+		} as BotFormData,
 		validators: {
 			onChange: ({ value }) => {
 				try {
@@ -838,7 +861,6 @@ export default function BotForm({
 						finalScreenshots[originalIndex] = uploadedScreenshots[newIndex];
 					});
 				}
-
 				// 3. 組裝 Payload 並送出最終表單資料
 				const payload = {
 					form: value,
@@ -947,9 +969,14 @@ export default function BotForm({
 	const bannerFileInputRef = useRef<HTMLInputElement | null>(null);
 	const screenshotsFileInputRef = useRef<HTMLInputElement | null>(null);
 
-	const longDescription = useStore(
+	const longDescription = useSelector(
 		form.store,
 		(state) => state.values.botLongDescription,
+	);
+
+	const customEmbedValues = useSelector(
+		form.store,
+		(state) => state.values.customEmbed,
 	);
 
 	useEffect(() => {
@@ -971,30 +998,34 @@ export default function BotForm({
 	useEffect(() => {
 		if (typeof window === "undefined") return;
 
-		let timeoutId: NodeJS.Timeout;
+		const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+			// 1. 直接從 form.store 拿到當下「最即時」的 state，避免閉包記住舊值
+			const currentState = form.store.state;
+			const isDirty = currentState.isDirty;
 
-		// 訂閱表單狀態變更
-		const subscription = form.store.subscribe((state) => {
-			// 清除上一次的計時器
-			clearTimeout(timeoutId);
-
-			// 設定 500 毫秒的延遲，如果使用者連續打字，就不會頻繁寫入
-			timeoutId = setTimeout(() => {
+			if (isDirty) {
 				try {
-					// 將整個表單狀態轉為 JSON 字串存入
+					// 2. 【核心關鍵】既然使用者要離開了，不等 debounce 的 500ms 了！
+					// 立刻、同步地將當前最新的 values 強制塞進 localStorage 進行最後搶救
 					window.localStorage.setItem(
 						"bot_form_backup",
-						JSON.stringify(state.values),
+						JSON.stringify(currentState.values),
 					);
+					console.log("偵測到頁面重新整理，已強制同步備份最新資料！");
 				} catch (error) {
-					console.error("寫入表單備份失敗:", error);
+					console.error("緊急備份失敗:", error);
 				}
-			}, 500);
-		});
 
+				// 3. 觸發瀏覽器原生的離開確認對話框
+				event.preventDefault();
+				event.returnValue = ""; // 瀏覽器會根據此設定顯示「系統可能不會儲存你所做的變更」
+				return "";
+			}
+		};
+
+		window.addEventListener("beforeunload", handleBeforeUnload);
 		return () => {
-			subscription.unsubscribe();
-			clearTimeout(timeoutId); // 元件卸載時清除計時器
+			window.removeEventListener("beforeunload", handleBeforeUnload);
 		};
 	}, [form.store]);
 
@@ -1649,6 +1680,188 @@ export default function BotForm({
 							}}
 						</form.Field>
 
+						<h2 className="border-b border-white/10 pb-2 font-bold text-lg mt-8">
+							自訂投票 Embed 格式 (選填)
+						</h2>
+
+						<div className="grid gap-4 md:grid-cols-2">
+							<form.Field name="customEmbed.username">
+								{(field) => (
+									<div className="space-y-2">
+										<Label>通知名稱</Label>
+										<Input
+											value={field.state.value}
+											onChange={(e) => field.handleChange(e.target.value)}
+										/>
+									</div>
+								)}
+							</form.Field>
+							<form.Field name="customEmbed.avatar_url">
+								{(field) => (
+									<div className="space-y-2">
+										<Label>通知頭像</Label>
+										<Input
+											value={field.state.value}
+											onChange={(e) => field.handleChange(e.target.value)}
+										/>
+									</div>
+								)}
+							</form.Field>
+						</div>
+
+						<form.Field name="customEmbed.content">
+							{(field) => (
+								<div className="space-y-2">
+									<Label>一般文字內容 (Content)</Label>
+									<Textarea
+										value={field.state.value}
+										onChange={(e) => field.handleChange(e.target.value)}
+										placeholder="顯示在 Embed 上方的純文字內容，可標記 User 或 Role"
+										rows={2}
+									/>
+								</div>
+							)}
+						</form.Field>
+
+						<form.Field name="customEmbed.color">
+							{(field) => (
+								<div className="space-y-2">
+									<Label>邊框顏色 (Color Hex)</Label>
+									<div className="flex items-center gap-2">
+										<input
+											type="color"
+											value={field.state.value}
+											onChange={(e) => field.handleChange(e.target.value)}
+											className="h-9 w-12 cursor-pointer rounded bg-transparent p-0 border-0"
+										/>
+										<Input
+											value={field.state.value}
+											onChange={(e) => field.handleChange(e.target.value)}
+											placeholder="#5865F2"
+											className="w-32 uppercase"
+										/>
+									</div>
+								</div>
+							)}
+						</form.Field>
+
+						<div className="grid gap-4 md:grid-cols-2">
+							<form.Field name="customEmbed.authorName">
+								{(field) => (
+									<div className="space-y-2">
+										<Label>作者名稱</Label>
+										<Input
+											value={field.state.value}
+											onChange={(e) => field.handleChange(e.target.value)}
+										/>
+									</div>
+								)}
+							</form.Field>
+							<form.Field name="customEmbed.authorIconUrl">
+								{(field) => (
+									<div className="space-y-2">
+										<Label>作者圖標 URL</Label>
+										<Input
+											value={field.state.value}
+											onChange={(e) => field.handleChange(e.target.value)}
+										/>
+									</div>
+								)}
+							</form.Field>
+						</div>
+
+						<div className="grid gap-4 md:grid-cols-2">
+							<form.Field name="customEmbed.title">
+								{(field) => (
+									<div className="space-y-2">
+										<Label>標題 (Title)</Label>
+										<Input
+											value={field.state.value}
+											onChange={(e) => field.handleChange(e.target.value)}
+										/>
+									</div>
+								)}
+							</form.Field>
+							<form.Field name="customEmbed.url">
+								{(field) => (
+									<div className="space-y-2">
+										<Label>標題連結 (URL)</Label>
+										<Input
+											value={field.state.value}
+											onChange={(e) => field.handleChange(e.target.value)}
+										/>
+									</div>
+								)}
+							</form.Field>
+						</div>
+
+						<form.Field name="customEmbed.description">
+							{(field) => (
+								<div className="space-y-2">
+									<Label>描述 (Description)</Label>
+									<Textarea
+										value={field.state.value}
+										onChange={(e) => field.handleChange(e.target.value)}
+										rows={3}
+									/>
+								</div>
+							)}
+						</form.Field>
+
+						<div className="grid gap-4 md:grid-cols-2">
+							<form.Field name="customEmbed.imageUrl">
+								{(field) => (
+									<div className="space-y-2">
+										<Label>大圖 URL (Image)</Label>
+										<Input
+											value={field.state.value}
+											onChange={(e) => field.handleChange(e.target.value)}
+										/>
+									</div>
+								)}
+							</form.Field>
+							<form.Field name="customEmbed.thumbnailUrl">
+								{(field) => (
+									<div className="space-y-2">
+										<Label>右上角縮圖 URL (Thumbnail)</Label>
+										<Input
+											value={field.state.value}
+											onChange={(e) => field.handleChange(e.target.value)}
+										/>
+									</div>
+								)}
+							</form.Field>
+						</div>
+
+						<div className="grid gap-4 md:grid-cols-2">
+							<form.Field name="customEmbed.footerText">
+								{(field) => (
+									<div className="space-y-2">
+										<Label>頁尾文字 (Footer)</Label>
+										<Input
+											value={field.state.value}
+											onChange={(e) => field.handleChange(e.target.value)}
+										/>
+									</div>
+								)}
+							</form.Field>
+							<form.Field name="customEmbed.footerIconUrl">
+								{(field) => (
+									<div className="space-y-2">
+										<Label>頁尾圖標 URL</Label>
+										<Input
+											value={field.state.value}
+											onChange={(e) => field.handleChange(e.target.value)}
+										/>
+									</div>
+								)}
+							</form.Field>
+						</div>
+
+						<form.Field name="customEmbed.fields">
+							{(field) => <EmbedFieldsListField field={field} />}
+						</form.Field>
+
 						<h2 className="border-b border-white/10 pb-2 font-bold text-lg">
 							圖片上傳
 						</h2>
@@ -1796,12 +2009,12 @@ export default function BotForm({
 							</div>
 						</div>
 
-						{/* 3. Markdown 預覽（加上 flex-1 與 h-0 讓它自動延伸至最底部） */}
-						<div className="flex flex-1 flex-col space-y-2">
+						{/* 3. Markdown 預覽（加上 flex-1 h-0 與內部滾動） */}
+						<div className="flex flex-1 h-0 flex-col space-y-2">
 							<Label>Markdown 預覽</Label>
 							<div
 								ref={previewRef}
-								className="flex-1 h-0 overflow-y-auto rounded-lg border border-white/10 bg-[#1f2124] p-4"
+								className="flex-1 overflow-y-auto rounded-lg border border-white/10 bg-[#1f2124] p-4"
 							>
 								<ClientOnly>
 									{sanitizedMarkdown.trim() ? (
@@ -1811,6 +2024,20 @@ export default function BotForm({
 											在左側輸入詳細介紹後，這裡會同步顯示預覽。
 										</p>
 									)}
+								</ClientOnly>
+							</div>
+						</div>
+
+						{/* 4. Embed 預覽（同樣加上 flex-1 h-0 與內部滾動，確保與 Markdown 平分高度） */}
+						<div className="flex flex-1 h-0 flex-col space-y-2">
+							<Label>Embed 預覽</Label>
+							<div className="flex-1 overflow-y-auto rounded-lg border border-white/10 bg-[#1f2124] p-4">
+								<ClientOnly>
+									<DiscordEmbedPreview
+										data={
+											(customEmbedValues ?? { fields: [] }) as CustomEmbedData
+										}
+									/>
 								</ClientOnly>
 							</div>
 						</div>

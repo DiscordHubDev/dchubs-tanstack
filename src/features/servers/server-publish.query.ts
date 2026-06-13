@@ -7,7 +7,6 @@ export function serverPublishQueryOptions(serverId: string) {
 	return queryOptions<ServerPublishBundle>({
 		queryKey: queryKeys.servers.publish(serverId),
 		queryFn: async () => {
-			// 💡 直接呼叫 Server Fn，不需要在這裡 runEffect，因為 Effect 應該在後端執行並 resolve
 			return await getServerPublishBundleFn({ data: { serverId } });
 		},
 		staleTime: 30 * 1000,

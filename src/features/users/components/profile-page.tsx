@@ -823,10 +823,7 @@ function BotsTab({
 	onManageBot: (id: string, e: MouseEvent) => void;
 	userId: string;
 }) {
-	const approvedBots = useMemo(
-		() => bots.filter((bot) => bot.status !== "rejected"),
-		[bots],
-	);
+	const memoizedBots = useMemo(() => bots, [bots]);
 
 	return (
 		<div className="mt-6">
@@ -842,9 +839,9 @@ function BotsTab({
 				)}
 			</div>
 
-			{approvedBots.length > 0 ? (
+			{memoizedBots.length > 0 ? (
 				<div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-					{approvedBots.map((bot) => (
+					{memoizedBots.map((bot) => (
 						<BotCard
 							key={bot.id}
 							bot={bot}
@@ -887,6 +884,7 @@ const BotCard = memo(
 	}) => {
 		const queryClient = useQueryClient();
 		const clickingRef = useRef(false);
+		const navigate = useNavigate();
 
 		const handleManageClick = useCallback(
 			(e: MouseEvent) => {
@@ -899,6 +897,13 @@ const BotCard = memo(
 			},
 			[bot.id, onManageBot],
 		);
+
+		const handleReverifyClick = () => {
+			navigate({
+				to: "/protected/bots/$botId/edit",
+				params: { botId: bot.id },
+			});
+		};
 
 		const handleDeleteBot = async () => {
 			// 彈出 SweetAlert2 確認視窗
@@ -1017,24 +1022,42 @@ const BotCard = memo(
 
 				{isOwner && (
 					<CardFooter className="mt-auto flex flex-col gap-3">
-						<Button
-							variant="outline"
-							size="sm"
-							onClick={handleManageClick}
-							className="h-10 w-full cursor-pointer border-[#5865f2] text-white hover:bg-[#5865f2] hover:text-[#5865f2]"
-						>
-							管理機器人
-						</Button>
+						{bot.status !== "rejected" && (
+							<>
+								<Button
+									variant="outline"
+									size="sm"
+									onClick={handleManageClick}
+									className="h-10 w-full cursor-pointer border-[#5865f2] text-white hover:bg-[#5865f2] hover:text-[#5865f2]"
+								>
+									管理機器人
+								</Button>
+								<PinButton itemId={bot.id} itemType="bot" />
+							</>
+						)}
 
-						<PinButton itemId={bot.id} itemType="bot" />
+						{bot.status === "rejected" && (
+							<Button
+								variant="outline"
+								size="sm"
+								onClick={handleReverifyClick}
+								className="h-10 w-full cursor-pointer border-[#5865f2] text-white hover:bg-[#5865f2] hover:text-green-400 transition-colors inline-flex items-center justify-center"
+							>
+								<RefreshCw className="mr-2 h-4 w-4" />
+								重新審核
+							</Button>
+						)}
+
 						<Button
 							variant="outline"
 							size="sm"
-							onClick={handleDeleteBot} /* 綁定剛剛建立的刪除確認函數 */
+							onClick={handleDeleteBot}
 							className="h-10 w-full cursor-pointer border-red-500 text-red-500 hover:bg-red-500 hover:text-red-800 transition-colors"
 						>
 							刪除機器人
 						</Button>
+
+						{/* 關鍵修改：只有在 status 為 rejected 時才渲染「重新審核」 */}
 					</CardFooter>
 				)}
 			</Card>

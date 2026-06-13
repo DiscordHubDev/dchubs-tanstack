@@ -5,10 +5,13 @@ import {
 	useSuspenseQuery,
 } from "@tanstack/react-query";
 import { ClientOnly, useNavigate } from "@tanstack/react-router";
+import { useSelector } from "@tanstack/react-store";
 import { Schema } from "effect";
 import { AlertTriangle } from "lucide-react";
 import { type ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import Swal from "sweetalert2";
+import DiscordEmbedPreview from "#/components/DiscordEmbedPreview";
+import EmbedFieldsListField from "#/components/EmbedFieldsListField";
 import MarkdownRenderer from "#/components/MarkdownRenderer";
 import { Button } from "#/components/ui/button";
 import { Checkbox } from "#/components/ui/checkbox";
@@ -20,6 +23,7 @@ import { runEffect, tryEffectPromise } from "#/lib/effect-utils";
 import { showErrorAlert } from "#/lib/error-alert";
 import { queryKeys } from "#/lib/query-keys";
 import type { CategoryType } from "#/lib/types";
+import type { CustomEmbedData } from "#/types/custom_embed";
 import {
 	uploadServerBannerFn,
 	upsertServerPublishFn,
@@ -39,7 +43,11 @@ import {
 	WebhookUrlSchema,
 	WebsiteLinkSchema,
 } from "../server-publish.schemas";
-import type { ServerPublishSubmitInput } from "../server-publish.types";
+import type {
+	ServerPublishBundle,
+	ServerPublishFormValues,
+	ServerPublishSubmitInput,
+} from "../server-publish.types";
 import { effectValidator } from "../server-publish.validators";
 import { RulesField } from "./RulesField";
 import { ServerTagField } from "./ServerTagField";
@@ -138,14 +146,17 @@ function hasRequiredPublishFields(values: {
 
 export type ServerPublishPageProps = {
 	serverId: string;
+	mode: "edit" | "create";
+	bundle: ServerPublishBundle; // ✨ 新增這行
 };
 
-export function ServerPublishPage({ serverId }: ServerPublishPageProps) {
+export function ServerPublishPage({
+	serverId,
+	mode,
+	bundle,
+}: ServerPublishPageProps) {
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
-	const { data: bundle } = useSuspenseQuery(
-		serverPublishQueryOptions(serverId),
-	);
 
 	const [iconPreviewUrl, setIconPreviewUrl] = useState(bundle.iconUrl ?? "");
 	const [bannerPreviewUrl, setBannerPreviewUrl] = useState<string>(
@@ -163,7 +174,7 @@ export function ServerPublishPage({ serverId }: ServerPublishPageProps) {
 	const [isIconUploading] = useState(false);
 
 	const [bannerFile, setBannerFile] = useState<File | null>(null);
-	const [localPreviewUrl, setLocalPreviewUrl] = useState<string | null>(null);
+	const [localPreviewUrl] = useState<string | null>(null);
 
 	// 定義 localStorage 的鍵值，確保不同伺服器的草稿不會互相污染
 	const DRAFT_KEY = `server-publish-draft-${serverId}`;
@@ -316,6 +327,7 @@ export function ServerPublishPage({ serverId }: ServerPublishPageProps) {
 						secret: payload.form.secret,
 						voteNotificationUrl: payload.form.webhook_url,
 						nsfw: payload.form.nsfw,
+						customEmbed: payload.form.customEmbed,
 					};
 				},
 			);
@@ -400,26 +412,68 @@ export function ServerPublishPage({ serverId }: ServerPublishPageProps) {
 	});
 
 	// 【功能 1】：初始化時合併資料庫 bundle 與 localStorage 的草稿
-	const defaultFormValues = useMemo(() => {
-		const baseValues = {
+	const defaultFormValues = useMemo<ServerPublishFormValues>(() => {
+		// 1. 初始化一個用來收集最終資料的物件
+		let rawData: Record<string, any> = {
 			...bundle.formValues,
 			nsfw: bundle.formValues?.nsfw ?? false,
 		};
 
+		// 2. 嘗試載入 localStorage 的草稿並覆蓋
 		if (typeof window !== "undefined") {
 			try {
 				const draftStr = localStorage.getItem(DRAFT_KEY);
 				if (draftStr) {
 					const draftParsed = JSON.parse(draftStr);
-					// 覆蓋原本的資料
-					return { ...baseValues, ...draftParsed };
+					// 合併遠端資料與本地草稿
+					rawData = { ...rawData, ...draftParsed };
 				}
 			} catch (err) {
 				console.error("無法載入本地草稿:", err);
 			}
 		}
 
-		return baseValues;
+		// 3. 安全解析與清洗 customEmbed (此時 rawData.customEmbed 可能是字串、物件或 undefined)
+		let rawcustomEmbed = rawData.customEmbed;
+		if (typeof rawcustomEmbed === "string") {
+			try {
+				rawcustomEmbed = JSON.parse(rawcustomEmbed);
+			} catch {
+				rawcustomEmbed = undefined;
+			}
+		}
+
+		// 4. 將合併後的髒資料，嚴格格式化為符合 ServerFormSchema 的外觀
+		const formattedcustomEmbed = rawcustomEmbed
+			? {
+					...rawcustomEmbed, // 保留其他可能存在的屬性
+					content: rawcustomEmbed.content ?? undefined, // 迎合 Schema.optional
+					color: rawcustomEmbed.color ?? undefined,
+					// 關鍵：將 fields 轉為一般可變動陣列，解開 readonly 鎖定
+					fields: rawcustomEmbed.fields
+						? rawcustomEmbed.fields.map((f: any) => ({
+								name: f.name ?? "",
+								value: f.value ?? "",
+								inline: f.inline ?? false,
+							}))
+						: undefined,
+				}
+			: undefined;
+
+		// 5. 回傳完全符合 TypeScript 期待的乾淨資料
+		return {
+			serverName: rawData.serverName ?? "",
+			shortDescription: rawData.shortDescription ?? "",
+			longDescription: rawData.longDescription ?? "",
+			inviteLink: rawData.inviteLink ?? "",
+			websiteLink: rawData.websiteLink ?? "",
+			rules: rawData.rules ?? [],
+			tags: rawData.tags ?? [],
+			secret: rawData.secret ?? "",
+			webhook_url: rawData.webhook_url ?? "",
+			nsfw: rawData.nsfw,
+			customEmbed: formattedcustomEmbed,
+		};
 	}, [bundle.formValues, DRAFT_KEY]);
 
 	const form = useForm({
@@ -503,10 +557,16 @@ export function ServerPublishPage({ serverId }: ServerPublishPageProps) {
 		};
 	}, [bannerPreviewUrl]);
 
-	const longDescriptionValue = useStore(
+	const longDescriptionValue = useSelector(
 		form.store,
 		(state) => state.values.longDescription,
 	);
+
+	const customEmbedValues = useSelector(
+		form.store,
+		(state) => state.values.customEmbed,
+	);
+
 	const sanitizedMarkdown = useMemo(
 		() => longDescriptionValue || "詳細描述預覽 (支援Markdown)",
 		[longDescriptionValue],
@@ -933,6 +993,188 @@ export function ServerPublishPage({ serverId }: ServerPublishPageProps) {
 							) : null}
 						</div>
 
+						<h2 className="border-b border-white/10 pb-2 font-bold text-lg mt-8">
+							自訂投票 Embed 格式 (選填)
+						</h2>
+
+						<div className="grid gap-4 md:grid-cols-2">
+							<form.Field name="customEmbed.username">
+								{(field) => (
+									<div className="space-y-2">
+										<Label>通知名稱</Label>
+										<Input
+											value={field.state.value}
+											onChange={(e) => field.handleChange(e.target.value)}
+										/>
+									</div>
+								)}
+							</form.Field>
+							<form.Field name="customEmbed.avatar_url">
+								{(field) => (
+									<div className="space-y-2">
+										<Label>通知頭像</Label>
+										<Input
+											value={field.state.value}
+											onChange={(e) => field.handleChange(e.target.value)}
+										/>
+									</div>
+								)}
+							</form.Field>
+						</div>
+
+						<form.Field name="customEmbed.content">
+							{(field) => (
+								<div className="space-y-2">
+									<Label>一般文字內容 (Content)</Label>
+									<Textarea
+										value={field.state.value}
+										onChange={(e) => field.handleChange(e.target.value)}
+										placeholder="顯示在 Embed 上方的純文字內容，可標記 User 或 Role"
+										rows={2}
+									/>
+								</div>
+							)}
+						</form.Field>
+
+						<form.Field name="customEmbed.color">
+							{(field) => (
+								<div className="space-y-2">
+									<Label>邊框顏色 (Color Hex)</Label>
+									<div className="flex items-center gap-2">
+										<input
+											type="color"
+											value={field.state.value}
+											onChange={(e) => field.handleChange(e.target.value)}
+											className="h-9 w-12 cursor-pointer rounded bg-transparent p-0 border-0"
+										/>
+										<Input
+											value={field.state.value}
+											onChange={(e) => field.handleChange(e.target.value)}
+											placeholder="#5865F2"
+											className="w-32 uppercase"
+										/>
+									</div>
+								</div>
+							)}
+						</form.Field>
+
+						<div className="grid gap-4 md:grid-cols-2">
+							<form.Field name="customEmbed.authorName">
+								{(field) => (
+									<div className="space-y-2">
+										<Label>作者名稱</Label>
+										<Input
+											value={field.state.value}
+											onChange={(e) => field.handleChange(e.target.value)}
+										/>
+									</div>
+								)}
+							</form.Field>
+							<form.Field name="customEmbed.authorIconUrl">
+								{(field) => (
+									<div className="space-y-2">
+										<Label>作者圖標 URL</Label>
+										<Input
+											value={field.state.value}
+											onChange={(e) => field.handleChange(e.target.value)}
+										/>
+									</div>
+								)}
+							</form.Field>
+						</div>
+
+						<div className="grid gap-4 md:grid-cols-2">
+							<form.Field name="customEmbed.title">
+								{(field) => (
+									<div className="space-y-2">
+										<Label>標題 (Title)</Label>
+										<Input
+											value={field.state.value}
+											onChange={(e) => field.handleChange(e.target.value)}
+										/>
+									</div>
+								)}
+							</form.Field>
+							<form.Field name="customEmbed.url">
+								{(field) => (
+									<div className="space-y-2">
+										<Label>標題連結 (URL)</Label>
+										<Input
+											value={field.state.value}
+											onChange={(e) => field.handleChange(e.target.value)}
+										/>
+									</div>
+								)}
+							</form.Field>
+						</div>
+
+						<form.Field name="customEmbed.description">
+							{(field) => (
+								<div className="space-y-2">
+									<Label>描述 (Description)</Label>
+									<Textarea
+										value={field.state.value}
+										onChange={(e) => field.handleChange(e.target.value)}
+										rows={3}
+									/>
+								</div>
+							)}
+						</form.Field>
+
+						<div className="grid gap-4 md:grid-cols-2">
+							<form.Field name="customEmbed.imageUrl">
+								{(field) => (
+									<div className="space-y-2">
+										<Label>大圖 URL (Image)</Label>
+										<Input
+											value={field.state.value}
+											onChange={(e) => field.handleChange(e.target.value)}
+										/>
+									</div>
+								)}
+							</form.Field>
+							<form.Field name="customEmbed.thumbnailUrl">
+								{(field) => (
+									<div className="space-y-2">
+										<Label>右上角縮圖 URL (Thumbnail)</Label>
+										<Input
+											value={field.state.value}
+											onChange={(e) => field.handleChange(e.target.value)}
+										/>
+									</div>
+								)}
+							</form.Field>
+						</div>
+
+						<div className="grid gap-4 md:grid-cols-2">
+							<form.Field name="customEmbed.footerText">
+								{(field) => (
+									<div className="space-y-2">
+										<Label>頁尾文字 (Footer)</Label>
+										<Input
+											value={field.state.value}
+											onChange={(e) => field.handleChange(e.target.value)}
+										/>
+									</div>
+								)}
+							</form.Field>
+							<form.Field name="customEmbed.footerIconUrl">
+								{(field) => (
+									<div className="space-y-2">
+										<Label>頁尾圖標 URL</Label>
+										<Input
+											value={field.state.value}
+											onChange={(e) => field.handleChange(e.target.value)}
+										/>
+									</div>
+								)}
+							</form.Field>
+						</div>
+
+						<form.Field name="customEmbed.fields">
+							{(field) => <EmbedFieldsListField field={field} />}
+						</form.Field>
+
 						<form.Subscribe
 							selector={(state) => ({
 								canSubmit: state.canSubmit,
@@ -1004,7 +1246,7 @@ export function ServerPublishPage({ serverId }: ServerPublishPageProps) {
 							</div>
 						</div>
 
-						<div className="flex flex-1 flex-col space-y-2">
+						<div className="flex flex-1 h-0 flex-col space-y-2">
 							<Label>Markdown 預覽</Label>
 							<div
 								ref={previewRef}
@@ -1018,6 +1260,18 @@ export function ServerPublishPage({ serverId }: ServerPublishPageProps) {
 											在左側輸入詳細介紹後，這裡會同步顯示預覽。
 										</p>
 									)}
+								</ClientOnly>
+							</div>
+						</div>
+						<div className="flex flex-1 h-0 flex-col space-y-2">
+							<Label>Embed 預覽</Label>
+							<div className="flex-1 overflow-y-auto rounded-lg border border-white/10 bg-[#1f2124] p-4">
+								<ClientOnly>
+									<DiscordEmbedPreview
+										data={
+											(customEmbedValues ?? { fields: [] }) as CustomEmbedData
+										}
+									/>
 								</ClientOnly>
 							</div>
 						</div>

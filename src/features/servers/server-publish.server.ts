@@ -5,6 +5,8 @@ import { db } from "#/drizzle/db";
 import { authAccount, server, serverAdmins } from "#/drizzle/schema";
 import { getSessionUserIdEffect } from "#/lib/edge-context";
 import { runEffect, tryEffectPromise } from "#/lib/effect-utils";
+import { formatCustomEmbedData } from "#/utils/embed";
+import { sendDiscordWebhookEffect } from "../webhook/webhook.server";
 import { fetchDiscordGuilds } from "./add-server.api";
 import type { DiscordGuild } from "./add-server.types";
 import type {
@@ -284,13 +286,13 @@ export async function enforceServerOwner(serverId: string, userId: string) {
 }
 
 export function getServerPublishBundleEffect(
-	serverId: string, // 🚀 連這裡的 userId 參數都可以拔掉了！因為 getAccessibleGuildEffect 會自己去拿 Session
+	serverId: string,
 ): Effect.Effect<ServerPublishBundle, Error> {
 	return Effect.gen(function* () {
 		// 🚀 平行執行：Discord 權限驗證 與 資料庫查詢
 		const [accessResult, rows] = yield* Effect.all(
 			[
-				getAccessibleGuildEffect(serverId), // 內含 Session 獲取、Discord API 請求與 Admin 權限擋關
+				getAccessibleGuildEffect(serverId),
 				tryEffectPromise("Failed to fetch published server", () =>
 					db
 						.select({
@@ -307,6 +309,7 @@ export function getServerPublishBundleEffect(
 							icon: server.icon,
 							banner: server.banner,
 							nsfw: server.nsfw,
+							customEmbed: server.customEmbed,
 						})
 						.from(server)
 						.where(eq(server.id, serverId))
@@ -316,9 +319,27 @@ export function getServerPublishBundleEffect(
 			{ concurrency: "unbounded" },
 		);
 
-		const { guild } = accessResult; // 這裡就能直接拿到驗證通過後的 guild 資料
+		const { guild } = accessResult;
 		const current = rows[0];
 		const guildIconUrl = buildGuildIconUrl(guild);
+
+		const dbCustomEmbed: unknown = current?.customEmbed;
+		let parsedEmbed: any;
+
+		// 2. 執行期安全檢查：如果是字串，就解析它；如果是物件，就直接用
+		if (typeof dbCustomEmbed === "string" && dbCustomEmbed.trim() !== "") {
+			try {
+				parsedEmbed = JSON.parse(dbCustomEmbed);
+			} catch {
+				parsedEmbed = undefined;
+			}
+		} else if (dbCustomEmbed && typeof dbCustomEmbed === "object") {
+			parsedEmbed = dbCustomEmbed;
+		}
+
+		// 🌟 2. 轉換為乾淨的物件
+		// 去掉原本的 ?? ""，讓它保持為 CustomEmbedData | undefined，完美切合目標型態
+		const formattedCustomEmbed = formatCustomEmbedData(parsedEmbed);
 
 		return {
 			serverId,
@@ -336,6 +357,7 @@ export function getServerPublishBundleEffect(
 				secret: current?.secret ?? "",
 				webhook_url: current?.voteNotificationUrl ?? "",
 				nsfw: current?.nsfw ?? false,
+				customEmbed: formattedCustomEmbed,
 			},
 		};
 	});
@@ -366,7 +388,18 @@ function upsertServerPublishEffect(
 			normalizeOptionalString(input.iconUrl) ?? buildGuildIconUrl(guild);
 		const bannerUrl = normalizeOptionalString(input.bannerUrl);
 
-		// 🚀 優化：利用 onConflictDoUpdate 原生支援 Upsert 特性，直接移除冗餘的 SELECT 前置檢查
+		const existingServerRows = yield* tryEffectPromise(
+			"Check existing server",
+			() =>
+				db
+					.select({ id: server.id })
+					.from(server)
+					.where(eq(server.id, input.serverId))
+					.limit(1),
+		);
+
+		const isCreateMode = existingServerRows.length === 0;
+
 		yield* tryEffectPromise("Failed to upsert server publish data", () =>
 			db
 				.insert(server)
@@ -390,6 +423,8 @@ function upsertServerPublishEffect(
 					features: [],
 					screenshots: [],
 					nsfw: input.form.nsfw,
+					// ✨ 直接呼叫函式處理
+					customEmbed: formatCustomEmbedData(input.form.customEmbed),
 				})
 				.onConflictDoUpdate({
 					target: server.id,
@@ -406,9 +441,28 @@ function upsertServerPublishEffect(
 						icon: iconUrl,
 						banner: bannerUrl,
 						nsfw: input.form.nsfw,
+						// ✨ 這裡也直接呼叫
+						customEmbed: formatCustomEmbedData(input.form.customEmbed),
 					},
 				}),
 		);
+
+		if (isCreateMode) {
+			yield* sendDiscordWebhookEffect({
+				_tag: "server",
+				activeServer: {
+					id: input.serverId,
+					icon: iconUrl,
+					banner: bannerUrl,
+				},
+				data: {
+					serverName: guild.name,
+					shortDescription: shortDescription,
+					inviteLink: inviteLink,
+					tags: tags,
+				},
+			});
+		}
 
 		return {
 			success: true,

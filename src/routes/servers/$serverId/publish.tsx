@@ -1,3 +1,4 @@
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { ServerPublishPage } from "#/features/servers/components/ServerPublishPage";
 import { serverPublishQueryOptions } from "#/features/servers/server-publish.query";
@@ -18,9 +19,9 @@ export const Route = createFileRoute("/servers/$serverId/publish")({
 			links: [{ rel: "canonical", href: publishCanonical }],
 		};
 	},
+	// 👇 維持你的 loader，這是預先抓取資料與處理越權攔截的最佳位置
 	loader: async ({ context, params }) => {
 		try {
-			// 當這個 query 觸發時，會呼叫後端的 Server Fn
 			await context.queryClient.ensureQueryData(
 				serverPublishQueryOptions(params.serverId),
 			);
@@ -32,8 +33,6 @@ export const Route = createFileRoute("/servers/$serverId/publish")({
 				params: { serverId: params.serverId },
 			});
 		}
-
-		return null;
 	},
 	component: RouteComponent,
 });
@@ -41,5 +40,14 @@ export const Route = createFileRoute("/servers/$serverId/publish")({
 function RouteComponent() {
 	const { serverId } = Route.useParams();
 
-	return <ServerPublishPage serverId={serverId} />;
+	// 👇 這裡會瞬間拿到資料，因為上面的 loader 已經幫忙 fetch 並寫入 cache 了
+	const { data: bundle } = useSuspenseQuery(
+		serverPublishQueryOptions(serverId),
+	);
+
+	// 👇 根據後端回傳的狀態，決定是建立還是編輯
+	const mode = bundle.isPublished ? "edit" : "create";
+
+	// 👇 把 bundle 和 mode 乾淨地傳給真正的 UI 元件
+	return <ServerPublishPage serverId={serverId} mode={mode} bundle={bundle} />;
 }
