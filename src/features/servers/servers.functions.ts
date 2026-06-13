@@ -1,7 +1,4 @@
 import { createServerFn } from "@tanstack/react-start";
-import { eq } from "drizzle-orm";
-import { db } from "#/drizzle/db";
-import { server } from "#/drizzle/schema";
 import { authMiddleware } from "#/lib/auth-middleware";
 import { effectInputValidator } from "#/lib/effect-utils";
 import {
