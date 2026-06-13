@@ -312,44 +312,34 @@ export async function deleteBot(
 	botId: string,
 	userId: string,
 ): Promise<{ success: boolean; reason?: string }> {
-	if (!userId) {
-		return { success: false, reason: "UNAUTHORIZED" };
+	if (!userId) return { success: false, reason: "UNAUTHORIZED" };
+
+	// 1. 一次性查出這個 Bot 是否存在，以及當前使用者是否為開發者
+	const botCheck = await db
+		.select({
+			isDeveloper: exists(
+				db
+					.select()
+					.from(botDevelopers)
+					.where(and(eq(botDevelopers.a, bot.id), eq(botDevelopers.b, userId))),
+			),
+		})
+		.from(bot)
+		.where(eq(bot.id, botId))
+		.then((res) => res[0]); // 取出第一筆
+
+	// 2. 如果連 botCheck 都沒有，代表 Bot 根本不存在
+	if (!botCheck) {
+		return { success: false, reason: "BOT_NOT_FOUND" };
 	}
 
-	// 執行刪除，但條件是：該 botId 的擁有者/開發者列表中必須包含當前的 userId
-	const deletedRows = await db
-		.delete(bot)
-		.where(
-			and(
-				eq(bot.id, botId),
-				// 子查詢：檢查 _BotDevelopers 是否存在一筆資料為 A = botId 且 B = userId
-				exists(
-					db
-						.select()
-						.from(botDevelopers)
-						.where(
-							and(eq(botDevelopers.a, bot.id), eq(botDevelopers.b, userId)),
-						),
-				),
-			),
-		)
-		.returning({ id: bot.id });
-
-	// 如果沒有刪除任何東西，代表要嘛機器人不存在，要嘛該使用者不是開發者
-	if (deletedRows.length === 0) {
-		// 檢查機器人是否存在
-		const botExists = await db
-			.select({ id: bot.id })
-			.from(bot)
-			.where(eq(bot.id, botId))
-			.then((res) => res.length > 0);
-
-		if (!botExists) {
-			return { success: false, reason: "BOT_NOT_FOUND" };
-		}
-
+	// 3. 如果 Bot 存在，但當前使用者不是開發者
+	if (!botCheck.isDeveloper) {
 		return { success: false, reason: "NOT_THE_DEVELOPER" };
 	}
+
+	// 4. 通過驗證，執行刪除
+	await db.delete(bot).where(eq(bot.id, botId));
 
 	return { success: true };
 }

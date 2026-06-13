@@ -281,31 +281,32 @@ export async function deleteServer(
 	serverId: string,
 	userId: string,
 ): Promise<{ success: boolean; reason?: string }> {
+	// 1. 基本安全檢查：確保 userId 存在
 	if (!userId) {
 		return { success: false, reason: "UNAUTHORIZED" };
 	}
 
-	// 同時比對 serverId 與 ownerId，並加上 .returning()
-	const deletedRows = await db
-		.delete(server)
-		.where(and(eq(server.id, serverId), eq(server.ownerId, userId)))
-		.returning({ id: server.id }); // 讓 Postgres 回傳被刪除的資料 ID
+	// 2. 一次性查出該伺服器是否存在，以及擁有者是誰
+	const targetServer = await db
+		.select({
+			ownerId: server.ownerId,
+		})
+		.from(server)
+		.where(eq(server.id, serverId))
+		.then((res) => res[0]); // 取出第一筆資料
 
-	// 如果 deletedRows 是空的，代表沒有符合條件的資料被刪除
-	if (deletedRows.length === 0) {
-		// 為了前端能精準顯示，我們可以再確認一下是「伺服器不存在」還是「權限不對」
-		const serverExists = await db
-			.select({ id: server.id })
-			.from(server)
-			.where(eq(server.id, serverId))
-			.then((res) => res.length > 0);
+	// 3. 檢查階段 A：如果根本查不到資料，代表伺服器不存在
+	if (!targetServer) {
+		return { success: false, reason: "SERVER_NOT_FOUND" };
+	}
 
-		if (!serverExists) {
-			return { success: false, reason: "SERVER_NOT_FOUND" };
-		}
-
+	// 4. 檢查階段 B：如果伺服器存在，但 ownerId 與當前 userId 不符
+	if (targetServer.ownerId !== userId) {
 		return { success: false, reason: "NOT_THE_OWNER" };
 	}
+
+	// 5. 執行階段：通過所有安全檢查，執行刪除
+	await db.delete(server).where(eq(server.id, serverId));
 
 	return { success: true };
 }
