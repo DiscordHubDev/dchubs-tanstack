@@ -3,6 +3,8 @@ Allow: /
 
 Host: https://dchubs.org
 
+Disallow: /api/auth/
+Disallow: /api/discord-bot/
+Disallow: /protected/
+
 Sitemap: https://dchubs.org/sitemap.xml
-Sitemap: https://dchubs.org/servers-sitemap.xml
-Sitemap: https://dchubs.org/bot-sitemap.xml
