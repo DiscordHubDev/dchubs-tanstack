@@ -130,13 +130,14 @@ export const Route = createFileRoute("/bots/")({
 		if (!loaderData) {
 			return {
 				meta: [
-					{ title: "熱門機器人 | DiscordHub" },
+					{ title: "熱門機器人 | DiscordHubs" },
 					{
 						name: "description",
 						content:
-							"在 DiscordHub 探索數百個功能豐富的機器人，為您的伺服器增添更多功能和樂趣。",
+							"在 DiscordHubs 探索數百個功能豐富的機器人，為您的伺服器增添更多功能和樂趣。",
 					},
 				],
+				links: [{ rel: "canonical", href: `${siteUrl}/bots` }], // Added fallback canonical
 			};
 		}
 		const { category, page, rawTab } = loaderData.searchData;
@@ -145,12 +146,16 @@ export const Route = createFileRoute("/bots/")({
 			BOT_CATEGORY_CONFIG.find((c) => c.id === category)?.label ??
 			"Discord 機器人";
 
-		const title = `發現最棒的${categoryLabel} | DiscordHub`;
-		const description = `在 DiscordHub 探索數百個功能豐富的${categoryLabel}機器人，為您的伺服器增添更多功能和樂趣。尋找最適合您的社群工具。`;
+		const title = `發現最棒的${categoryLabel} | DiscordHubs`;
+		const description = `在 DiscordHubs 探索數百個功能豐富的${categoryLabel}機器人，為您的伺服器增添更多功能和樂趣。尋找最適合您的社群工具。`;
 
-		// 使用 rawTab 與 page 組裝網址
-		const currentUrl = `${siteUrl}/bots${rawTab ? `?tab=${rawTab}` : ""}${page > 1 ? `&page=${page}` : ""}`;
+		// 2. Fixed URL Construction Bug (Properly handling ? and &)
 		const canonicalUrl = `${siteUrl}/bots${rawTab ? `?tab=${rawTab}` : ""}`;
+
+		// Check if canonicalUrl already has a '?' to decide between '&' or '?' for the page param
+		const hasQueryString = canonicalUrl.includes("?");
+		const currentUrl = `${canonicalUrl}${page > 1 ? `${hasQueryString ? "&" : "?"}page=${page}` : ""}`;
+
 		const ogImage =
 			"https://gallery.dawngs.top/api/v1/buckets/image/objects/download?preview=true&prefix=nuo_dchub_2.png";
 
@@ -159,7 +164,7 @@ export const Route = createFileRoute("/bots/")({
 				{ title },
 				{ name: "description", content: description },
 				// Open Graph
-				{ property: "og:site_name", content: "DiscordHub" },
+				{ property: "og:site_name", content: "DiscordHubs" },
 				{ property: "og:title", content: title },
 				{ property: "og:description", content: description },
 				{ property: "og:image", content: ogImage },
@@ -171,7 +176,7 @@ export const Route = createFileRoute("/bots/")({
 				{ name: "twitter:description", content: description },
 				{ name: "twitter:image", content: ogImage },
 			],
-			links: [{ rel: "canonical", href: canonicalUrl }],
+			links: [{ rel: "canonical", href: canonicalUrl }], // Clean, single canonical tag
 			scripts: [
 				{
 					type: "application/ld+json",
@@ -183,7 +188,7 @@ export const Route = createFileRoute("/bots/")({
 						url: currentUrl,
 						isPartOf: {
 							"@type": "WebSite",
-							name: "DiscordHub",
+							name: "DiscordHubs",
 							url: siteUrl,
 						},
 					}),

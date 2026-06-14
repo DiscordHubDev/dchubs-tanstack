@@ -29,7 +29,7 @@ function createServerMetaTitle(detail: ServerDetail): string {
 
 function createServerHead(detail: ServerDetail | null, serverId: string) {
 	if (!detail) {
-		const fallbackTitle = "找不到伺服器 | DiscordHubs";
+		const fallbackTitle = "找不到伺服器 | DiscordHubs"; // 依照要求保留 DiscordHubs
 		const fallbackDescription =
 			"此伺服器可能不存在或目前無法顯示，請返回列表探索更多 Discord 社群。";
 		const fallbackCanonical = new URL(
@@ -52,6 +52,7 @@ function createServerHead(detail: ServerDetail | null, serverId: string) {
 				{ name: "twitter:title", content: fallbackTitle },
 				{ name: "twitter:description", content: fallbackDescription },
 				{ name: "twitter:image", content: fallbackImage },
+				{ name: "twitter:url", content: fallbackCanonical }, // 補上 twitter:url 以防第三方爬蟲抓取落差
 			],
 			links: [{ rel: "canonical", href: fallbackCanonical }],
 		};
@@ -83,7 +84,7 @@ function createServerHead(detail: ServerDetail | null, serverId: string) {
 		"@type": "SocialNetworkingService",
 		name: detail.name,
 		description: detail.description,
-		url: new URL(`/servers/${detail.id}`, siteUrl).toString(),
+		url: canonicalUrl, // 直接複用上方宣告好的標準網址，避免重複構造
 		image: detail.icon || DEFAULT_SERVER_ICON_URL,
 		interactionStatistic: [
 			{
@@ -120,7 +121,7 @@ function createServerHead(detail: ServerDetail | null, serverId: string) {
 			{ name: "twitter:image", content: ogImage },
 			{ name: "twitter:url", content: canonicalUrl },
 		],
-		links: [{ rel: "canonical", href: canonicalUrl }],
+		links: [{ rel: "canonical", href: canonicalUrl }], // 這裡會動態注入到前端
 		staticData: { breadcrumb: metaTitle },
 		scripts: [
 			{

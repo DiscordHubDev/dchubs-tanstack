@@ -21,7 +21,7 @@ import Header from "../components/Header";
 import appCss from "../styles.css?url";
 
 // ==========================================
-// 1. 型別與 Context 宣告 (集中管理，刪除檔案底部的重複宣告)
+// 1. 型別與 Context 宣告
 // ==========================================
 export interface MyRouterContext {
 	queryClient: QueryClient;
@@ -64,7 +64,6 @@ const pageDescription =
 const ogDescription =
 	"DiscordHubs 是最優質的 Discord 中文伺服器與機器人列表平台，幫助你探索有趣社群、宣傳伺服器，並加入實用機器人，豐富你的伺服器功能與成員互動。";
 const ogImage = new URL("/dchub.png", siteUrl).toString();
-const canonicalUrl = new URL("/", siteUrl).toString();
 
 const jsonLd = {
 	"@context": "https://schema.org",
@@ -88,16 +87,19 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
 		return { session };
 	},
 	head: ({ matches }) => {
+		// 檢查目前的最深層匹配路由是不是首頁
+		const currentMatch = matches[matches.length - 1];
+		const isExactHome = currentMatch?.pathname === "/";
+
 		const breadcrumbMatches = matches.filter((m) => m.pathname !== "");
 
 		const itemListElement = breadcrumbMatches.map((m, index) => {
-			const isHome = m.pathname === "/"; // 判斷是否為首頁
+			const isHome = m.pathname === "/";
 
 			// @ts-expect-error - 動態捕捉 loaderData
 			const dynamicName = m.loaderData?.detail?.name;
 			const staticName = m.staticData?.breadcrumb;
 
-			// 如果是首頁，預設給 "首頁"，否則才用網址後綴
 			const fallbackName = isHome
 				? "首頁"
 				: m.pathname.split("/").filter(Boolean).pop() || "未命名";
@@ -112,14 +114,32 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
 				item: itemUrl,
 			};
 		});
+
 		const breadcrumbJsonLd =
 			itemListElement.length > 0
 				? JSON.stringify({
 						"@context": "https://schema.org",
 						"@type": "BreadcrumbList",
 						itemListElement: itemListElement,
-					}).replace(/</g, "\\u003c") // 防止 XSS
+					}).replace(/</g, "\\u003c")
 				: null;
+
+		// 基礎的連結宣告
+		const baseLinks = [
+			{ rel: "preconnect", href: "https://assets.dchubs.org" },
+			{ rel: "dns-prefetch", href: "https://assets.dchubs.org" },
+			{ rel: "stylesheet", href: appCss },
+			{ rel: "icon", href: "/favicon.ico" },
+			{ rel: "icon", type: "image/png", href: "/icon.png" },
+		];
+
+		// ✨ 關鍵修正：只有當真正處於「首頁」時，全域根路由才主動發送首頁的 canonicalUrl
+		if (isExactHome) {
+			baseLinks.push({
+				rel: "canonical",
+				href: new URL("/", siteUrl).toString(),
+			});
+		}
 
 		return {
 			meta: [
@@ -146,14 +166,7 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
 				{ name: "twitter:image", content: ogImage },
 				{ name: "twitter:url", content: siteUrl },
 			],
-			links: [
-				{ rel: "preconnect", href: "https://assets.dchubs.org" },
-				{ rel: "dns-prefetch", href: "https://assets.dchubs.org" },
-				{ rel: "stylesheet", href: appCss },
-				{ rel: "icon", href: "/favicon.ico" },
-				{ rel: "icon", type: "image/png", href: "/icon.png" },
-				{ rel: "canonical", href: canonicalUrl },
-			],
+			links: baseLinks, // 使用動態處理後的 links 陣列
 			scripts: breadcrumbJsonLd
 				? [
 						{
@@ -204,9 +217,6 @@ function RootDocument({ children }: { children: ReactNode }) {
 							<main className="page-wrap flex items-start">
 								<AppSidebar className="w-64 shrink-0" />
 								<SidebarInset className="flex grow flex-col overflow-x-hidden">
-									{/* {announcement && (
-										<GlobalAnnouncement content={announcement.content} />
-									)} */}
 									{children}
 									<ToastContainer />
 								</SidebarInset>

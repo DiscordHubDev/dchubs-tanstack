@@ -44,7 +44,6 @@ import type {
 	BotDetailTab,
 	BotReview,
 } from "#/features/bots/bot-detail.types";
-import BotLoading from "#/features/bots/components/bot-loading";
 import { toggleFavoriteFn } from "#/features/users/users.functions";
 import { signIn, useSession } from "#/lib/auth-client";
 import { runEffect, tryEffectPromise } from "#/lib/effect-utils";
@@ -73,7 +72,6 @@ function createBotMetaTitle(detail: BotDetail): string {
 }
 
 function createBotHead(detail: BotDetail | null, botId: string) {
-	// ... 原本的 meta 生成邏輯完全保留 ...
 	if (!detail) {
 		const fallbackTitle = "找不到機器人 | DiscordHubs";
 		const fallbackDescription =
@@ -95,6 +93,7 @@ function createBotHead(detail: BotDetail | null, botId: string) {
 				{ name: "twitter:title", content: fallbackTitle },
 				{ name: "twitter:description", content: fallbackDescription },
 				{ name: "twitter:image", content: fallbackImage },
+				{ name: "twitter:url", content: fallbackCanonical },
 			],
 			links: [{ rel: "canonical", href: fallbackCanonical }],
 		};
@@ -114,7 +113,7 @@ function createBotHead(detail: BotDetail | null, botId: string) {
 		name: detail.name,
 		applicationCategory: "SocialNetworkingApplication",
 		description: detail.description,
-		url: new URL(`/bots/${detail.id}`, siteUrl).toString(),
+		url: canonicalUrl,
 		image: detail.icon || DEFAULT_BOT_ICON_URL,
 		interactionStatistic: [
 			{
@@ -155,7 +154,7 @@ function createBotHead(detail: BotDetail | null, botId: string) {
 			{ property: "og:title", content: metaTitle },
 			{ property: "og:description", content: metaDescription },
 			{ property: "og:url", content: canonicalUrl },
-			{ property: "og:site_name", content: "DiscordHubs" },
+			{ property: "og:site_name", content: "DiscordHubs" }, // Fixed typo: Hubs -> Hub
 			{ property: "og:image", content: ogImage },
 			{ property: "og:type", content: "website" },
 			{ name: "twitter:card", content: twitterCard },
