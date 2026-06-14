@@ -51,43 +51,43 @@ const USER_RIGHTS = [
 export default function PrivacyPage() {
 	return (
 		<div className="min-h-screen bg-[#1e1f22] text-white">
-			<div className="bg-[#2b2d31] py-12 border-b border-[#1e1f22]">
-				<div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-					<div className="flex justify-center mb-6">
+			<div className="border-[#1e1f22] border-b bg-[#2b2d31] py-12">
+				<div className="mx-auto max-w-4xl px-4 text-center sm:px-6 lg:px-8">
+					<div className="mb-6 flex justify-center">
 						<Shield size={48} className="text-[#5865f2]" />
 					</div>
-					<h1 className="text-3xl md:text-4xl font-bold text-white mb-4">
+					<h1 className="mb-4 font-bold text-3xl text-white md:text-4xl">
 						隱私權政策
 					</h1>
-					<p className="text-lg text-gray-300">
+					<p className="text-gray-300 text-lg">
 						最後更新日期：2025 年 4 月 16 日
 					</p>
 				</div>
 			</div>
 
 			{/* 主要內容 */}
-			<div className="max-w-4xl mx-auto px-4 py-12">
-				<div className="bg-[#2b2d31] rounded-lg p-6 md:p-8 shadow-lg">
-					<div className="mb-8 p-4 bg-[#2b2d31] border-l-4 border-[#5865f2] rounded-r-lg flex items-start gap-3">
-						<AlertCircle className="text-[#5865f2] shrink-0 mt-1" size={20} />
-						<p className="text-sm text-gray-300 leading-relaxed">
+			<div className="mx-auto max-w-4xl px-4 py-12">
+				<div className="rounded-lg bg-[#2b2d31] p-6 shadow-lg md:p-8">
+					<div className="mb-8 flex items-start gap-3 rounded-r-lg border-[#5865f2] border-l-4 bg-[#2b2d31] p-4">
+						<AlertCircle className="mt-1 shrink-0 text-[#5865f2]" size={20} />
+						<p className="text-gray-300 text-sm leading-relaxed">
 							歡迎來到
 							DiscordHubs！在使用我們的伺服器與機器人列表服務之前，請務必詳細閱讀以下條款。登入或使用本平台即表示您完全同意本文件所述之所有規範。
 						</p>
 					</div>
-					<div className="flex flex-col mb-12 p-5 bg-[#1e1f22] rounded-lg border border-[#36393f]">
-						<h2 className="text-xl font-bold text-white mb-4">目錄</h2>
+					<div className="mb-12 flex flex-col rounded-lg border border-[#36393f] bg-[#1e1f22] p-5">
+						<h2 className="mb-4 font-bold text-white text-xl">目錄</h2>
 						<ul className="flex flex-col gap-3">
 							{TABLE_OF_CONTENTS.map((item) => (
 								<li key={item.id}>
 									<Link
 										to="."
 										hash={item.id}
-										className="flex items-center text-gray-400 hover:text-[#5865f2] transition-colors duration-200 group w-fit"
+										className="group flex w-fit items-center text-gray-400 transition-colors duration-200 hover:text-[#5865f2]"
 									>
 										<ChevronRight
 											size={16}
-											className="mr-2 group-hover:translate-x-1 transition-transform"
+											className="mr-2 transition-transform group-hover:translate-x-1"
 										/>
 										<span>{item.title}</span>
 									</Link>
@@ -99,7 +99,7 @@ export default function PrivacyPage() {
 					{/* 隱私條款 */}
 					<div className="space-y-8 text-gray-300">
 						<section id="introduction">
-							<h2 className="text-2xl font-bold text-white mb-4">1. 簡介</h2>
+							<h2 className="mb-4 font-bold text-2xl text-white">1. 簡介</h2>
 							<p className="mb-4">
 								歡迎使用
 								DiscordHubs（以下簡稱「我們」、「本服務」或「本平台」）重視您的隱私。本隱私權政策說明我們如何收集、使用、披露和保護您的個人資訊。
@@ -115,7 +115,7 @@ export default function PrivacyPage() {
 						</section>
 
 						<section id="information">
-							<h2 className="text-2xl font-bold text-white mb-4">
+							<h2 className="mb-4 font-bold text-2xl text-white">
 								2. 我們收集的資訊
 							</h2>
 							<p className="mb-4">我們可能會收集以下類型的資訊：</p>
@@ -124,9 +124,9 @@ export default function PrivacyPage() {
 								{COLLECTED_INFO.map((info) => (
 									<div
 										key={info.title}
-										className="bg-[#36393f] p-4 rounded-lg border border-[#1e1f22]"
+										className="rounded-lg border border-[#1e1f22] bg-[#36393f] p-4"
 									>
-										<h3 className="font-medium text-white mb-2">
+										<h3 className="mb-2 font-medium text-white">
 											{info.title}
 										</h3>
 										<p>{info.content}</p>
@@ -136,11 +136,11 @@ export default function PrivacyPage() {
 						</section>
 
 						<section id="use">
-							<h2 className="text-2xl font-bold text-white mb-4">
+							<h2 className="mb-4 font-bold text-2xl text-white">
 								3. 我們如何使用您的資訊
 							</h2>
 							<p className="mb-4">我們使用收集的資訊用於以下目的：</p>
-							<ul className="list-disc pl-6 space-y-2">
+							<ul className="list-disc space-y-2 pl-6">
 								<li>提供、維護和改進我們的服務</li>
 								<li>創建和管理您的帳號</li>
 								<li>處理您的請求和回應您的問題</li>
@@ -152,13 +152,13 @@ export default function PrivacyPage() {
 						</section>
 
 						<section id="sharing">
-							<h2 className="text-2xl font-bold text-white mb-4">
+							<h2 className="mb-4 font-bold text-2xl text-white">
 								4. 資訊分享
 							</h2>
 							<p className="mb-4">
 								我們不會出售您的個人資訊。但在以下情況下，我們可能會分享您的資訊：
 							</p>
-							<ul className="list-disc pl-6 space-y-2 mb-4">
+							<ul className="mb-4 list-disc space-y-2 pl-6">
 								<li>
 									<span className="font-medium text-white">服務提供商：</span>{" "}
 									我們可能與幫助我們提供服務的第三方服務提供商分享資訊，如雲端儲存提供商和分析服務。
@@ -184,7 +184,7 @@ export default function PrivacyPage() {
 						</section>
 
 						<section id="security">
-							<h2 className="text-2xl font-bold text-white mb-4">
+							<h2 className="mb-4 font-bold text-2xl text-white">
 								5. 資料安全
 							</h2>
 							<p className="mb-4">
@@ -194,11 +194,11 @@ export default function PrivacyPage() {
 								然而，沒有任何網絡傳輸或電子存儲方法是 100%
 								安全的。因此，雖然我們努力使用商業上可接受的方式保護您的個人資訊，但我們不能保證其絕對安全。
 							</p>
-							<div className="bg-[#36393f] p-4 rounded-lg border border-[#1e1f22]">
-								<h3 className="font-medium text-white mb-2">
+							<div className="rounded-lg border border-[#1e1f22] bg-[#36393f] p-4">
+								<h3 className="mb-2 font-medium text-white">
 									我們的安全措施包括：
 								</h3>
-								<ul className="list-disc pl-6 space-y-1">
+								<ul className="list-disc space-y-1 pl-6">
 									<li>使用加密技術保護數據傳輸</li>
 									<li>實施訪問控制機制</li>
 									<li>定期安全審核</li>
@@ -208,19 +208,19 @@ export default function PrivacyPage() {
 						</section>
 
 						<section id="rights">
-							<h2 className="text-2xl font-bold text-white mb-4">
+							<h2 className="mb-4 font-bold text-2xl text-white">
 								6. 您的權利
 							</h2>
 							<p className="mb-4">
 								根據您所在地區的適用法律，您可能擁有以下權利：
 							</p>
-							<div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+							<div className="grid grid-cols-1 gap-4 md:grid-cols-2">
 								{USER_RIGHTS.map((right) => (
 									<div
 										key={right.title}
-										className="bg-[#36393f] p-4 rounded-lg border border-[#1e1f22]"
+										className="rounded-lg border border-[#1e1f22] bg-[#36393f] p-4"
 									>
-										<h3 className="font-medium text-white mb-2">
+										<h3 className="mb-2 font-medium text-white">
 											{right.title}
 										</h3>
 										<p>{right.content}</p>
@@ -233,7 +233,7 @@ export default function PrivacyPage() {
 						</section>
 
 						<section id="cookies">
-							<h2 className="text-2xl font-bold text-white mb-4">
+							<h2 className="mb-4 font-bold text-2xl text-white">
 								7. Cookie 和追蹤技術
 							</h2>
 							<p className="mb-4">
@@ -242,7 +242,7 @@ export default function PrivacyPage() {
 								是存儲在您設備上的小型數據文件。
 							</p>
 							<p className="mb-4">我們使用 Cookie 來：</p>
-							<ul className="list-disc pl-6 space-y-2 mb-4">
+							<ul className="mb-4 list-disc space-y-2 pl-6">
 								<li>記住您的登入狀態和偏好設置</li>
 								<li>了解和保存您的使用偏好，以便在您返回時提供更好的體驗</li>
 								<li>收集有關網站流量和互動的資訊</li>
@@ -255,14 +255,14 @@ export default function PrivacyPage() {
 						</section>
 
 						<section id="children">
-							<h2 className="text-2xl font-bold text-white mb-4">
+							<h2 className="mb-4 font-bold text-2xl text-white">
 								8. 兒童隱私
 							</h2>
 							<p className="mb-4">
 								我們的服務不面向 13 歲以下的兒童。我們不會故意收集 13
 								歲以下兒童的個人資訊。如果您是父母或監護人，並且您認為您的孩子向我們提供了個人資訊，請聯繫我們，我們將採取措施從我們的系統中刪除這些資訊。
 							</p>
-							<div className="bg-[#36393f] p-4 rounded-lg border border-[#1e1f22]">
+							<div className="rounded-lg border border-[#1e1f22] bg-[#36393f] p-4">
 								<p className="text-sm">
 									<span className="font-medium text-white">注意：</span> 根據
 									Discord 的服務條款，用戶必須年滿 13 歲才能使用
@@ -273,7 +273,7 @@ export default function PrivacyPage() {
 						</section>
 
 						<section id="changes">
-							<h2 className="text-2xl font-bold text-white mb-4">
+							<h2 className="mb-4 font-bold text-2xl text-white">
 								9. 政策變更
 							</h2>
 							<p className="mb-4">
@@ -285,13 +285,13 @@ export default function PrivacyPage() {
 						</section>
 
 						<section id="contact">
-							<h2 className="text-2xl font-bold text-white mb-4">
+							<h2 className="mb-4 font-bold text-2xl text-white">
 								10. 聯絡我們
 							</h2>
 							<p className="mb-4">
 								如果您對這些使用條款有任何問題或意見，請通過以下方式聯繫我們：
 							</p>
-							<div className="bg-[#36393f] p-4 rounded-lg border border-[#1e1f22]">
+							<div className="rounded-lg border border-[#1e1f22] bg-[#36393f] p-4">
 								<p className="mb-2">
 									<a
 										href="https://discord.gg/puQ9DPdG3M"
@@ -309,7 +309,7 @@ export default function PrivacyPage() {
 					</div>
 
 					{/* 最後更新 */}
-					<div className="mt-12 pt-6 border-t border-[#1e1f22] text-center">
+					<div className="mt-12 border-[#1e1f22] border-t pt-6 text-center">
 						<p className="text-gray-400 text-sm">
 							本隱私權政策最後更新於 2026 年 6 月 4 日
 						</p>

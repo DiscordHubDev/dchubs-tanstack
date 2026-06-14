@@ -45,13 +45,13 @@ export default function EmbedFieldsListField({
 					type="button"
 					onClick={addField}
 					size="sm"
-					className=" text-white  bg-discord hover:bg-discord-hover"
+					className="bg-discord text-white hover:bg-discord-hover"
 				>
-					<Plus className="h-4 w-4 mr-1" /> 新增 Field
+					<Plus className="mr-1 h-4 w-4" /> 新增 Field
 				</Button>
 			</div>
 			{fields.length === 0 ? (
-				<p className="rounded-md border border-dashed border-white/10 p-3 text-sm text-[#b9bbbe]">
+				<p className="rounded-md border border-white/10 border-dashed p-3 text-[#b9bbbe] text-sm">
 					尚未新增任何欄位。
 				</p>
 			) : (
@@ -59,12 +59,12 @@ export default function EmbedFieldsListField({
 					{fields.map((f, index) => (
 						<div
 							key={fieldKeys[index]}
-							className="space-y-3 rounded-lg border border-white/10  p-4 relative group"
+							className="group relative space-y-3 rounded-lg border border-white/10 p-4"
 						>
 							<button
 								type="button"
 								onClick={() => removeField(index)}
-								className="absolute top-2 right-2 rounded-full p-1.5 text-[#b9bbbe] hover:bg-[#ed4245] hover:text-white transition-colors"
+								className="absolute top-2 right-2 rounded-full p-1.5 text-[#b9bbbe] transition-colors hover:bg-[#ed4245] hover:text-white"
 							>
 								<Trash2 size={14} />
 							</button>

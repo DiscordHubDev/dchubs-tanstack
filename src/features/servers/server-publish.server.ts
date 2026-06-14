@@ -2,7 +2,7 @@ import { v2 as cloudinary } from "cloudinary";
 import { and, eq } from "drizzle-orm";
 import { Effect } from "effect";
 import { db } from "#/drizzle/db";
-import { authAccount, server, serverAdmins } from "#/drizzle/schema";
+import { authAccount, server } from "#/drizzle/schema";
 import { getSessionUserIdEffect } from "#/lib/edge-context";
 import { runEffect, tryEffectPromise } from "#/lib/effect-utils";
 import { formatCustomEmbedData } from "#/utils/embed";
@@ -607,7 +607,7 @@ const checkIsServerOwnerEffect = (serverId: string, userId: string) =>
 		),
 	);
 
-function checkIsServerOwnerInDb(
+function _checkIsServerOwnerInDb(
 	serverId: string,
 	userId: string,
 ): Effect.Effect<boolean, never> {
@@ -631,7 +631,7 @@ function checkIsServerOwnerInDb(
 	);
 }
 
-function enforceServerAdminEffect(serverId: string, userId: string) {
+function _enforceServerAdminEffect(serverId: string, _userId: string) {
 	return Effect.gen(function* () {
 		// 1. 抓取 Discord 資料
 		const accessResult = yield* getAccessibleGuildEffect(serverId);

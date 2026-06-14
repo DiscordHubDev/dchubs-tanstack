@@ -121,7 +121,7 @@ function RouteComponent() {
 	);
 }
 
-function ProfilePending() {
+function _ProfilePending() {
 	return (
 		<div className="flex min-h-dvh items-center justify-center bg-[#2b2d31] text-white">
 			<div className="animate-pulse text-center">

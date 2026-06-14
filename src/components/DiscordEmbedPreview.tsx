@@ -1,4 +1,5 @@
 import type { CustomEmbedData } from "#/types/custom_embed";
+import { OptimizedImage } from "./OptimizedImage";
 
 export default function DiscordEmbedPreview({
 	data,
@@ -16,20 +17,18 @@ export default function DiscordEmbedPreview({
 
 	return (
 		// [優化] 外層容器加入 cursor-default，讓整體背景與空白處保持預設箭頭游標
-		<div className="flex w-full flex-col rounded-lg bg-[#313338] py-4 text-left font-['gg_sans','Noto_Sans','Helvetica_Neue',Helvetica,Arial,sans-serif] antialiased cursor-default">
+		<div className="flex w-full cursor-default flex-col rounded-lg bg-[#313338] py-4 text-left font-['gg_sans','Noto_Sans','Helvetica_Neue',Helvetica,Arial,sans-serif] antialiased">
 			{/* 模擬單則 Discord 訊息 */}
 			<div className="group relative flex px-4 py-0.5 hover:bg-[#2e3035]">
 				{/* 左側大頭貼 - [保留] cursor-pointer */}
 				<div className="mt-0.5 mr-4 shrink-0 cursor-pointer">
 					<div className="flex h-10 w-10 items-center justify-center overflow-hidden rounded-full bg-[#5865F2]">
-						<img
-							height={40}
-							width={40}
-							src={
-								data.avatar_url ||
-								"https://cdn.discordapp.com/avatars/1324996138251583580/14bdbdc05d5e5bb8512b84e3019c7b65.png?size=1024"
-							}
+						<OptimizedImage
+							src={data.avatar_url}
+							fallbackSrc="https://cdn.discordapp.com/avatars/1324996138251583580/14bdbdc05d5e5bb8512b84e3019c7b65.png"
 							alt="Bot Icon"
+							width={40}
+							height={40}
 							className="h-full w-full object-cover"
 						/>
 					</div>
@@ -40,7 +39,7 @@ export default function DiscordEmbedPreview({
 					{/* 發送者與時間頭部 */}
 					<div className="mb-1 flex items-center leading-[1.375rem]">
 						{/* 機器人名稱 - [保留] cursor-pointer 與 hover 效果 */}
-						<span className="mr-1 cursor-pointer text-base font-medium text-[#f2f3f5] hover:underline">
+						<span className="mr-1 cursor-pointer font-medium text-[#f2f3f5] text-base hover:underline">
 							{data.username || "DcHubs 投票通知"}
 						</span>
 
@@ -66,7 +65,7 @@ export default function DiscordEmbedPreview({
 						</span>
 
 						{/* 時間戳記 - 一般文字不需要游標變化 */}
-						<span className="ml-2 text-xs font-medium text-[#949ba4]">
+						<span className="ml-2 font-medium text-[#949ba4] text-xs">
 							{(() => {
 								const now = new Date();
 								const timeString = now.toLocaleTimeString("en-US", {
@@ -81,7 +80,7 @@ export default function DiscordEmbedPreview({
 
 					{/* 訊息本體 (Message Content) - [優化] 加入 cursor-text 確保可選取 */}
 					{data.content && (
-						<div className="mb-2 whitespace-pre-wrap break-words text-[1rem] leading-[1.375rem] text-[#dbdee1] cursor-text">
+						<div className="mb-2 cursor-text whitespace-pre-wrap break-words text-[#dbdee1] text-[1rem] leading-[1.375rem]">
 							{data.content}
 						</div>
 					)}
@@ -100,16 +99,19 @@ export default function DiscordEmbedPreview({
 									<div className="flex w-full flex-col">
 										{/* Embed Author */}
 										{data.authorName && (
-											<div className="mb-2 mt-1 flex items-center space-x-2">
+											<div className="mt-1 mb-2 flex items-center space-x-2">
 												{data.authorIconUrl && (
-													<img
+													<OptimizedImage
 														src={data.authorIconUrl}
+														fallbackSrc="https://cdn.discordapp.com/embed/avatars/0.png"
 														alt="author"
-														className="h-6 w-6 rounded-full object-cover cursor-pointer"
+														width={20}
+														height={20}
+														className="h-full w-full cursor-pointer object-cover"
 													/>
 												)}
 												{/* 作者名稱 - [優化] 加入 cursor-pointer 與 hover:underline */}
-												<span className="text-sm font-semibold text-[#f2f3f5] cursor-pointer hover:underline">
+												<span className="cursor-pointer font-semibold text-[#f2f3f5] text-sm hover:underline">
 													{data.authorName}
 												</span>
 											</div>
@@ -117,13 +119,13 @@ export default function DiscordEmbedPreview({
 
 										{/* Embed Title */}
 										{data.title && (
-											<div className="mb-1 mt-1">
+											<div className="mt-1 mb-1">
 												{/* 標題 - 只有在有 URL 時才顯示游標變化 */}
 												<span
-													className={`text-base font-bold ${
+													className={`font-bold text-base ${
 														data.url
 															? "cursor-pointer text-[#00a8fc] hover:underline"
-															: "text-[#f2f3f5] cursor-text"
+															: "cursor-text text-[#f2f3f5]"
 													}`}
 												>
 													{data.title}
@@ -133,14 +135,14 @@ export default function DiscordEmbedPreview({
 
 										{/* Embed Description - [優化] 加入 cursor-text */}
 										{data.description && (
-											<div className="mb-2 whitespace-pre-wrap text-[14px] leading-[1.125rem] text-[#dbdee1] cursor-text">
+											<div className="mb-2 cursor-text whitespace-pre-wrap text-[#dbdee1] text-[14px] leading-[1.125rem]">
 												{data.description}
 											</div>
 										)}
 
 										{/* Embed Fields */}
 										{data.fields && data.fields.length > 0 && (
-											<div className="mb-2 mt-2 flex flex-wrap gap-x-4 gap-y-2">
+											<div className="mt-2 mb-2 flex flex-wrap gap-x-4 gap-y-2">
 												{data.fields.map((field, i) => (
 													<div
 														// biome-ignore lint/suspicious/noArrayIndexKey: yeah
@@ -150,10 +152,10 @@ export default function DiscordEmbedPreview({
 														}
 													>
 														{/* 欄位標題與內容 - [優化] 加入 cursor-text */}
-														<div className="mb-0.5 text-[14px] font-bold text-[#f2f3f5] cursor-text">
+														<div className="mb-0.5 cursor-text font-bold text-[#f2f3f5] text-[14px]">
 															{field.name || "\u200B"}
 														</div>
-														<div className="text-[14px] leading-[1.125rem] text-[#dbdee1] cursor-text">
+														<div className="cursor-text text-[#dbdee1] text-[14px] leading-[1.125rem]">
 															{field.value || "\u200B"}
 														</div>
 													</div>
@@ -164,10 +166,12 @@ export default function DiscordEmbedPreview({
 										{/* Embed Image */}
 										{data.imageUrl && (
 											<div className="mt-4">
-												<img
+												<OptimizedImage
 													src={data.imageUrl}
 													alt="embed"
-													className="max-h-[300px] max-w-full rounded-[4px] object-contain cursor-pointer"
+													width={600} // ✨ 給定一個合理的基礎寬度 (例如 600)
+													height={300} // ✨ 對應你 className 裡的 max-h-[300px]
+													className="max-h-[300px] max-w-full cursor-pointer rounded-[4px] object-contain"
 												/>
 											</div>
 										)}
@@ -176,10 +180,12 @@ export default function DiscordEmbedPreview({
 									{/* Embed Thumbnail (置於右上) */}
 									{data.thumbnailUrl && (
 										<div className="mt-1 shrink-0">
-											<img
+											<OptimizedImage
 												src={data.thumbnailUrl}
 												alt="thumbnail"
-												className="h-[80px] w-[80px] rounded-[4px] object-cover cursor-pointer"
+												width={80} // ✨ 補上寬度
+												height={80} // ✨ 補上高度
+												className="h-[80px] w-[80px] cursor-pointer rounded-[4px] object-cover"
 											/>
 										</div>
 									)}
@@ -189,14 +195,16 @@ export default function DiscordEmbedPreview({
 								{data.footerText && (
 									<div className="mt-3 flex items-center space-x-2">
 										{data.footerIconUrl && (
-											<img
+											<OptimizedImage
 												src={data.footerIconUrl}
 												alt="footer"
-												className="h-5 w-5 rounded-full object-cover"
+												width={20}
+												height={20}
+												className="h-full w-full object-cover"
 											/>
 										)}
 										{/* Footer 文字 - [優化] 保持預設文字游標 */}
-										<span className="text-[12px] font-medium text-[#dbdee1] cursor-text">
+										<span className="cursor-text font-medium text-[#dbdee1] text-[12px]">
 											{data.footerText}
 										</span>
 									</div>
@@ -209,7 +217,7 @@ export default function DiscordEmbedPreview({
 
 			{/* 空狀態提示 */}
 			{!data.content && !hasEmbedData && (
-				<p className="py-8 text-center text-sm text-[#949ba4] cursor-default">
+				<p className="cursor-default py-8 text-center text-[#949ba4] text-sm">
 					在左側編輯器輸入內容後，這裡會同步顯示 Discord Embed 預覽。
 				</p>
 			)}

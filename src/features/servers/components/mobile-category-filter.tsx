@@ -31,7 +31,7 @@ export default function MobileCategoryFilter({
 					<SlidersHorizontal className="h-4 w-4" />
 					分類篩選
 				</span>
-				<span className="text-xs text-gray-300">
+				<span className="text-gray-300 text-xs">
 					{selectedCategoryIds.length} 已選
 				</span>
 			</Button>

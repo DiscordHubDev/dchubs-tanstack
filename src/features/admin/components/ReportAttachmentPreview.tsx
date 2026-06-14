@@ -8,6 +8,7 @@ import {
 	Video,
 } from "lucide-react";
 import { memo, useEffect, useState } from "react";
+import { OptimizedImage } from "#/components/OptimizedImage";
 import { fetchJsonEffect, runEffect } from "#/lib/effect-utils";
 import type { UploadedFile } from "#/lib/types";
 import type { ReportAttachment } from "#/types/admin";
@@ -88,14 +89,14 @@ const AttachmentPreview = memo(({ attachment }: AttachmentPreviewProps) => {
 		>
 			{/* 標題與 Icon 區塊 */}
 			<div className="flex items-center justify-between text-sm">
-				<div className="flex items-center gap-2 min-w-0">
+				<div className="flex min-w-0 items-center gap-2">
 					<Icon className="h-4 w-4 shrink-0 text-gray-400" aria-hidden="true" />
 					<span className="line-clamp-1 break-words" title={fileName}>
 						{fileName}
 					</span>
 				</div>
 				{url && (
-					<ExternalLink className="h-4 w-4 text-gray-400 opacity-60 shrink-0" />
+					<ExternalLink className="h-4 w-4 shrink-0 text-gray-400 opacity-60" />
 				)}
 			</div>
 
@@ -108,13 +109,13 @@ const AttachmentPreview = memo(({ attachment }: AttachmentPreviewProps) => {
 							<span>無法載入圖片或無效的連結</span>
 						</div>
 					) : (
-						<img
+						<OptimizedImage
 							src={url}
 							alt={`預覽圖：${fileName}`}
-							loading="lazy"
-							decoding="async"
+							width={800}
+							height={300}
 							className="h-auto max-h-[300px] w-full object-contain transition-transform duration-200"
-							onError={() => setImgError(true)}
+							onError={() => setImgError(true)} // 🟢 藉由其餘屬性 (props) 完美穿透觸發
 						/>
 					)}
 				</div>

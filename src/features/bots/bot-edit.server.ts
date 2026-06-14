@@ -1,4 +1,4 @@
-import { and, asc, eq, sql } from "drizzle-orm";
+import { asc, eq, sql } from "drizzle-orm";
 import { Data, Effect } from "effect";
 import { db } from "#/drizzle/db";
 import { bot, botCommand, botDevelopers, user } from "#/drizzle/schema";

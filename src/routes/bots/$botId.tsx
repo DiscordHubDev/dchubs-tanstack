@@ -21,6 +21,8 @@ import { toast } from "react-toastify";
 import LoadingPage from "#/components/loading";
 import MarkdownRenderer from "#/components/MarkdownRenderer";
 import NotFound from "#/components/notFound";
+import { OptimizedImage } from "#/components/OptimizedImage";
+import { Avatar, AvatarFallback } from "#/components/ui/avatar";
 import { Badge } from "#/components/ui/badge";
 import { Button } from "#/components/ui/button";
 import { Input } from "#/components/ui/input";
@@ -310,7 +312,7 @@ const ReportBotForm = memo(
 				onSubmit={handleSubmit}
 				className="mb-6 rounded-xl border border-white/10 bg-[#2b2d31] p-4"
 			>
-				<div className="mb-3 text-sm text-gray-300">提交機器人檢舉</div>
+				<div className="mb-3 text-gray-300 text-sm">提交機器人檢舉</div>
 				<div className="grid gap-3">
 					<Input
 						value={subject}
@@ -589,12 +591,13 @@ function BotDetailPage() {
 			<div className="relative h-52 overflow-hidden bg-[#36393f] md:h-64 lg:h-80">
 				{detail.banner ? (
 					<>
-						<img
+						<OptimizedImage
 							src={detail.banner}
 							alt={`${detail.name} banner`}
+							width={1024}
+							height={400}
+							fetchPriority="high" // 🟢 穿透屬性：通知瀏覽器這是首屏最重要的圖片
 							className="h-full w-full object-cover"
-							fetchPriority="high"
-							decoding="async"
 						/>
 						<div className="absolute inset-0 bg-linear-to-t from-[#1e1f22] to-transparent" />
 					</>
@@ -607,24 +610,25 @@ function BotDetailPage() {
 				<div className="flex flex-col gap-6 md:flex-row">
 					<div className="flex flex-col items-start gap-4 md:flex-row md:items-end">
 						<div className="h-24 w-24 overflow-hidden rounded-full border-4 border-[#1e1f22] bg-[#36393f] md:h-32 md:w-32">
-							{detail.icon ? (
-								<img
+							<Avatar className="h-24 w-24 flex-shrink-0 border-4 border-[#1e1f22] bg-[#36393f] shadow-md md:h-32 md:w-32">
+								<OptimizedImage
 									src={detail.icon}
+									fallbackSrc="/placeholder.png"
 									alt={detail.name}
+									width={128} // 配合 md:w-32 (128px) 設定基準尺寸
+									height={128}
+									fetchPriority="high" // 🟢 穿透屬性：核心 Icon 頁面加載時優先抓取
 									className="h-full w-full object-cover"
-									fetchPriority="high"
-									decoding="async"
 								/>
-							) : (
-								<div className="flex h-full w-full items-center justify-center bg-[#5865f2] text-3xl font-bold">
-									{detail.name.charAt(0).toUpperCase()}
-								</div>
-							)}
+								<AvatarFallback className="select-none bg-[#5865f2] font-bold text-3xl text-white uppercase">
+									{detail.name?.charAt(0) || "D"}
+								</AvatarFallback>
+							</Avatar>
 						</div>
 
 						<div className="flex flex-col">
 							<div className="flex items-center gap-2">
-								<h1 className="text-2xl font-bold md:text-3xl">
+								<h1 className="font-bold text-2xl md:text-3xl">
 									{detail.name}
 								</h1>
 								{detail.verified && (
@@ -657,7 +661,7 @@ function BotDetailPage() {
 								)}
 							</div>
 
-							<div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-gray-300">
+							<div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-2 text-gray-300 text-sm">
 								<div className="flex items-center">
 									<Users size={16} className="mr-1" />
 									<span>{detail.servers.toLocaleString()} 伺服器</span>
@@ -687,7 +691,7 @@ function BotDetailPage() {
 					{detail.nsfw && (
 						<Badge
 							variant="destructive" /* 這裡使用 shadcn 的 destructive 通常預設就是紅色，或者用 className 自訂 */
-							className="relative z-20 bg-red-600 hover:bg-red-700 text-white cursor-default font-bold"
+							className="relative z-20 cursor-default bg-red-600 font-bold text-white hover:bg-red-700"
 						>
 							<span className="mr-1">🔞</span>{" "}
 							{/* 你可以使用 Emoji 或是你的 Icon 組件 */}
@@ -700,14 +704,14 @@ function BotDetailPage() {
 						<Badge
 							key={tag}
 							variant="secondary"
-							className="relative z-20 bg-[#36393f] hover:bg-[#4f545c] text-gray-300 cursor-default"
+							className="relative z-20 cursor-default bg-[#36393f] text-gray-300 hover:bg-[#4f545c]"
 						>
 							{tag}
 						</Badge>
 					))}
 				</div>
 
-				<div className="mb-4 mt-6 flex flex-wrap gap-3">
+				<div className="mt-6 mb-4 flex flex-wrap gap-3">
 					<Button
 						size="lg"
 						onClick={() => {
@@ -723,13 +727,11 @@ function BotDetailPage() {
 					<Button
 						onClick={handleFavoriteClick}
 						disabled={favoriteMutation.isPending}
-						className={`flex items-center gap-2 px-6 py-5 rounded-md text-sm font-medium transition-all duration-150 transform hover:scale-105 cursor-pointer
-                        ${
-													detail.isFavorite
-														? "bg-rose-500 hover:bg-rose-600"
-														: "bg-indigo-500 hover:bg-indigo-600"
-												}
-                        text-white disabled:cursor-not-allowed `}
+						className={`flex transform cursor-pointer items-center gap-2 rounded-md px-6 py-5 font-medium text-sm transition-all duration-150 hover:scale-105 ${
+							detail.isFavorite
+								? "bg-rose-500 hover:bg-rose-600"
+								: "bg-indigo-500 hover:bg-indigo-600"
+						}text-white disabled:cursor-not-allowed`}
 					>
 						<Heart
 							size={18}
@@ -743,7 +745,7 @@ function BotDetailPage() {
 					<Button
 						onClick={() => setIsReportOpen((prev) => !prev)}
 						size="lg"
-						className="w-full md:w-auto bg-red-600 hover:bg-red-700 text-white flex items-center gap-2 transition-all duration-150 transform hover:scale-105 focus-visible:ring-2 focus-visible:ring-red-400 cursor-pointer"
+						className="flex w-full transform cursor-pointer items-center gap-2 bg-red-600 text-white transition-all duration-150 hover:scale-105 hover:bg-red-700 focus-visible:ring-2 focus-visible:ring-red-400 md:w-auto"
 					>
 						<Flag className="h-4 w-4" />
 						檢舉
@@ -763,7 +765,7 @@ function BotDetailPage() {
 				<div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-4">
 					<div className="lg:col-span-1">
 						<div className="mb-6 rounded-lg bg-[#2b2d31] p-5">
-							<h3 className="mb-4 text-lg font-semibold">機器人資訊</h3>
+							<h3 className="mb-4 font-semibold text-lg">機器人資訊</h3>
 							<div className="space-y-4">
 								{detail.developers.length > 0 ? (
 									<div>
@@ -775,22 +777,21 @@ function BotDetailPage() {
 													params={{ userId: dev.id }}
 													preload="intent"
 													key={dev.id}
-													className="flex items-center gap-3 rounded-lg p-3 hover:bg-white/5 hover:cursor-pointer transition-colors"
+													className="flex items-center gap-3 rounded-lg p-3 transition-colors hover:cursor-pointer hover:bg-white/5"
 												>
-													{dev.avatar ? (
-														<img
+													<Avatar className="h-8 w-8 flex-shrink-0">
+														<OptimizedImage
 															src={dev.avatar}
 															alt={`${dev.username} avatar`}
-															loading="lazy"
-															decoding="async"
-															className="h-8 w-8 rounded-full object-cover"
+															width={32}
+															height={32}
+															className="h-full w-full object-cover"
 														/>
-													) : (
-														<div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#5865f2] text-sm font-semibold">
-															{dev.username.charAt(0).toUpperCase()}
-														</div>
-													)}
-													<p className="text-sm font-medium text-gray-100">
+														<AvatarFallback className="select-none bg-[#5865f2] font-semibold text-sm text-white uppercase">
+															{dev.username?.charAt(0) || "U"}
+														</AvatarFallback>
+													</Avatar>
+													<p className="font-medium text-gray-100 text-sm">
 														{dev.name || dev.username}
 													</p>
 												</Link>
@@ -841,8 +842,8 @@ function BotDetailPage() {
 						</div>
 
 						<div className="mb-6 rounded-lg bg-[#2b2d31] p-5">
-							<h3 className="mb-3 text-lg font-semibold">評分此機器人</h3>
-							<p className="mb-4 text-sm text-gray-300">
+							<h3 className="mb-3 font-semibold text-lg">評分此機器人</h3>
+							<p className="mb-4 text-gray-300 text-sm">
 								給它一個分數，幫助其他人快速判斷這台機器人是否適合使用。
 							</p>
 							<div className="mb-4 rounded-lg bg-[#36393f] p-4">
@@ -853,7 +854,7 @@ function BotDetailPage() {
 										<span className="font-bold">
 											{detail.currentRating.toFixed(1)}
 										</span>
-										<span className="ml-2 text-xs text-gray-400">
+										<span className="ml-2 text-gray-400 text-xs">
 											({detail.totalReviews} 人評分)
 										</span>
 									</div>
@@ -874,14 +875,14 @@ function BotDetailPage() {
 									</button>
 								))}
 							</div>
-							<p className="mt-2 text-center text-xs text-gray-400">
+							<p className="mt-2 text-center text-gray-400 text-xs">
 								{isSignedIn ? "點擊星星即可更新你的評分" : "登入後可評分"}
 							</p>
 						</div>
 
 						<div className="mb-6 rounded-lg bg-[#2b2d31] p-5">
-							<h3 className="mb-3 text-lg font-semibold">支持此機器人</h3>
-							<p className="mb-4 text-sm text-gray-300">
+							<h3 className="mb-3 font-semibold text-lg">支持此機器人</h3>
+							<p className="mb-4 text-gray-300 text-sm">
 								每 12 小時可投一次票，幫助這台機器人獲得更多曝光。
 							</p>
 							<div className="mb-4 rounded-lg bg-[#36393f] p-4">
@@ -902,7 +903,7 @@ function BotDetailPage() {
 							>
 								{detail.hasVotedRecently ? "稍後可再投票" : "投票"}
 							</Button>
-							<p className="mt-2 text-center text-xs text-gray-400">
+							<p className="mt-2 text-center text-gray-400 text-xs">
 								{detail.nextVoteAt
 									? `下次可投票時間：${new Date(detail.nextVoteAt).toLocaleString("zh-TW")}`
 									: "每 12 小時可投一次票"}
@@ -910,7 +911,7 @@ function BotDetailPage() {
 						</div>
 
 						<div className="rounded-lg bg-[#2b2d31] p-5">
-							<h3 className="mb-4 text-lg font-semibold">相關機器人</h3>
+							<h3 className="mb-4 font-semibold text-lg">相關機器人</h3>
 							<div className="space-y-3">
 								{detail.relatedBots.length ? (
 									detail.relatedBots.map((relatedBot) => (
@@ -922,20 +923,18 @@ function BotDetailPage() {
 											className="flex items-center rounded p-2 transition-colors hover:bg-[#36393f]"
 										>
 											<div className="mr-3 h-10 w-10 overflow-hidden rounded-full bg-[#36393f]">
-												<img
-													src={
-														relatedBot.icon ??
-														"https://cdn.discordapp.com/embed/avatars/0.png"
-													}
+												<OptimizedImage
+													src={relatedBot.icon}
+													fallbackSrc="https://cdn.discordapp.com/embed/avatars/0.png"
 													alt={relatedBot.name}
-													loading="lazy"
-													decoding="async"
+													width={64}
+													height={64}
 													className="h-full w-full object-cover"
 												/>
 											</div>
 											<div>
 												<div className="font-medium">{relatedBot.name}</div>
-												<div className="flex items-center text-xs text-gray-400">
+												<div className="flex items-center text-gray-400 text-xs">
 													<Users size={12} className="mr-1" />
 													<span>
 														{relatedBot.servers.toLocaleString()} 伺服器
@@ -945,7 +944,7 @@ function BotDetailPage() {
 										</Link>
 									))
 								) : (
-									<p className="text-sm text-gray-400">暫無相關機器人</p>
+									<p className="text-gray-400 text-sm">暫無相關機器人</p>
 								)}
 							</div>
 						</div>
@@ -957,7 +956,7 @@ function BotDetailPage() {
 							onValueChange={handleTabChange}
 							className="mb-8"
 						>
-							<TabsList className="h-full w-full overflow-hidden border-b border-[#1e1f22] bg-[#2b2d31]">
+							<TabsList className="h-full w-full overflow-hidden border-[#1e1f22] border-b bg-[#2b2d31]">
 								<TabsTrigger
 									value="about"
 									className="data-[state=active]:bg-[#36393f]"
@@ -980,8 +979,8 @@ function BotDetailPage() {
 
 							<TabsContent value="about" className="mt-6">
 								<div className="rounded-lg bg-[#2b2d31] p-6">
-									<h2 className="mb-4 text-xl font-bold">機器人介紹</h2>
-									<div className="prose prose-invert max-w-none wrap-break-word text-gray-300">
+									<h2 className="mb-4 font-bold text-xl">機器人介紹</h2>
+									<div className="prose prose-invert wrap-break-word max-w-none text-gray-300">
 										<MarkdownRenderer
 											content={
 												detail.longDescription?.trim() ||
@@ -993,7 +992,7 @@ function BotDetailPage() {
 
 									{detail.features.length > 0 ? (
 										<div className="mt-8">
-											<h3 className="mb-3 text-lg font-semibold">機器人特色</h3>
+											<h3 className="mb-3 font-semibold text-lg">機器人特色</h3>
 											<ul className="space-y-2 text-gray-300">
 												{detail.features.map((feature) => (
 													<li key={feature} className="flex items-start">
@@ -1009,12 +1008,12 @@ function BotDetailPage() {
 
 							<TabsContent value="commands" className="mt-6">
 								<div className="rounded-lg bg-[#2b2d31] p-6">
-									<h2 className="mb-4 text-xl font-bold">指令列表</h2>
+									<h2 className="mb-4 font-bold text-xl">指令列表</h2>
 									{detail.commands.length > 0 ? (
 										<div className="overflow-hidden">
 											<table className="w-full text-left">
 												<thead>
-													<tr className="border-b border-[#1e1f22]">
+													<tr className="border-[#1e1f22] border-b">
 														<th className="px-4 py-3 text-gray-300">指令</th>
 														<th className="px-4 py-3 text-gray-300">描述</th>
 														<th className="px-4 py-3 text-gray-300">用法</th>
@@ -1027,7 +1026,7 @@ function BotDetailPage() {
 													{detail.commands.map((command) => (
 														<tr
 															key={command.id}
-															className="border-b border-[#1e1f22] hover:bg-[#36393f]"
+															className="border-[#1e1f22] border-b hover:bg-[#36393f]"
 														>
 															<td className="px-4 py-3 font-mono text-[#5865f2]">
 																{command.name}
@@ -1035,7 +1034,7 @@ function BotDetailPage() {
 															<td className="px-4 py-3 text-gray-300">
 																{command.description}
 															</td>
-															<td className="px-4 py-3 font-mono text-xs text-gray-400">
+															<td className="px-4 py-3 font-mono text-gray-400 text-xs">
 																{command.usage}
 															</td>
 															{detail.commands.some((cmd) => cmd.category) ? (
@@ -1043,7 +1042,7 @@ function BotDetailPage() {
 																	{command.category ? (
 																		<Badge
 																			variant="outline"
-																			className="rounded-2xl border-[#5865f2] bg-[#36393f]/50 px-2 py-1 text-xs text-gray-300"
+																			className="rounded-2xl border-[#5865f2] bg-[#36393f]/50 px-2 py-1 text-gray-300 text-xs"
 																		>
 																			{command.category}
 																		</Badge>
@@ -1063,7 +1062,7 @@ function BotDetailPage() {
 
 							<TabsContent value="screenshots" className="mt-6">
 								<div className="rounded-lg bg-[#2b2d31] p-6">
-									<h2 className="mb-4 text-xl font-bold">機器人截圖</h2>
+									<h2 className="mb-4 font-bold text-xl">機器人截圖</h2>
 									{detail.screenshots.length > 0 ? (
 										<div className="grid grid-cols-1 gap-4 md:grid-cols-2">
 											{detail.screenshots.map((screenshot, index) => (
@@ -1071,11 +1070,11 @@ function BotDetailPage() {
 													key={screenshot}
 													className="overflow-hidden rounded-lg bg-[#36393f]"
 												>
-													<img
+													<OptimizedImage
 														src={screenshot}
 														alt={`${detail.name} screenshot ${index + 1}`}
-														loading="lazy"
-														decoding="async"
+														width={800}
+														height={450}
 														className="h-auto w-full"
 													/>
 												</div>

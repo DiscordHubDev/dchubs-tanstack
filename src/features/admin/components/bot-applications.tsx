@@ -6,6 +6,7 @@ import { Link } from "@tanstack/react-router";
 import { Bot, Check, Link2, Search, X } from "lucide-react";
 import { memo, useCallback } from "react";
 import MarkdownRenderer from "#/components/MarkdownRenderer";
+import { OptimizedImage } from "#/components/OptimizedImage";
 import { Badge } from "#/components/ui/badge";
 import { Button } from "#/components/ui/button";
 import {
@@ -71,7 +72,7 @@ const StatusBadge = memo(({ status }: { status: BotType["status"] }) => {
 	return (
 		// [修改] 加入 border-none 避免預設邊框干擾漸層
 		<Badge
-			className={`${cfg.className} whitespace-nowrap border-none text-xs sm:text-sm transition-all duration-200`}
+			className={`${cfg.className} whitespace-nowrap border-none text-xs transition-all duration-200 sm:text-sm`}
 		>
 			{cfg.label}
 		</Badge>
@@ -131,12 +132,12 @@ const ApplicationCard = memo(
 			role="button"
 			tabIndex={0}
 			// [修改] 加入 group、圓角加大(rounded-xl)、Z軸浮動(hover:-translate-y-1)、陰影強化(hover:shadow-2xl)、點擊反饋(active:scale-[0.98])、鍵盤聚焦狀態(focus-visible)
-			className="group flex h-full cursor-pointer flex-col justify-between gap-4 overflow-hidden rounded-xl border border-[#202225] bg-[#36393F] p-4 transition-all duration-300 hover:-translate-y-1 hover:border-[#5865F2]/50 hover:shadow-2xl hover:shadow-[#5865F2]/10 active:scale-[0.98] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5865F2] sm:p-5"
+			className="group flex h-full cursor-pointer flex-col justify-between gap-4 overflow-hidden rounded-xl border border-[#202225] bg-[#36393F] p-4 transition-all duration-300 hover:-translate-y-1 hover:border-[#5865F2]/50 hover:shadow-2xl hover:shadow-[#5865F2]/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5865F2] active:scale-[0.98] sm:p-5"
 		>
 			<div className="space-y-3">
 				<div className="flex flex-wrap items-center justify-between gap-2">
 					{/* [修改] 卡片懸浮時，標題帶有品牌色的漸層變化 */}
-					<h3 className="line-clamp-1 flex-1 break-words font-bold text-gray-100 text-base transition-colors duration-300 group-hover:bg-gradient-to-r group-hover:from-white group-hover:to-[#5865F2] group-hover:bg-clip-text group-hover:text-transparent sm:text-lg">
+					<h3 className="line-clamp-1 flex-1 break-words font-bold text-base text-gray-100 transition-colors duration-300 group-hover:bg-gradient-to-r group-hover:from-white group-hover:to-[#5865F2] group-hover:bg-clip-text group-hover:text-transparent sm:text-lg">
 						{app.name}
 					</h3>
 					<StatusBadge status={app.status} />
@@ -150,7 +151,7 @@ const ApplicationCard = memo(
 							{app.developers.map((d) => d.username).join(", ")}
 						</span>
 					</p>
-					<p className="text-gray-500 text-xs font-medium">
+					<p className="font-medium text-gray-500 text-xs">
 						{formatDate(app.createdAt)}
 					</p>
 				</div>
@@ -168,7 +169,7 @@ const ApplicationCard = memo(
 
 			{app.status === "pending" && (
 				// [修改] 將按鈕區塊加入 border-t 分隔，並設定按鈕的漸層、hover 發亮、active 點擊縮放效果
-				<div className="mt-2 flex w-full flex-wrap gap-2 pt-3 border-t border-[#202225]">
+				<div className="mt-2 flex w-full flex-wrap gap-2 border-[#202225] border-t pt-3">
 					<Button
 						size="sm"
 						className="min-w-[80px] flex-1 cursor-pointer border-none bg-gradient-to-r from-[#57F287] to-[#45d16f] text-black shadow-sm transition-all duration-200 hover:shadow-md hover:brightness-110 active:scale-95"
@@ -261,7 +262,7 @@ const ApplicationDetailDialog = memo(
 								<h4 className="font-semibold text-[#5865F2] text-sm uppercase tracking-wider">
 									提交時間
 								</h4>
-								<p className="text-gray-200 text-sm font-medium">
+								<p className="font-medium text-gray-200 text-sm">
 									{formatDate(app.createdAt)}
 								</p>
 							</div>
@@ -300,11 +301,12 @@ const ApplicationDetailDialog = memo(
 											key={url}
 											className="group overflow-hidden rounded-lg border border-[#202225] bg-black/50"
 										>
-											<img
+											<OptimizedImage
 												src={url}
 												alt="截圖"
+												width={400}
+												height={225}
 												className="w-full object-cover transition-transform duration-500 group-hover:scale-105"
-												loading="lazy"
 											/>
 										</div>
 									))}
@@ -315,7 +317,7 @@ const ApplicationDetailDialog = memo(
 
 					{app.status === "pending" && (
 						// [修改] Dialog 內的按鈕同樣套用漸層、交互動畫
-						<div className="flex flex-col justify-end gap-3 border-t border-[#202225] pt-4 sm:flex-row">
+						<div className="flex flex-col justify-end gap-3 border-[#202225] border-t pt-4 sm:flex-row">
 							<Button
 								className="border-none bg-gradient-to-r from-[#57F287] to-[#45d16f] text-black shadow-sm transition-all duration-200 hover:shadow-md hover:brightness-110 active:scale-95"
 								onClick={onApprove}
@@ -404,14 +406,14 @@ export default function BotApplications({
 		<>
 			{/* [修改] 保持背景色，加大圓角與陰影呈現 */}
 			<Card className="rounded-xl border border-[#202225] bg-[#2F3136] text-white shadow-xl">
-				<CardHeader className="space-y-2 border-b border-[#202225] pb-6">
+				<CardHeader className="space-y-2 border-[#202225] border-b pb-6">
 					<CardTitle className="flex items-center gap-2 font-bold text-xl sm:text-2xl">
 						<Bot className="h-6 w-6 flex-shrink-0 text-[#5865F2]" />
 						<span className="bg-gradient-to-r from-white to-gray-400 bg-clip-text text-transparent">
 							機器人應用
 						</span>
 					</CardTitle>
-					<CardDescription className="text-gray-400 text-sm font-medium">
+					<CardDescription className="font-medium text-gray-400 text-sm">
 						審核和管理待處理的機器人應用
 					</CardDescription>
 				</CardHeader>
@@ -424,7 +426,7 @@ export default function BotApplications({
 							<Search className="pointer-events-none absolute top-3 left-3 h-4 w-4 text-gray-500 transition-colors duration-200 group-focus-within:text-[#5865F2]" />
 							<Input
 								placeholder="搜尋應用..."
-								className="h-10 border border-[#1E1F22] bg-[#202225] pl-10 text-white placeholder:text-gray-500 transition-all focus-visible:border-[#5865F2]/50 focus-visible:ring-1 focus-visible:ring-[#5865F2]"
+								className="h-10 border border-[#1E1F22] bg-[#202225] pl-10 text-white transition-all placeholder:text-gray-500 focus-visible:border-[#5865F2]/50 focus-visible:ring-1 focus-visible:ring-[#5865F2]"
 								value={search}
 								onChange={(e) => setSearch(e.target.value)}
 							/>
@@ -433,7 +435,7 @@ export default function BotApplications({
 						{filtered.length === 0 ? (
 							<div className="flex flex-col items-center justify-center py-16 text-center text-gray-500">
 								<Bot className="mb-4 h-16 w-16 opacity-30 transition-opacity duration-300 hover:opacity-50" />
-								<p className="text-lg font-medium">
+								<p className="font-medium text-lg">
 									{search ? "沒有符合搜尋的應用" : "沒有待處理的應用"}
 								</p>
 							</div>

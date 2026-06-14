@@ -22,7 +22,7 @@ function DiscordWidget({ serverId = "1297055626014490695", theme = "dark" }) {
 	}, []);
 
 	return (
-		<div className="mb-6 mt-4">
+		<div className="mt-4 mb-6">
 			<iframe
 				ref={iframeRef}
 				src={`https://discord.com/widget?id=${serverId}&theme=${theme}`}

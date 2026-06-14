@@ -33,9 +33,10 @@ import {
 import { FaCheck } from "react-icons/fa6";
 import { toast } from "react-toastify";
 import Swal from "sweetalert2";
+import { OptimizedImage } from "#/components/OptimizedImage";
 import { Avatar, AvatarFallback, AvatarImage } from "#/components/ui/avatar";
 import { Badge } from "#/components/ui/badge";
-import { Button } from "#/components/ui/button";
+import { Button, buttonVariants } from "#/components/ui/button";
 import {
 	Card,
 	CardContent,
@@ -75,6 +76,7 @@ import { runEffect, tryEffectPromise } from "#/lib/effect-utils";
 import { showErrorAlert } from "#/lib/error-alert";
 import { queryKeys } from "#/lib/query-keys";
 import { SOCIAL_PLATFORMS } from "#/lib/socal";
+import { cn } from "#/lib/utils";
 import type { ProfileTab } from "../profile.schemas";
 
 type UserProfilePageProps = {
@@ -614,11 +616,15 @@ function ServersTab({
 			<div className="mb-4 flex items-center justify-between">
 				<h2 className="font-bold text-2xl">{isOwner ? "我" : "他"}的伺服器</h2>
 				{isOwner && (
-					<Link to="/protected/add-server">
-						<Button className="bg-[#5865f2] text-white hover:bg-[#4752c4]">
-							<Plus size={16} />
-							新增伺服器
-						</Button>
+					<Link
+						to="/protected/add-server"
+						className={cn(
+							buttonVariants({ variant: "default" }), // 載入 Shadcn 基礎按鈕樣式
+							"bg-discord text-white hover:bg-discord-hover", // 疊加你自訂的顏色與排列樣式
+						)}
+					>
+						<Plus size={16} />
+						新增伺服器
 					</Link>
 				)}
 			</div>
@@ -640,11 +646,15 @@ function ServersTab({
 					message={`${isOwner ? "你" : "他"}尚未建立任何伺服器`}
 					actionButton={
 						isOwner ? (
-							<Link to="/protected/add-server">
-								<Button className="mt-5 bg-[#5865f2] text-white hover:bg-[#4752c4]">
-									<Plus size={16} />
-									新增伺服器
-								</Button>
+							<Link
+								to="/protected/add-server"
+								className={cn(
+									buttonVariants({ variant: "default" }), // 載入 Shadcn 基礎按鈕樣式
+									"bg-discord text-white hover:bg-discord-hover", // 疊加你自訂的顏色與排列樣式
+								)}
+							>
+								<Plus size={16} />
+								新增伺服器
 							</Link>
 						) : null
 					}
@@ -748,14 +758,19 @@ const ServerCard = memo(
 				>
 					<CardHeader className="pb-2">
 						<div className="flex items-center space-x-3">
-							<div className="h-10 w-10 overflow-hidden rounded-full bg-[#36393f]">
-								<img
-									src={server.icon || "/placeholder.png?height=40&width=40"}
+							<Avatar className="h-10 w-10 flex-shrink-0 bg-[#36393f] shadow-sm sm:h-12 sm:w-12">
+								<OptimizedImage
+									src={server.icon}
+									fallbackSrc="/placeholder.png"
 									alt={server.name}
+									width={48}
+									height={48}
 									className="h-full w-full object-cover"
-									loading="lazy"
 								/>
-							</div>
+								<AvatarFallback className="bg-zinc-800 font-semibold text-sm text-zinc-200 uppercase">
+									{server.name?.charAt(0) || "S"}
+								</AvatarFallback>
+							</Avatar>
 							<div>
 								<CardTitle className="w-full truncate text-white">
 									{server.name}
@@ -800,7 +815,7 @@ const ServerCard = memo(
 							variant="outline"
 							size="sm"
 							onClick={handleDeleteServer} /* 綁定剛剛建立的刪除確認函數 */
-							className="h-10 w-full cursor-pointer border-red-500 text-red-500 hover:bg-red-500 hover:text-red-800 transition-colors"
+							className="h-10 w-full cursor-pointer border-red-500 text-red-500 transition-colors hover:bg-red-500 hover:text-red-800"
 						>
 							刪除伺服器
 						</Button>
@@ -969,14 +984,19 @@ const BotCard = memo(
 				<Link to="/bots/$botId" params={{ botId: bot.id }} className="block">
 					<CardHeader className="pb-2">
 						<div className="flex items-center space-x-3">
-							<div className="h-10 w-10 overflow-hidden rounded-full bg-[#36393f]">
-								<img
-									src={bot.icon || "/placeholder.png?height=40&width=40"}
+							<Avatar className="h-10 w-10 flex-shrink-0 bg-[#36393f] shadow-sm sm:h-12 sm:w-12">
+								<OptimizedImage
+									src={bot.icon}
+									fallbackSrc="/placeholder.png"
 									alt={bot.name}
+									width={48}
+									height={48}
 									className="h-full w-full object-cover"
-									loading="lazy"
 								/>
-							</div>
+								<AvatarFallback className="bg-zinc-800 font-semibold text-sm text-zinc-200 uppercase">
+									{bot.name?.charAt(0) || "B"}
+								</AvatarFallback>
+							</Avatar>
 							<div className="flex items-center gap-2">
 								<CardTitle className="truncate text-white">
 									{bot.name}
@@ -1041,7 +1061,7 @@ const BotCard = memo(
 								variant="outline"
 								size="sm"
 								onClick={handleReverifyClick}
-								className="h-10 w-full cursor-pointer border-[#5865f2] text-white hover:bg-[#5865f2] hover:text-green-400 transition-colors inline-flex items-center justify-center"
+								className="inline-flex h-10 w-full cursor-pointer items-center justify-center border-[#5865f2] text-white transition-colors hover:bg-[#5865f2] hover:text-green-400"
 							>
 								<RefreshCw className="mr-2 h-4 w-4" />
 								重新審核
@@ -1052,7 +1072,7 @@ const BotCard = memo(
 							variant="outline"
 							size="sm"
 							onClick={handleDeleteBot}
-							className="h-10 w-full cursor-pointer border-red-500 text-red-500 hover:bg-red-500 hover:text-red-800 transition-colors"
+							className="h-10 w-full cursor-pointer border-red-500 text-red-500 transition-colors hover:bg-red-500 hover:text-red-800"
 						>
 							刪除機器人
 						</Button>
@@ -1147,16 +1167,21 @@ const FavoriteServerCard = memo(
 						{" "}
 						{/* 改為 items-start 避免大頭照因描述變長而歪掉 */}
 						{/* 大頭照 */}
-						<div className="h-10 w-10 shrink-0 overflow-hidden rounded-full bg-[#36393f]">
-							<img
-								src={server.icon || "/placeholder.png?height=40&width=40"}
+						<Avatar className="h-10 w-10 flex-shrink-0 bg-[#36393f] shadow-sm sm:h-12 sm:w-12">
+							<OptimizedImage
+								src={server.icon}
+								fallbackSrc="/placeholder.png"
 								alt={server.name}
+								width={48} // 48px 足以應付 sm:h-12 (48px)
+								height={48}
 								className="h-full w-full object-cover"
-								loading="lazy"
 							/>
-						</div>
+							<AvatarFallback className="bg-zinc-800 font-semibold text-sm text-zinc-200 uppercase">
+								{server.name?.charAt(0) || "S"}
+							</AvatarFallback>
+						</Avatar>
 						{/* 文字區塊 */}
-						<div className="flex-1 min-w-0">
+						<div className="min-w-0 flex-1">
 							{" "}
 							{/* 確保 truncate 能正常運作 */}
 							<CardTitle className="truncate text-white">
@@ -1166,7 +1191,7 @@ const FavoriteServerCard = memo(
 								{(server.members ?? 0).toLocaleString()} 成員
 							</CardDescription>
 							{/* 移到這裡：與名稱緊緊相依，可用 mt-2 自由控制間距 */}
-							<p className="line-clamp-2 text-gray-300 text-sm mt-2">
+							<p className="mt-2 line-clamp-2 text-gray-300 text-sm">
 								{server.description ?? ""}
 							</p>
 						</div>
@@ -1187,17 +1212,22 @@ const FavoriteBotCard = memo(
 					{/* 調整：items-center 改為 items-start */}
 					<div className="flex items-start space-x-3">
 						{/* 大頭照 */}
-						<div className="h-10 w-10 shrink-0 overflow-hidden rounded-full bg-[#36393f]">
-							<img
-								src={bot.icon || "/placeholder.png?height=40&width=40"}
+						<Avatar className="h-10 w-10 flex-shrink-0 bg-[#36393f] shadow-sm sm:h-12 sm:w-12">
+							<OptimizedImage
+								src={bot.icon}
+								fallbackSrc="/placeholder.png"
 								alt={bot.name}
+								width={48}
+								height={48}
 								className="h-full w-full object-cover"
-								loading="lazy"
 							/>
-						</div>
+							<AvatarFallback className="bg-zinc-800 font-semibold text-sm text-zinc-200 uppercase">
+								{bot.name?.charAt(0) || "B"}
+							</AvatarFallback>
+						</Avatar>
 
 						{/* 右側文字與標籤內容區塊 */}
-						<div className="flex-1 min-w-0">
+						<div className="min-w-0 flex-1">
 							{/* 名字與驗證標籤 */}
 							<div className="flex items-center gap-2">
 								<CardTitle className="truncate text-white">
@@ -1208,7 +1238,7 @@ const FavoriteBotCard = memo(
 										<Tooltip>
 											<TooltipTrigger asChild>
 												{/* 稍微調整一下 Badge 的 padding (px-2 py-0.5) 和文字大小，讓它精緻一點 */}
-												<Badge className="5865F2 inline-flex cursor-default items-center gap-1 rounded-full bg-discord px-2 py-0.5 text-xs text-white hover:bg-discord-hover hover:text-white shrink-0">
+												<Badge className="5865F2 inline-flex shrink-0 cursor-default items-center gap-1 rounded-full bg-discord px-2 py-0.5 text-white text-xs hover:bg-discord-hover hover:text-white">
 													<FaCheck className="h-3 w-3" />
 													驗證
 												</Badge>
@@ -1220,7 +1250,7 @@ const FavoriteBotCard = memo(
 							</div>
 
 							{/* 移到這裡：與名字同一個容器，並給予 mt-2 的間距 */}
-							<p className="line-clamp-2 text-gray-300 text-sm mt-2">
+							<p className="mt-2 line-clamp-2 text-gray-300 text-sm">
 								{bot.description ?? ""}
 							</p>
 						</div>
@@ -1375,7 +1405,7 @@ export function PinButton({ itemId, itemType }: PinButtonProps) {
 					confirmButtonColor: "#5865f2",
 				});
 			}
-		} catch (error) {
+		} catch (_error) {
 			Swal.fire({
 				icon: "error",
 				title: "系統錯誤",
@@ -1390,7 +1420,7 @@ export function PinButton({ itemId, itemType }: PinButtonProps) {
 	return (
 		<Button
 			variant="outline"
-			className="h-10 w-full cursor-pointer border-[#5865f2] text-white hover:bg-[#5865f2] hover:text-[#5865f2] disabled:opacity-50 disabled:cursor-not-allowed"
+			className="h-10 w-full cursor-pointer border-[#5865f2] text-white hover:bg-[#5865f2] hover:text-[#5865f2] disabled:cursor-not-allowed disabled:opacity-50"
 			onClick={handlePinClick}
 			disabled={isLoading}
 		>
@@ -1535,7 +1565,7 @@ export function UserSettingsForm({ user }: { user: UserSettings }) {
 					</div>
 
 					{/* 👉 5. 加入 NSFW 過濾的 UI 區塊 */}
-					<div className="space-y-2 md:col-span-2 rounded-md border border-[#1e1f22] bg-[#2f3136] p-4">
+					<div className="space-y-2 rounded-md border border-[#1e1f22] bg-[#2f3136] p-4 md:col-span-2">
 						<label className="flex cursor-pointer items-center space-x-3">
 							<input
 								type="checkbox"
@@ -1547,7 +1577,7 @@ export function UserSettingsForm({ user }: { user: UserSettings }) {
 								啟用 NSFW 過濾 (隱藏成人內容)
 							</span>
 						</label>
-						<p className="mt-1 ml-8 text-xs text-gray-400">
+						<p className="mt-1 ml-8 text-gray-400 text-xs">
 							取消勾選以在清單中顯示帶有 NSFW 標籤的伺服器與機器人。
 						</p>
 					</div>

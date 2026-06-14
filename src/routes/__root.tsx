@@ -209,7 +209,7 @@ function RootDocument({ children }: { children: ReactNode }) {
 				/>
 				<HeadContent />
 			</head>
-			<body className="wrap-anywhere flex min-h-screen flex-col font-sans antialiased selection:bg-[rgba(79,184,178,0.24)] bg-[#2b2d31]">
+			<body className="wrap-anywhere flex min-h-screen flex-col bg-[#2b2d31] font-sans antialiased selection:bg-[rgba(79,184,178,0.24)]">
 				<SidebarProvider className="flex-col">
 					<Header />
 					<div className="flex-1">

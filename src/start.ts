@@ -47,13 +47,12 @@ const securityHeadersMiddleware = createMiddleware().server(
 			result.response.headers.set("X-Content-Type-Options", "nosniff");
 
 			// 🟢 修正 2: 補上 Lighthouse 要求的 COOP
-			result.response.headers.set("Cross-Origin-Opener-Policy", "same-origin");
-
-			// 寫入 CORP
-			result.response.headers.set(
-				"Cross-Origin-Resource-Policy",
-				"same-origin",
-			);
+			if (!result.response.headers.has("Cross-Origin-Resource-Policy")) {
+				result.response.headers.set(
+					"Cross-Origin-Resource-Policy",
+					"same-origin",
+				);
+			}
 
 			// 🟢 修正 3: 補上 Referrer-Policy 防止隱私洩漏
 			result.response.headers.set(

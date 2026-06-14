@@ -1,9 +1,5 @@
 import { useForm, useStore } from "@tanstack/react-form";
-import {
-	useMutation,
-	useQueryClient,
-	useSuspenseQuery,
-} from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ClientOnly, useNavigate } from "@tanstack/react-router";
 import { useSelector } from "@tanstack/react-store";
 import { Schema } from "effect";
@@ -13,6 +9,7 @@ import Swal from "sweetalert2";
 import DiscordEmbedPreview from "#/components/DiscordEmbedPreview";
 import EmbedFieldsListField from "#/components/EmbedFieldsListField";
 import MarkdownRenderer from "#/components/MarkdownRenderer";
+import { OptimizedImage } from "#/components/OptimizedImage";
 import { Button } from "#/components/ui/button";
 import { Checkbox } from "#/components/ui/checkbox";
 import { Input } from "#/components/ui/input";
@@ -22,13 +19,11 @@ import { ServerCategories } from "#/lib/categories";
 import { runEffect, tryEffectPromise } from "#/lib/effect-utils";
 import { showErrorAlert } from "#/lib/error-alert";
 import { queryKeys } from "#/lib/query-keys";
-import type { CategoryType } from "#/lib/types";
 import type { CustomEmbedData } from "#/types/custom_embed";
 import {
 	uploadServerBannerFn,
 	upsertServerPublishFn,
 } from "../server-publish.functions";
-import { serverPublishQueryOptions } from "../server-publish.query";
 import {
 	InviteLinkSchema,
 	LongDescriptionSchema,
@@ -551,7 +546,7 @@ export function ServerPublishPage({
 	useEffect(() => {
 		// 當組件卸載時，如果當前是 blob 網址，就釋放它
 		return () => {
-			if (bannerPreviewUrl && bannerPreviewUrl.startsWith("blob:")) {
+			if (bannerPreviewUrl?.startsWith("blob:")) {
 				URL.revokeObjectURL(bannerPreviewUrl);
 			}
 		};
@@ -602,7 +597,7 @@ export function ServerPublishPage({
 
 		// --- 修正部分 ---
 		// 先前產生的舊 blob URL 可以先不用急著手動 revoke，或是只在確認它是 blob 時才釋放
-		if (bannerPreviewUrl && bannerPreviewUrl.startsWith("blob:")) {
+		if (bannerPreviewUrl?.startsWith("blob:")) {
 			URL.revokeObjectURL(bannerPreviewUrl);
 		}
 
@@ -625,7 +620,7 @@ export function ServerPublishPage({
 			<div className="mx-auto max-w-7xl space-y-6">
 				<div className="flex flex-wrap items-center justify-between gap-3">
 					<div>
-						<h1 className="text-2xl font-bold">
+						<h1 className="font-bold text-2xl">
 							{bundle.isPublished ? "編輯您的伺服器" : "發布您的伺服器"}
 						</h1>
 					</div>
@@ -648,7 +643,7 @@ export function ServerPublishPage({
 				>
 					{/* ... 後續的表單 JSX 不需要變更 ... */}
 					<div className="space-y-6 rounded-xl border border-white/10 bg-[#2b2d31] p-5">
-						<h2 className="border-b border-white/10 pb-2 font-bold text-lg">
+						<h2 className="border-white/10 border-b pb-2 font-bold text-lg">
 							基本資訊
 						</h2>
 						<form.Field
@@ -673,7 +668,7 @@ export function ServerPublishPage({
 											aria-invalid={Boolean(errorMessage)}
 										/>
 										{errorMessage ? (
-											<p className="text-sm text-[#ed4245]">{errorMessage}</p>
+											<p className="text-[#ed4245] text-sm">{errorMessage}</p>
 										) : null}
 									</div>
 								);
@@ -703,12 +698,12 @@ export function ServerPublishPage({
 											placeholder="一句話介紹你的社群"
 											aria-invalid={Boolean(errorMessage)}
 										/>
-										<div className="flex items-center justify-between text-xs text-[#b9bbbe]">
+										<div className="flex items-center justify-between text-[#b9bbbe] text-xs">
 											<span>最多 200 字</span>
 											<span>{field.state.value.length}/200</span>
 										</div>
 										{errorMessage ? (
-											<p className="text-sm text-[#ed4245]">{errorMessage}</p>
+											<p className="text-[#ed4245] text-sm">{errorMessage}</p>
 										) : null}
 									</div>
 								);
@@ -730,7 +725,7 @@ export function ServerPublishPage({
 											id="longDescription"
 											ref={textareaRef}
 											rows={14}
-											className="flex min-h-16 w-full rounded-md border border-input bg-transparent px-3 py-2 text-base shadow-xs transition-[color,box-shadow] outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:aria-invalid:ring-destructive/40"
+											className="flex min-h-16 w-full rounded-md border border-input bg-transparent px-3 py-2 text-base shadow-xs outline-none transition-[color,box-shadow] placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:aria-invalid:ring-destructive/40"
 											value={field.state.value}
 											onBlur={field.handleBlur}
 											onScroll={handleScroll}
@@ -741,7 +736,7 @@ export function ServerPublishPage({
 											aria-invalid={Boolean(errorMessage)}
 										/>
 										{errorMessage ? (
-											<p className="text-sm text-[#ed4245]">{errorMessage}</p>
+											<p className="text-[#ed4245] text-sm">{errorMessage}</p>
 										) : null}
 									</div>
 								);
@@ -768,10 +763,10 @@ export function ServerPublishPage({
 												<Label htmlFor="nsfw" className="cursor-pointer">
 													NSFW 伺服器
 												</Label>
-												<p className="text-sm text-muted-foreground">
+												<p className="text-muted-foreground text-sm">
 													如果你的伺服器包含成人或敏感內容，請勾選此項。
 												</p>
-												<div className="max-w-sm rounded-md border border-yellow-400 bg-yellow-100 px-3 py-2 text-xs text-yellow-700 mt-2 flex gap-2 items-start">
+												<div className="mt-2 flex max-w-sm items-start gap-2 rounded-md border border-yellow-400 bg-yellow-100 px-3 py-2 text-xs text-yellow-700">
 													<div className="relative z-20 cursor-pointer text-yellow-600 hover:text-yellow-500">
 														<AlertTriangle className="h-5 w-5" />
 													</div>
@@ -786,13 +781,13 @@ export function ServerPublishPage({
 													</div>
 												</div>
 												{errorMessage ? (
-													<p className="text-sm text-[#ed4245] mt-1">
+													<p className="mt-1 text-[#ed4245] text-sm">
 														{errorMessage}
 													</p>
 												) : null}
 											</div>
 											{errorMessage ? (
-												<p className="text-sm text-[#ed4245] mt-1">
+												<p className="mt-1 text-[#ed4245] text-sm">
 													{errorMessage}
 												</p>
 											) : null}
@@ -824,7 +819,7 @@ export function ServerPublishPage({
 											aria-invalid={Boolean(errorMessage)}
 										/>
 										{errorMessage ? (
-											<p className="text-sm text-[#ed4245]">{errorMessage}</p>
+											<p className="text-[#ed4245] text-sm">{errorMessage}</p>
 										) : null}
 									</div>
 								);
@@ -853,7 +848,7 @@ export function ServerPublishPage({
 											aria-invalid={Boolean(errorMessage)}
 										/>
 										{errorMessage ? (
-											<p className="text-sm text-[#ed4245]">{errorMessage}</p>
+											<p className="text-[#ed4245] text-sm">{errorMessage}</p>
 										) : null}
 									</div>
 								);
@@ -896,7 +891,7 @@ export function ServerPublishPage({
 							)}
 						</form.Field>
 
-						<h2 className="border-b border-white/10 pb-2 font-bold text-lg">
+						<h2 className="border-white/10 border-b pb-2 font-bold text-lg">
 							投票通知
 						</h2>
 
@@ -922,7 +917,7 @@ export function ServerPublishPage({
 											aria-invalid={Boolean(errorMessage)}
 										/>
 										{errorMessage ? (
-											<p className="text-sm text-[#ed4245]">{errorMessage}</p>
+											<p className="text-[#ed4245] text-sm">{errorMessage}</p>
 										) : null}
 									</div>
 								);
@@ -951,14 +946,14 @@ export function ServerPublishPage({
 											aria-invalid={Boolean(errorMessage)}
 										/>
 										{errorMessage ? (
-											<p className="text-sm text-[#ed4245]">{errorMessage}</p>
+											<p className="text-[#ed4245] text-sm">{errorMessage}</p>
 										) : null}
 									</div>
 								);
 							}}
 						</form.Field>
 
-						<h2 className="border-b border-white/10 pb-2 font-bold text-lg">
+						<h2 className="border-white/10 border-b pb-2 font-bold text-lg">
 							圖片上傳
 						</h2>
 
@@ -986,14 +981,14 @@ export function ServerPublishPage({
 								{isBannerUploading ? "圖片上傳中..." : "選擇 Banner 圖片"}
 							</Button>
 							{bannerUploadStatus ? (
-								<p className="text-sm text-[#57f287]">{bannerUploadStatus}</p>
+								<p className="text-[#57f287] text-sm">{bannerUploadStatus}</p>
 							) : null}
 							{bannerUploadError ? (
-								<p className="text-sm text-[#ed4245]">{bannerUploadError}</p>
+								<p className="text-[#ed4245] text-sm">{bannerUploadError}</p>
 							) : null}
 						</div>
 
-						<h2 className="border-b border-white/10 pb-2 font-bold text-lg mt-8">
+						<h2 className="mt-8 border-white/10 border-b pb-2 font-bold text-lg">
 							自訂投票 Embed 格式 (選填)
 						</h2>
 
@@ -1045,7 +1040,7 @@ export function ServerPublishPage({
 											type="color"
 											value={field.state.value}
 											onChange={(e) => field.handleChange(e.target.value)}
-											className="h-9 w-12 cursor-pointer rounded bg-transparent p-0 border-0"
+											className="h-9 w-12 cursor-pointer rounded border-0 bg-transparent p-0"
 										/>
 										<Input
 											value={field.state.value}
@@ -1218,13 +1213,15 @@ export function ServerPublishPage({
 							<Label>Icon 預覽</Label>
 							<div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-full border border-white/10 bg-[#36393f]">
 								{iconPreviewUrl ? (
-									<img
+									<OptimizedImage
 										src={iconPreviewUrl}
 										alt="Server icon preview"
+										width={64}
+										height={64}
 										className="h-full w-full object-cover"
 									/>
 								) : (
-									<span className="text-xs text-[#b9bbbe]">沒有伺服器</span>
+									<span className="text-[#b9bbbe] text-xs">沒有伺服器</span>
 								)}
 							</div>
 						</div>
@@ -1233,37 +1230,39 @@ export function ServerPublishPage({
 							<Label>Banner 預覽</Label>
 							<div className="h-40 overflow-hidden rounded-lg border border-white/10 bg-[#36393f]">
 								{bannerPreviewUrl ? (
-									<img
+									<OptimizedImage
 										src={bannerPreviewUrl}
 										alt="Server banner preview"
+										width={960}
+										height={320}
 										className="h-full w-full object-cover"
 									/>
 								) : (
-									<div className="flex h-full items-center justify-center text-sm text-[#b9bbbe]">
+									<div className="flex h-full items-center justify-center text-[#b9bbbe] text-sm">
 										沒有伺服器旗幟
 									</div>
 								)}
 							</div>
 						</div>
 
-						<div className="flex flex-1 h-0 flex-col space-y-2">
+						<div className="flex h-0 flex-1 flex-col space-y-2">
 							<Label>Markdown 預覽</Label>
 							<div
 								ref={previewRef}
-								className="flex-1 h-0 overflow-y-auto rounded-lg border border-white/10 bg-[#1f2124] p-4"
+								className="h-0 flex-1 overflow-y-auto rounded-lg border border-white/10 bg-[#1f2124] p-4"
 							>
 								<ClientOnly>
 									{sanitizedMarkdown.trim() ? (
 										<MarkdownRenderer content={sanitizedMarkdown} />
 									) : (
-										<p className="text-sm text-[#b9bbbe]">
+										<p className="text-[#b9bbbe] text-sm">
 											在左側輸入詳細介紹後，這裡會同步顯示預覽。
 										</p>
 									)}
 								</ClientOnly>
 							</div>
 						</div>
-						<div className="flex flex-1 h-0 flex-col space-y-2">
+						<div className="flex h-0 flex-1 flex-col space-y-2">
 							<Label>Embed 預覽</Label>
 							<div className="flex-1 overflow-y-auto rounded-lg border border-white/10 bg-[#1f2124] p-4">
 								<ClientOnly>

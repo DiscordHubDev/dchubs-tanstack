@@ -109,19 +109,19 @@ export const ResolveDialog = memo(function ResolveDialog({
               - `p-6 sm:p-8` 讓手機與桌機有適當的呼吸空間。
               - 遵循要求，不加入任何 bg- 類別以保留原始背景色。
             */}
-			<DialogContent className="sm:max-w-md rounded-2xl shadow-2xl p-6 sm:p-8 border-muted/40 gap-6">
+			<DialogContent className="gap-6 rounded-2xl border-muted/40 p-6 shadow-2xl sm:max-w-md sm:p-8">
 				{/* 【樣式調整】DialogHeader
                   - 強制文字靠左 `text-left`，避免手機版預設置中造成的排版跳動。
                   - Title 加入 `tracking-tight` 提升標題俐落感。
                 */}
 				<DialogHeader className="space-y-2 text-left">
-					<DialogTitle className="text-xl sm:text-2xl font-bold tracking-tight flex items-center gap-2">
+					<DialogTitle className="flex items-center gap-2 font-bold text-xl tracking-tight sm:text-2xl">
 						{isResolved ? "接受檢舉" : "駁回檢舉"}
-						<span className="text-muted-foreground text-sm sm:text-base font-normal">
+						<span className="font-normal text-muted-foreground text-sm sm:text-base">
 							/ 處理說明
 						</span>
 					</DialogTitle>
-					<DialogDescription className="text-sm sm:text-base leading-relaxed text-muted-foreground/80">
+					<DialogDescription className="text-muted-foreground/80 text-sm leading-relaxed sm:text-base">
 						請說明您為什麼{isResolved ? "接受" : "駁回"}此舉報。
 					</DialogDescription>
 				</DialogHeader>
@@ -138,13 +138,13 @@ export const ResolveDialog = memo(function ResolveDialog({
 					value={note}
 					onChange={(e) => setNote(e.target.value)}
 					disabled={isPending}
-					className="resize-none rounded-xl p-4 text-base transition-all duration-300 ease-in-out border-muted hover:border-primary/50 focus-visible:ring-2 focus-visible:ring-primary/40 focus-visible:border-primary shadow-sm bg-transparent disabled:opacity-50"
+					className="resize-none rounded-xl border-muted bg-transparent p-4 text-base shadow-sm transition-all duration-300 ease-in-out hover:border-primary/50 focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50"
 				/>
 
 				{/* 【樣式調整】DialogFooter
                   - `flex-col sm:flex-row gap-3`：在手機版時按鈕上下排列並填滿寬度，平板/桌機時並排。
                 */}
-				<DialogFooter className="flex flex-col sm:flex-row gap-3 sm:gap-4 mt-2">
+				<DialogFooter className="mt-2 flex flex-col gap-3 sm:flex-row sm:gap-4">
 					{/* 【樣式調整】取消按鈕
                       - `rounded-full` 膠囊按鈕設計。
                       - `active:scale-95` 點擊時的微縮回饋感。
@@ -153,7 +153,7 @@ export const ResolveDialog = memo(function ResolveDialog({
 						variant="ghost"
 						onClick={() => onOpenChange(false)}
 						disabled={isPending}
-						className="w-full sm:w-auto rounded-full transition-all duration-200 hover:bg-muted active:scale-95 focus-visible:ring-2"
+						className="w-full rounded-full transition-all duration-200 hover:bg-muted focus-visible:ring-2 active:scale-95 sm:w-auto"
 					>
 						取消
 					</Button>
@@ -166,7 +166,7 @@ export const ResolveDialog = memo(function ResolveDialog({
 					<Button
 						disabled={isPending || !note.trim()}
 						onClick={handleSubmit}
-						className="w-full sm:w-auto rounded-full bg-gradient-to-r from-primary to-primary/70 hover:to-primary/90 text-primary-foreground shadow-md hover:shadow-lg transition-all duration-300 active:scale-95 focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 disabled:opacity-50 disabled:shadow-none"
+						className="w-full rounded-full bg-gradient-to-r from-primary to-primary/70 text-primary-foreground shadow-md transition-all duration-300 hover:to-primary/90 hover:shadow-lg focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 active:scale-95 disabled:opacity-50 disabled:shadow-none sm:w-auto"
 					>
 						{isPending ? "送出中..." : "確認送出"}
 					</Button>

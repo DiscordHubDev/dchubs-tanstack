@@ -28,9 +28,9 @@ async function main() {
 
 	// 2. 透過 Directus API 撈取資料
 	console.log("🔍 正在從 Directus 撈取需要修復的 956 筆資料...");
-	const collectionName = "auth_user";
+	const _collectionName = "auth_user";
 
-	const queryParams = new URLSearchParams({
+	const _queryParams = new URLSearchParams({
 		filter: JSON.stringify({
 			_and: [
 				{ username: { _eq: "未知使用者" } },

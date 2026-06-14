@@ -1,7 +1,6 @@
 import type { AnyFieldApi } from "@tanstack/react-form";
 import { X } from "lucide-react";
 import { useState } from "react";
-import { Badge } from "#/components/ui/badge";
 import { Button } from "#/components/ui/button";
 import { Input } from "#/components/ui/input";
 import { Label } from "#/components/ui/label";
@@ -58,7 +57,7 @@ export function ServerTagField({
 
 	return (
 		<div className="space-y-3 text-[#dcddde]">
-			<Label className="text-sm font-medium text-[#eee]">標籤 *</Label>
+			<Label className="font-medium text-[#eee] text-sm">標籤 *</Label>
 
 			<div className="flex gap-2">
 				<Input
@@ -73,13 +72,13 @@ export function ServerTagField({
 					}}
 					placeholder="輸入標籤後按 Enter"
 					disabled={tags.length >= maxTags}
-					className="bg-[#202225] border-[#18191c] text-white transition-colors duration-200 placeholder:text-[#72767d] focus-visible:border-[#5865f2] focus-visible:ring-1 focus-visible:ring-[#5865f2] disabled:opacity-50 disabled:bg-[#2f3136]"
+					className="border-[#18191c] bg-[#202225] text-white transition-colors duration-200 placeholder:text-[#72767d] focus-visible:border-[#5865f2] focus-visible:ring-1 focus-visible:ring-[#5865f2] disabled:bg-[#2f3136] disabled:opacity-50"
 				/>
 				<Button
 					type="button"
 					onClick={() => addTag(nextTag)}
 					disabled={!nextTag.trim() || tags.length >= maxTags}
-					className="bg-discord text-white border-transparent hover:bg-discord-hover active:bg-discord transition-all duration-200 shadow-sm disabled:bg-[#3c45a5]/50 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+					className="cursor-pointer border-transparent bg-discord text-white shadow-sm transition-all duration-200 hover:bg-discord-hover active:bg-discord disabled:cursor-not-allowed disabled:bg-[#3c45a5]/50 disabled:opacity-50"
 				>
 					加入
 				</Button>
@@ -94,11 +93,11 @@ export function ServerTagField({
 							onClick={() => addTag(category.name)}
 							disabled={tags.length >= maxTags}
 							// 按鈕本體改為深色 Discord 風格，hover 時稍微亮一點
-							className="inline-flex items-center gap-2 rounded-full bg-[#2f3136] hover:bg-[#35383e] border border-[#202225] px-3 py-1 text-xs font-medium text-[#b9bbbe] hover:text-white cursor-pointer transition-all duration-150 hover:scale-105 active:scale-95 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100"
+							className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-[#202225] bg-[#2f3136] px-3 py-1 font-medium text-[#b9bbbe] text-xs shadow-sm transition-all duration-150 hover:scale-105 hover:bg-[#35383e] hover:text-white active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100"
 						>
 							{/* 顏色小點點 */}
 							<span
-								className={`h-2 w-2 rounded-full shrink-0 ${category.color}`}
+								className={`h-2 w-2 shrink-0 rounded-full ${category.color}`}
 							/>
 
 							{/* 分類文字 */}
@@ -113,7 +112,7 @@ export function ServerTagField({
 				{tags.map((tag) => (
 					<span
 						key={tag}
-						className="inline-flex items-center gap-1.5 rounded-full bg-[#2f3136] hover:bg-[#35383e] text-[#b9bbbe] border border-[#202225] px-3 py-1 text-xs transition-all duration-150 hover:text-white"
+						className="inline-flex items-center gap-1.5 rounded-full border border-[#202225] bg-[#2f3136] px-3 py-1 text-[#b9bbbe] text-xs transition-all duration-150 hover:bg-[#35383e] hover:text-white"
 					>
 						{tag}
 						<button
@@ -121,7 +120,7 @@ export function ServerTagField({
 							onClick={() => removeTag(tag)}
 							className="group cursor-pointer rounded-full p-0.5 transition-all duration-200 hover:bg-[#ed4245]/20"
 						>
-							<X className="h-3 w-3 text-[#b9bbbe] group-hover:text-[#ed4245] group-hover:scale-110 transition-transform" />
+							<X className="h-3 w-3 text-[#b9bbbe] transition-transform group-hover:scale-110 group-hover:text-[#ed4245]" />
 						</button>
 					</span>
 				))}
@@ -136,7 +135,7 @@ export function ServerTagField({
 
 			{/* 錯誤訊息：當 tags.length === 0 且表單被觸碰（touched）或送出時，這裡會顯示最少 1 個的錯誤 */}
 			{errorMessage ? (
-				<p className="text-sm text-[#ed4245] font-medium animate-pulse">
+				<p className="animate-pulse font-medium text-[#ed4245] text-sm">
 					{errorMessage}
 				</p>
 			) : null}

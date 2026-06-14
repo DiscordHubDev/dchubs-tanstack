@@ -129,7 +129,7 @@ function Pagination({
 				size={navButtonSize}
 				onClick={handlePrevPage}
 				disabled={currentPage === 1}
-				className={`bg-[#36393f] border-[#1e1f22] text-white hover:bg-[#4f545c] hover:text-white ${stableButtonClass}`}
+				className={`border-[#1e1f22] bg-[#36393f] text-white hover:bg-[#4f545c] hover:text-white ${stableButtonClass}`}
 			>
 				<ChevronLeft className={iconSize} />
 			</Button>
@@ -145,7 +145,7 @@ function Pagination({
 							variant="outline"
 							size={navButtonSize}
 							disabled
-							className={`bg-[#36393f] border-[#1e1f22] text-white ${stableButtonClass}`}
+							className={`border-[#1e1f22] bg-[#36393f] text-white ${stableButtonClass}`}
 						>
 							<MoreHorizontal className={iconSize} />
 						</Button>
@@ -163,8 +163,8 @@ function Pagination({
 						onClick={() => handlePageChange(pageNumber)}
 						className={
 							isCurrentPage
-								? `bg-[#5865f2] hover:bg-[#4752c4] text-white ${stableButtonClass}`
-								: `bg-[#36393f] border-[#1e1f22] text-white hover:bg-[#4f545c] hover:text-white ${stableButtonClass}`
+								? `bg-[#5865f2] text-white hover:bg-[#4752c4] ${stableButtonClass}`
+								: `border-[#1e1f22] bg-[#36393f] text-white hover:bg-[#4f545c] hover:text-white ${stableButtonClass}`
 						}
 					>
 						{pageNumber}
@@ -178,7 +178,7 @@ function Pagination({
 				size={navButtonSize}
 				onClick={handleNextPage}
 				disabled={currentPage === totalPages}
-				className={`bg-[#36393f] border-[#1e1f22] text-white hover:bg-[#4f545c] hover:text-white ${stableButtonClass}`}
+				className={`border-[#1e1f22] bg-[#36393f] text-white hover:bg-[#4f545c] hover:text-white ${stableButtonClass}`}
 			>
 				<ChevronRight className={iconSize} />
 			</Button>

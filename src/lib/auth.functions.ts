@@ -52,7 +52,7 @@ export const getSession = createServerFn({ method: "GET" }).handler(
 				discordProfile: sessionUser,
 				error: null,
 			};
-		} catch (error) {
+		} catch (_error) {
 			// requireDomainUser 如果找不到 trusted context 會拋錯
 			return null;
 		}

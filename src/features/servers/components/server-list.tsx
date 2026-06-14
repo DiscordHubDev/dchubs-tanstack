@@ -1,8 +1,8 @@
 import { Link } from "@tanstack/react-router";
-import { Image } from "@unpic/react";
-import { ArrowUp, BadgeCheck, Clock, Heart, Pin, Users } from "lucide-react";
+import { ArrowUp, Clock, Heart, Pin, Users } from "lucide-react";
 import { memo } from "react";
 import ListSkeleton from "#/components/list-skeleton";
+import { OptimizedImage } from "#/components/OptimizedImage";
 import { Badge } from "#/components/ui/badge";
 import { Button } from "#/components/ui/button";
 import { formatTime } from "#/utils/time";
@@ -52,25 +52,23 @@ function ServerList({
 						<span className="sr-only">前往 {item.name} 伺服器頁面</span>
 					</Link>
 					<div className="flex flex-col gap-4 sm:flex-row">
-						<Image
-							src={
-								item.icon ?? "https://cdn.discordapp.com/embed/avatars/0.png"
-							}
+						<OptimizedImage
+							src={item.icon}
+							fallbackSrc="https://cdn.discordapp.com/embed/avatars/0.png" // 🟢 移至 fallbackSrc，統一走 Proxy 路由
 							alt={`${item.name} icon`}
-							width={64}
+							width={64} // 配合 h-16 (64px) 提供 1:1 的精準優化像素
 							height={64}
-							className="h-16 w-16 rounded-xl object-cover"
-							loading="lazy"
+							className="h-16 w-16 rounded-xl object-cover" // 註：unpic 預設即為 lazy loading，通常可省略 loading="lazy"
 						/>
 
 						<div className="min-w-0 flex-1">
 							<div className="mb-2 flex flex-wrap items-center gap-2">
-								<h3 className="inline-flex items-center gap-2 text-lg font-semibold text-white">
+								<h3 className="inline-flex items-center gap-2 font-semibold text-lg text-white">
 									<span>{item.name}</span>
 									{item.pin && <Pin className="h-4 w-4 text-gray-400" />}
 								</h3>
 								{item.isFavorite && (
-									<span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2 py-1 text-xs font-semibold text-rose-600 border border-rose-100">
+									<span className="inline-flex items-center gap-1 rounded-full border border-rose-100 bg-rose-50 px-2 py-1 font-semibold text-rose-600 text-xs">
 										<Heart className="h-3.5 w-3.5 fill-rose-500 stroke-rose-500" />
 										已收藏
 									</span>
@@ -78,12 +76,12 @@ function ServerList({
 							</div>
 
 							{item.description && (
-								<p className="line-clamp-2 text-sm text-gray-300">
+								<p className="line-clamp-2 text-gray-300 text-sm">
 									{item.description}
 								</p>
 							)}
 
-							<div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-gray-400">
+							<div className="mt-3 flex flex-wrap items-center gap-3 text-gray-400 text-sm">
 								<span className="inline-flex items-center gap-1">
 									<Users className="h-4 w-4" />
 									{item.members.toLocaleString()} 成員
@@ -93,7 +91,7 @@ function ServerList({
 									{item.upvotes.toLocaleString()} 票
 								</span>
 								<span className="inline-flex items-center gap-1">
-									<div className="w-2 h-2 rounded-full bg-green-500 mr-1" />
+									<div className="mr-1 h-2 w-2 rounded-full bg-green-500" />
 									{item.online || "0"} 在線
 								</span>
 								<span className="inline-flex items-center gap-1">
@@ -106,7 +104,7 @@ function ServerList({
 								{item.nsfw && (
 									<Badge
 										variant="destructive" /* 這裡使用 shadcn 的 destructive 通常預設就是紅色，或者用 className 自訂 */
-										className="relative z-20 bg-red-600 hover:bg-red-700 text-white cursor-default font-bold"
+										className="relative z-20 cursor-default bg-red-600 font-bold text-white hover:bg-red-700"
 									>
 										<span className="mr-1">🔞</span>{" "}
 										{/* 你可以使用 Emoji 或是你的 Icon 組件 */}
@@ -119,7 +117,7 @@ function ServerList({
 									<Badge
 										key={tag}
 										variant="secondary"
-										className="relative z-20 bg-[#36393f] hover:bg-[#4f545c] text-gray-300 cursor-default"
+										className="relative z-20 cursor-default bg-[#36393f] text-gray-300 hover:bg-[#4f545c]"
 									>
 										{tag}
 									</Badge>

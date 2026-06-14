@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
-import { Button } from "#/components/ui/button";
+import { Button, buttonVariants } from "#/components/ui/button";
 import { signIn, useSession } from "#/lib/auth-client";
+import { cn } from "#/lib/utils";
 
 type HomeAddServerCtaProps = {
 	mobile?: boolean;
@@ -20,10 +21,14 @@ export default function HomeAddServerCta({
 			</p>
 
 			{isSignedIn || mobile ? (
-				<Link to="/protected/add-server">
-					<Button className="w-full bg-[#5865f2] text-white hover:bg-[#4752c4]">
-						新增伺服器
-					</Button>
+				<Link
+					to="/protected/add-server"
+					className={cn(
+						buttonVariants({ variant: "default" }),
+						"w-full bg-[#5865f2] text-white hover:bg-[#4752c4]", // 疊加 w-full 樣式
+					)}
+				>
+					新增伺服器
 				</Link>
 			) : (
 				<Button

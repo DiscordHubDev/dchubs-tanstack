@@ -37,7 +37,7 @@ const CategoryItem = memo(function CategoryItem({
 
 	return (
 		<button
-			className="flex items-center justify-between p-2 rounded hover:bg-[#36393f] hover:rounded-lg cursor-pointer transition-colors w-full"
+			className="flex w-full cursor-pointer items-center justify-between rounded p-2 transition-colors hover:rounded-lg hover:bg-[#36393f]"
 			onClick={handleClick}
 			onKeyDown={handleKeyDown}
 			type="button"
@@ -45,19 +45,19 @@ const CategoryItem = memo(function CategoryItem({
 			aria-pressed={selected}
 		>
 			{/* 加上 min-w-0 是 Flex 佈局中防止子元素撐開變形的關鍵 */}
-			<div className="flex items-center min-w-0 flex-1">
+			<div className="flex min-w-0 flex-1 items-center">
 				<span
-					className={`w-2 h-2 rounded-full mr-2 shrink-0 ${category.color}`}
+					className={`mr-2 h-2 w-2 shrink-0 rounded-full ${category.color}`}
 				></span>
 				<div
-					className={`w-5 h-5 rounded border shrink-0 ${
+					className={`h-5 w-5 shrink-0 rounded border ${
 						selected ? "border-[#5865f2] bg-[#5865f2]/10" : "border-gray-600"
-					} flex items-center justify-center transition-colors mr-2`}
+					} mr-2 flex items-center justify-center transition-colors`}
 				>
 					{selected && <Check size={14} className="text-[#5865f2]" />}
 				</div>
 				{/* 加上 truncate 實現省略號，並加上 flex-1 讓它佔滿剩餘空間 */}
-				<span className="truncate flex-1 text-left">{category.name}</span>
+				<span className="flex-1 truncate text-left">{category.name}</span>
 			</div>
 		</button>
 	);

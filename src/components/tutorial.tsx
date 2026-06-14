@@ -10,13 +10,14 @@ import {
 	Server,
 	User,
 } from "lucide-react";
+import { cn } from "#/lib/utils";
 import {
 	Accordion,
 	AccordionContent,
 	AccordionItem,
 	AccordionTrigger,
 } from "./ui/accordion";
-import { Button } from "./ui/button";
+import { Button, buttonVariants } from "./ui/button";
 import {
 	Card,
 	CardContent,
@@ -31,7 +32,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "./ui/tabs";
 // ------------------------------------------------------------------
 
 const TutorialHero = () => (
-	<div className="relative bg-gradient-to-r from-[#5865f2] to-[#8c54ff] py-16 overflow-hidden">
+	<div className="relative overflow-hidden bg-gradient-to-r from-[#5865f2] to-[#8c54ff] py-16">
 		<div className="absolute inset-0 opacity-10">
 			<svg className="h-full w-full" viewBox="0 0 800 800" aria-hidden="true">
 				<defs>
@@ -52,14 +53,14 @@ const TutorialHero = () => (
 				<rect width="800" height="800" fill="url(#grid)" />
 			</svg>
 		</div>
-		<div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-			<div className="flex justify-center mb-6">
+		<div className="relative mx-auto max-w-7xl px-4 text-center sm:px-6 lg:px-8">
+			<div className="mb-6 flex justify-center">
 				<BookOpen size={48} className="text-white" />
 			</div>
-			<h1 className="text-4xl md:text-5xl font-bold text-white mb-4">
+			<h1 className="mb-4 font-bold text-4xl text-white md:text-5xl">
 				使用教學
 			</h1>
-			<p className="text-xl text-white/80 mb-8 max-w-3xl mx-auto">
+			<p className="mx-auto mb-8 max-w-3xl text-white/80 text-xl">
 				了解如何充分利用及使用 DiscordHubs
 				平台，探索伺服器、機器人，以及管理您的內容
 			</p>
@@ -80,8 +81,8 @@ const TutorialSidebar = () => {
 
 	return (
 		<div className="lg:col-span-1">
-			<div className="bg-[#2b2d31] rounded-lg p-5 sticky top-4">
-				<h3 className="text-lg font-semibold mb-4">目錄</h3>
+			<div className="sticky top-4 rounded-lg bg-[#2b2d31] p-5">
+				<h3 className="mb-4 font-semibold text-lg">目錄</h3>
 				<ul className="space-y-2">
 					{links.map(({ hash, label }) => (
 						<li key={hash}>
@@ -89,7 +90,7 @@ const TutorialSidebar = () => {
 							<Link
 								to="."
 								hash={hash}
-								className="flex items-center text-gray-300 hover:text-white py-1"
+								className="flex items-center py-1 text-gray-300 hover:text-white"
 							>
 								<ChevronRight size={16} className="mr-2 text-[#5865f2]" />
 								<span>{label}</span>
@@ -106,20 +107,20 @@ const GuidesTabContent = () => (
 	<TabsContent value="guides" className="mt-6">
 		{/* 開始使用 */}
 		<section id="getting-started" className="mb-12">
-			<div className="flex items-center mb-4">
+			<div className="mb-4 flex items-center">
 				<BookOpen size={24} className="mr-3 text-[#5865f2]" />
-				<h2 className="text-2xl font-bold">開始使用</h2>
+				<h2 className="font-bold text-2xl">開始使用</h2>
 			</div>
-			<div className="bg-[#2b2d31] rounded-lg p-6 mb-6">
-				<p className="text-gray-300 mb-4">
+			<div className="mb-6 rounded-lg bg-[#2b2d31] p-6">
+				<p className="mb-4 text-gray-300">
 					歡迎你來到 DiscordHubs！我們的平台旨在幫助您發現最棒的 Discord
 					伺服器和機器人。以下是開始使用我們平台的基本步驟：
 				</p>
-				<div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
-					<Card className="bg-[#36393f] border-[#1e1f22]">
+				<div className="mt-6 grid grid-cols-1 gap-4 md:grid-cols-3">
+					<Card className="border-[#1e1f22] bg-[#36393f]">
 						<CardHeader className="pb-2">
-							<CardTitle className="text-white flex items-center">
-								<span className="bg-[#5865f2] w-6 h-6 rounded-full flex items-center justify-center mr-2 text-sm">
+							<CardTitle className="flex items-center text-white">
+								<span className="mr-2 flex h-6 w-6 items-center justify-center rounded-full bg-[#5865f2] text-sm">
 									1
 								</span>
 								創建帳號
@@ -130,10 +131,10 @@ const GuidesTabContent = () => (
 							帳號進行登入，無需額外註冊步驟，快速又方便。
 						</CardContent>
 					</Card>
-					<Card className="bg-[#36393f] border-[#1e1f22]">
+					<Card className="border-[#1e1f22] bg-[#36393f]">
 						<CardHeader className="pb-2">
-							<CardTitle className="text-white flex items-center">
-								<span className="bg-[#5865f2] w-6 h-6 rounded-full flex items-center justify-center mr-2 text-sm">
+							<CardTitle className="flex items-center text-white">
+								<span className="mr-2 flex h-6 w-6 items-center justify-center rounded-full bg-[#5865f2] text-sm">
 									2
 								</span>
 								探索內容
@@ -143,10 +144,10 @@ const GuidesTabContent = () => (
 							瀏覽我們豐富的伺服器和機器人列表，使用分類標籤或關鍵字找到您感興趣的內容。最後收藏你喜愛的內容
 						</CardContent>
 					</Card>
-					<Card className="bg-[#36393f] border-[#1e1f22]">
+					<Card className="border-[#1e1f22] bg-[#36393f]">
 						<CardHeader className="pb-2">
-							<CardTitle className="text-white flex items-center">
-								<span className="bg-[#5865f2] w-6 h-6 rounded-full flex items-center justify-center mr-2 text-sm">
+							<CardTitle className="flex items-center text-white">
+								<span className="mr-2 flex h-6 w-6 items-center justify-center rounded-full bg-[#5865f2] text-sm">
 									3
 								</span>
 								加入互動
@@ -162,52 +163,52 @@ const GuidesTabContent = () => (
 
 		{/* 尋找伺服器 */}
 		<section id="finding-servers" className="mb-12">
-			<div className="flex items-center mb-4">
+			<div className="mb-4 flex items-center">
 				<Server size={24} className="mr-3 text-[#5865f2]" />
-				<h2 className="text-2xl font-bold">尋找伺服器</h2>
+				<h2 className="font-bold text-2xl">尋找伺服器</h2>
 			</div>
-			<div className="bg-[#2b2d31] rounded-lg p-6">
-				<p className="text-gray-300 mb-4">
+			<div className="rounded-lg bg-[#2b2d31] p-6">
+				<p className="mb-4 text-gray-300">
 					我們的平台提供多種方式幫助您找到理想的 Discord
 					伺服器。以下是一些尋找伺服器的小建議：
 				</p>
-				<div className="space-y-4 mt-6">
+				<div className="mt-6 space-y-4">
 					<div className="flex items-start">
-						<div className="bg-[#5865f2] p-2 rounded-lg mr-4 flex-shrink-0">
+						<div className="mr-4 flex-shrink-0 rounded-lg bg-[#5865f2] p-2">
 							<Search size={20} className="text-white" />
 						</div>
 						<div>
-							<h3 className="font-medium text-white mb-1">使用搜尋功能</h3>
+							<h3 className="mb-1 font-medium text-white">使用搜尋功能</h3>
 							<p className="text-gray-300 text-sm">
 								在搜尋欄中輸入關鍵字，快速找到與您興趣相符的伺服器。您可以搜尋伺服器名稱、描述或標籤。
 							</p>
 						</div>
 					</div>
 					<div className="flex items-start">
-						<div className="bg-[#5865f2] p-2 rounded-lg mr-4 flex-shrink-0">
+						<div className="mr-4 flex-shrink-0 rounded-lg bg-[#5865f2] p-2">
 							<Server size={20} className="text-white" />
 						</div>
 						<div>
-							<h3 className="font-medium text-white mb-1">瀏覽分類</h3>
+							<h3 className="mb-1 font-medium text-white">瀏覽分類</h3>
 							<p className="text-gray-300 text-sm">
 								使用側邊欄的分類標籤，根據您的興趣（如遊戲、音樂、藝術等）瀏覽伺服器。
 							</p>
 						</div>
 					</div>
 					<div className="flex items-start">
-						<div className="bg-[#5865f2] p-2 rounded-lg mr-4 flex-shrink-0">
+						<div className="mr-4 flex-shrink-0 rounded-lg bg-[#5865f2] p-2">
 							<Heart size={20} className="text-white" />
 						</div>
 						<div>
-							<h3 className="font-medium text-white mb-1">查看熱門伺服器</h3>
+							<h3 className="mb-1 font-medium text-white">查看熱門伺服器</h3>
 							<p className="text-gray-300 text-sm">
 								在「熱門伺服器」類別，您可以找到最受歡迎的伺服器，這些伺服器通常有活躍的社群和豐富的內容。
 							</p>
 						</div>
 					</div>
 				</div>
-				<div className="mt-6 p-4 bg-[#36393f] rounded-lg border border-[#1e1f22]">
-					<h4 className="font-medium text-white mb-2">溫馨小提示</h4>
+				<div className="mt-6 rounded-lg border border-[#1e1f22] bg-[#36393f] p-4">
+					<h4 className="mb-2 font-medium text-white">溫馨小提示</h4>
 					<p className="text-gray-300 text-sm">
 						點擊伺服器卡片可以查看詳細資訊，包括伺服器描述、規則、成員數量和截圖等。這有助於您在加入前更好地了解伺服器。
 					</p>
@@ -217,52 +218,52 @@ const GuidesTabContent = () => (
 
 		{/* 尋找機器人 */}
 		<section id="finding-bots" className="mb-12">
-			<div className="flex items-center mb-4">
+			<div className="mb-4 flex items-center">
 				<Bot size={24} className="mr-3 text-[#5865f2]" />
-				<h2 className="text-2xl font-bold">尋找機器人</h2>
+				<h2 className="font-bold text-2xl">尋找機器人</h2>
 			</div>
-			<div className="bg-[#2b2d31] rounded-lg p-6">
-				<p className="text-gray-300 mb-4">
+			<div className="rounded-lg bg-[#2b2d31] p-6">
+				<p className="mb-4 text-gray-300">
 					Discord
 					機器人可以為您的伺服器增添各種功能。以下是在我們平台上尋找理想機器人的建議：
 				</p>
-				<div className="space-y-4 mt-6">
+				<div className="mt-6 space-y-4">
 					<div className="flex items-start">
-						<div className="bg-[#5865f2] p-2 rounded-lg mr-4 flex-shrink-0">
+						<div className="mr-4 flex-shrink-0 rounded-lg bg-[#5865f2] p-2">
 							<Search size={20} className="text-white" />
 						</div>
 						<div>
-							<h3 className="font-medium text-white mb-1">搜尋特定功能</h3>
+							<h3 className="mb-1 font-medium text-white">搜尋特定功能</h3>
 							<p className="text-gray-300 text-sm">
 								使用搜尋功能尋找具有特定功能的機器人，例如「音樂」、「管理」或「遊戲」等關鍵字。
 							</p>
 						</div>
 					</div>
 					<div className="flex items-start">
-						<div className="bg-[#5865f2] p-2 rounded-lg mr-4 flex-shrink-0">
+						<div className="mr-4 flex-shrink-0 rounded-lg bg-[#5865f2] p-2">
 							<Bot size={20} className="text-white" />
 						</div>
 						<div>
-							<h3 className="font-medium text-white mb-1">按類別瀏覽</h3>
+							<h3 className="mb-1 font-medium text-white">按類別瀏覽</h3>
 							<p className="text-gray-300 text-sm">
 								使用機器人頁面上的分類標籤，根據機器人的功能類型（如音樂、管理、遊戲等）進行瀏覽。
 							</p>
 						</div>
 					</div>
 					<div className="flex items-start">
-						<div className="bg-[#5865f2] p-2 rounded-lg mr-4 flex-shrink-0">
+						<div className="mr-4 flex-shrink-0 rounded-lg bg-[#5865f2] p-2">
 							<Heart size={20} className="text-white" />
 						</div>
 						<div>
-							<h3 className="font-medium text-white mb-1">查看精選機器人</h3>
+							<h3 className="mb-1 font-medium text-white">查看精選機器人</h3>
 							<p className="text-gray-300 text-sm">
 								在「精選機器人」標籤下，您可以找到一些擁有1000伺服器以上的高質量機器人，這些機器人通常更可靠且功能豐富。
 							</p>
 						</div>
 					</div>
 				</div>
-				<div className="mt-6 p-4 bg-[#36393f] rounded-lg border border-[#1e1f22]">
-					<h4 className="font-medium text-white mb-2">提示</h4>
+				<div className="mt-6 rounded-lg border border-[#1e1f22] bg-[#36393f] p-4">
+					<h4 className="mb-2 font-medium text-white">提示</h4>
 					<p className="text-gray-300 text-sm">
 						在機器人詳情頁面，您可以查看機器人的指令列表、功能說明和使用示例。這有助於您了解機器人的使用方法和是否符合您的需求。
 					</p>
@@ -272,50 +273,54 @@ const GuidesTabContent = () => (
 
 		{/* 新增內容 */}
 		<section id="adding-content" className="mb-12">
-			<div className="flex items-center mb-4">
+			<div className="mb-4 flex items-center">
 				<Plus size={24} className="mr-3 text-[#5865f2]" />
-				<h2 className="text-2xl font-bold">新增內容</h2>
+				<h2 className="font-bold text-2xl">新增內容</h2>
 			</div>
-			<div className="bg-[#2b2d31] rounded-lg p-6">
-				<p className="text-gray-300 mb-4">
+			<div className="rounded-lg bg-[#2b2d31] p-6">
+				<p className="mb-4 text-gray-300">
 					想要在我們的平台上分享您的 Discord
 					伺服器或機器人嗎？以下是新增內容的步驟：
 				</p>
-				<div className="space-y-6 mt-6">
-					<div className="bg-[#36393f] rounded-lg p-5 border border-[#1e1f22]">
-						<h3 className="font-medium text-white mb-3 flex items-center">
+				<div className="mt-6 space-y-6">
+					<div className="rounded-lg border border-[#1e1f22] bg-[#36393f] p-5">
+						<h3 className="mb-3 flex items-center font-medium text-white">
 							<Server size={18} className="mr-2 text-[#5865f2]" />
 							新增伺服器
 						</h3>
-						<ol className="space-y-3 text-gray-300 text-sm pl-6 list-decimal">
+						<ol className="list-decimal space-y-3 pl-6 text-gray-300 text-sm">
 							<li>登入您的帳號</li>
 							<li>點擊頂部導航欄或菜單的「新增伺服器」按鈕</li>
 							<li>填寫伺服器資訊，包括名稱、描述、標籤和邀請連結</li>
 							<li>上傳伺服器相關圖片（可選）</li>
 							<li>提交表單即可發佈</li>
 						</ol>
-						<div className="mt-6 p-4 bg-[#2a2a2c] rounded-lg border border-[#1e1f22]">
-							<h4 className="font-medium text-white mb-2">溫馨小提示</h4>
+						<div className="mt-6 rounded-lg border border-[#1e1f22] bg-[#2a2a2c] p-4">
+							<h4 className="mb-2 font-medium text-white">溫馨小提示</h4>
 							<p className="text-gray-300 text-sm">
 								發佈自己的伺服器需要邀請我們的官方機器人DCHUB，以獲取你位於的伺服器及確認你的權限
 							</p>
 						</div>
 						<div className="mt-4">
-							<Link to="/protected/add-server">
-								<Button className="bg-[#5865f2] hover:bg-[#4752c4] text-white">
-									新增伺服器
-									<ArrowRight size={16} className="ml-2" />
-								</Button>
+							<Link
+								to="/protected/add-server"
+								className={cn(
+									buttonVariants({ variant: "default" }),
+									"inline-flex items-center bg-[#5865f2] text-white hover:bg-[#4752c4]",
+								)}
+							>
+								新增伺服器
+								<ArrowRight size={16} className="ml-2" />
 							</Link>
 						</div>
 					</div>
 
-					<div className="bg-[#36393f] rounded-lg p-5 border border-[#1e1f22]">
-						<h3 className="font-medium text-white mb-3 flex items-center">
+					<div className="rounded-lg border border-[#1e1f22] bg-[#36393f] p-5">
+						<h3 className="mb-3 flex items-center font-medium text-white">
 							<Bot size={18} className="mr-2 text-[#5865f2]" />
 							新增機器人
 						</h3>
-						<ol className="space-y-3 text-gray-300 text-sm pl-6 list-decimal">
+						<ol className="list-decimal space-y-3 pl-6 text-gray-300 text-sm">
 							<li>登入您的帳號</li>
 							<li>點擊頂部導航欄或菜單的「新增機器人」按鈕</li>
 							<li>填寫機器人資訊，包括名稱、描述、前綴、標籤和邀請連結</li>
@@ -325,7 +330,7 @@ const GuidesTabContent = () => (
 						</ol>
 						<div className="mt-4">
 							<Link to="/protected/add-bot">
-								<Button className="bg-[#5865f2] hover:bg-[#4752c4] text-white">
+								<Button className="bg-[#5865f2] text-white hover:bg-[#4752c4]">
 									新增機器人
 									<ArrowRight size={16} className="ml-2" />
 								</Button>
@@ -338,18 +343,18 @@ const GuidesTabContent = () => (
 
 		{/* 管理個人資料 */}
 		<section id="managing-profile" className="mb-12">
-			<div className="flex items-center mb-4">
+			<div className="mb-4 flex items-center">
 				<User size={24} className="mr-3 text-[#5865f2]" />
-				<h2 className="text-2xl font-bold">管理個人資料</h2>
+				<h2 className="font-bold text-2xl">管理個人資料</h2>
 			</div>
-			<div className="bg-[#2b2d31] rounded-lg p-6">
-				<p className="text-gray-300 mb-4">
+			<div className="rounded-lg bg-[#2b2d31] p-6">
+				<p className="mb-4 text-gray-300">
 					在個人資料頁面，您可以管理您的帳號資訊、查看您的伺服器和機器人，以及管理您的收藏。
 				</p>
-				<div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-6">
-					<div className="bg-[#36393f] rounded-lg p-5 border border-[#1e1f22]">
-						<h3 className="font-medium text-white mb-3">個人資訊</h3>
-						<p className="text-gray-300 text-sm mb-3">
+				<div className="mt-6 grid grid-cols-1 gap-6 md:grid-cols-2">
+					<div className="rounded-lg border border-[#1e1f22] bg-[#36393f] p-5">
+						<h3 className="mb-3 font-medium text-white">個人資訊</h3>
+						<p className="mb-3 text-gray-300 text-sm">
 							您可以在個人資料頁面編輯您的個人資訊，包括用戶名、個人簡介和社交媒體連結。
 						</p>
 						<Link to="/protected/profile">
@@ -361,9 +366,9 @@ const GuidesTabContent = () => (
 							</Button>
 						</Link>
 					</div>
-					<div className="bg-[#36393f] rounded-lg p-5 border border-[#1e1f22]">
-						<h3 className="font-medium text-white mb-3">內容管理</h3>
-						<p className="text-gray-300 text-sm mb-3">
+					<div className="rounded-lg border border-[#1e1f22] bg-[#36393f] p-5">
+						<h3 className="mb-3 font-medium text-white">內容管理</h3>
+						<p className="mb-3 text-gray-300 text-sm">
 							在個人資料頁面，您可以查看和管理您添加的伺服器和機器人，以及您收藏的內容。
 						</p>
 						<Link to="/protected/profile">
@@ -381,30 +386,30 @@ const GuidesTabContent = () => (
 
 		{/* 投票系統 */}
 		<section id="voting" className="mb-12">
-			<div className="flex items-center mb-4">
+			<div className="mb-4 flex items-center">
 				<Heart size={24} className="mr-3 text-[#5865f2]" />
-				<h2 className="text-2xl font-bold">投票系統</h2>
+				<h2 className="font-bold text-2xl">投票系統</h2>
 			</div>
-			<div className="bg-[#2b2d31] rounded-lg p-6">
-				<p className="text-gray-300 mb-4">
+			<div className="rounded-lg bg-[#2b2d31] p-6">
+				<p className="mb-4 text-gray-300">
 					我們的投票系統可以讓用戶支持他們喜愛的伺服器和機器人。以下是關於投票系統的重要資訊：
 				</p>
-				<div className="space-y-4 mt-6">
-					<div className="bg-[#36393f] rounded-lg p-4 border border-[#1e1f22]">
-						<h3 className="font-medium text-white mb-2">如何投票</h3>
+				<div className="mt-6 space-y-4">
+					<div className="rounded-lg border border-[#1e1f22] bg-[#36393f] p-4">
+						<h3 className="mb-2 font-medium text-white">如何投票</h3>
 						<p className="text-gray-300 text-sm">
 							在伺服器或機器人的詳情頁面，您可以找到「投票」按鈕。點擊該按鈕即可為該伺服器或機器人投票。
 						</p>
 					</div>
-					<div className="bg-[#36393f] rounded-lg p-4 border border-[#1e1f22]">
-						<h3 className="font-medium text-white mb-2">投票冷卻時間</h3>
+					<div className="rounded-lg border border-[#1e1f22] bg-[#36393f] p-4">
+						<h3 className="mb-2 font-medium text-white">投票冷卻時間</h3>
 						<p className="text-gray-300 text-sm">
 							每個伺服器或機器人每 12
 							小時只能投一次票。投票後，您需要等待冷卻時間結束才能再次投票。
 						</p>
 					</div>
-					<div className="bg-[#36393f] rounded-lg p-4 border border-[#1e1f22]">
-						<h3 className="font-medium text-white mb-2">投票的重要性</h3>
+					<div className="rounded-lg border border-[#1e1f22] bg-[#36393f] p-4">
+						<h3 className="mb-2 font-medium text-white">投票的重要性</h3>
 						<p className="text-gray-300 text-sm">
 							投票可以幫助優質的伺服器和機器人獲得更多曝光，出現在排行榜列表中等等，讓更多用戶發現它們。
 						</p>
@@ -416,7 +421,7 @@ const GuidesTabContent = () => (
 						to="/servers/$serverId"
 						params={{ serverId: "1297055626014490695" }}
 					>
-						<Button className="bg-[#5865f2] hover:bg-[#4752c4] text-white">
+						<Button className="bg-[#5865f2] text-white hover:bg-[#4752c4]">
 							點我前往可投票的頁面
 							<ArrowRight size={16} className="ml-2" />
 						</Button>
@@ -427,11 +432,11 @@ const GuidesTabContent = () => (
 
 		{/* 常見問題 */}
 		<section id="faq" className="mb-12">
-			<div className="flex items-center mb-4">
+			<div className="mb-4 flex items-center">
 				<BookOpen size={24} className="mr-3 text-[#5865f2]" />
-				<h2 className="text-2xl font-bold">常見問題</h2>
+				<h2 className="font-bold text-2xl">常見問題</h2>
 			</div>
-			<div className="bg-[#2b2d31] rounded-lg p-6">
+			<div className="rounded-lg bg-[#2b2d31] p-6">
 				<Accordion type="single" collapsible className="w-full">
 					<AccordionItem value="item-1" className="border-[#1e1f22]">
 						<AccordionTrigger className="text-white hover:no-underline">
@@ -439,7 +444,7 @@ const GuidesTabContent = () => (
 						</AccordionTrigger>
 						<AccordionContent className="text-gray-300">
 							以下是我們平台暫定對於分類的顯示條件，每個類別都有一定排序條件（適用於伺服器或機器人），例如：
-							<ul className="list-disc list-inside mt-2">
+							<ul className="mt-2 list-inside list-disc">
 								<li>熱門：是以社群成員或機器人擁有伺服器數量進行降序排序。</li>
 								<li>
 									精選：是以社群成員或機器人擁有伺服器數量，以及擁有的投票數進行降序排序。
@@ -517,9 +522,9 @@ const GuidesTabContent = () => (
 
 const VideosTabContent = () => (
 	<TabsContent value="videos" className="mt-6">
-		<div className="bg-[#2b2d31] rounded-lg p-6">
-			<h2 className="text-2xl font-bold mb-6">教學影片</h2>
-			<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+		<div className="rounded-lg bg-[#2b2d31] p-6">
+			<h2 className="mb-6 font-bold text-2xl">教學影片</h2>
+			<div className="grid grid-cols-1 gap-6 md:grid-cols-2">
 				{[
 					{
 						title: "DiscordHubs 平台介紹",
@@ -540,11 +545,11 @@ const VideosTabContent = () => (
 				].map((video) => (
 					<div
 						key={video.title}
-						className="bg-[#36393f] rounded-lg overflow-hidden border border-[#1e1f22]"
+						className="overflow-hidden rounded-lg border border-[#1e1f22] bg-[#36393f]"
 					>
 						<div className="aspect-video w-full">
 							<iframe
-								className="w-full h-full"
+								className="h-full w-full"
 								src="https://www.youtube.com/embed/dQw4w9WgXcQ"
 								title={video.title}
 								frameBorder="0"
@@ -553,7 +558,7 @@ const VideosTabContent = () => (
 							></iframe>
 						</div>
 						<div className="p-4">
-							<h3 className="font-medium text-white mb-2">{video.title}</h3>
+							<h3 className="mb-2 font-medium text-white">{video.title}</h3>
 							<p className="text-gray-300 text-sm">{video.desc}</p>
 						</div>
 					</div>
@@ -565,10 +570,10 @@ const VideosTabContent = () => (
 
 const TipsTabContent = () => (
 	<TabsContent value="tips" className="mt-6">
-		<div className="bg-[#2b2d31] rounded-lg p-6">
-			<h2 className="text-2xl font-bold mb-6">使用技巧</h2>
-			<div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-				<Card className="bg-[#36393f] border-[#1e1f22]">
+		<div className="rounded-lg bg-[#2b2d31] p-6">
+			<h2 className="mb-6 font-bold text-2xl">使用技巧</h2>
+			<div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+				<Card className="border-[#1e1f22] bg-[#36393f]">
 					<CardHeader className="pb-2">
 						<CardTitle className="text-white">優化您的伺服器描述</CardTitle>
 						<CardDescription className="text-gray-400">
@@ -579,7 +584,7 @@ const TipsTabContent = () => (
 						<p className="mb-4">
 							撰寫清晰、吸引人的伺服器描述是吸引新成員的關鍵。確保包含以下要素：
 						</p>
-						<ul className="space-y-2 list-disc pl-5">
+						<ul className="list-disc space-y-2 pl-5">
 							<li>簡潔明了地說明伺服器的主題和目的</li>
 							<li>突出伺服器的獨特特色和活動</li>
 							<li>提及伺服器的社群氛圍和規則</li>
@@ -587,7 +592,7 @@ const TipsTabContent = () => (
 						</ul>
 					</CardContent>
 				</Card>
-				<Card className="bg-[#36393f] border-[#1e1f22]">
+				<Card className="border-[#1e1f22] bg-[#36393f]">
 					<CardHeader className="pb-2">
 						<CardTitle className="text-white">選擇合適的標籤</CardTitle>
 						<CardDescription className="text-gray-400">
@@ -598,7 +603,7 @@ const TipsTabContent = () => (
 						<p className="mb-4">
 							標籤是用戶尋找伺服器和機器人的重要方式。選擇標籤時請注意：
 						</p>
-						<ul className="space-y-2 list-disc pl-5">
+						<ul className="list-disc space-y-2 pl-5">
 							<li>選擇最能代表您內容的標籤</li>
 							<li>不要選擇過多不相關的標籤</li>
 							<li>考慮您的目標受眾會搜尋哪些標籤</li>
@@ -606,7 +611,7 @@ const TipsTabContent = () => (
 						</ul>
 					</CardContent>
 				</Card>
-				<Card className="bg-[#36393f] border-[#1e1f22]">
+				<Card className="border-[#1e1f22] bg-[#36393f]">
 					<CardHeader className="pb-2">
 						<CardTitle className="text-white">上傳高質量的圖片</CardTitle>
 						<CardDescription className="text-gray-400">
@@ -617,7 +622,7 @@ const TipsTabContent = () => (
 						<p className="mb-4">
 							高質量的圖片可以大大提升您的伺服器或機器人的吸引力：
 						</p>
-						<ul className="space-y-2 list-disc pl-5">
+						<ul className="list-disc space-y-2 pl-5">
 							<li>使用清晰、高解析度的圖標和橫幅</li>
 							<li>選擇能反映內容主題的圖片</li>
 							<li>上傳多張展示伺服器或機器人特色的截圖</li>
@@ -625,7 +630,7 @@ const TipsTabContent = () => (
 						</ul>
 					</CardContent>
 				</Card>
-				<Card className="bg-[#36393f] border-[#1e1f22]">
+				<Card className="border-[#1e1f22] bg-[#36393f]">
 					<CardHeader className="pb-2">
 						<CardTitle className="text-white">定期更新內容</CardTitle>
 						<CardDescription className="text-gray-400">
@@ -636,7 +641,7 @@ const TipsTabContent = () => (
 						<p className="mb-4">
 							定期更新您的伺服器或機器人資訊可以提高用戶參與度：
 						</p>
-						<ul className="space-y-2 list-disc pl-5">
+						<ul className="list-disc space-y-2 pl-5">
 							<li>確保所有連結和邀請都是有效的</li>
 							<li>更新描述以反映最新的功能和活動</li>
 							<li>添加新的截圖展示最新內容</li>
@@ -658,13 +663,13 @@ export default function TutorialPage() {
 		<div className="min-h-screen bg-[#1e1f22] text-white">
 			<TutorialHero />
 
-			<div className="max-w-7xl mx-auto px-4 py-12">
-				<div className="grid grid-cols-1 lg:grid-cols-4 gap-8">
+			<div className="mx-auto max-w-7xl px-4 py-12">
+				<div className="grid grid-cols-1 gap-8 lg:grid-cols-4">
 					<TutorialSidebar />
 
 					<div className="lg:col-span-3">
 						<Tabs defaultValue="guides" className="mb-8">
-							<TabsList className="bg-[#2b2d31] border-b border-[#1e1f22] w-full">
+							<TabsList className="w-full border-[#1e1f22] border-b bg-[#2b2d31]">
 								<TabsTrigger
 									value="guides"
 									className="data-[state=active]:bg-[#36393f]"

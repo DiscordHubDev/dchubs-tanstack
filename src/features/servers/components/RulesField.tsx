@@ -120,14 +120,14 @@ export function RulesField({
 					onClick={addRule}
 					disabled={!canAddRule}
 					size="sm"
-					className="bg-discord hover:bg-discord-hover text-white disabled:bg-discord/50 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+					className="cursor-pointer bg-discord text-white hover:bg-discord-hover disabled:cursor-not-allowed disabled:bg-discord/50 disabled:opacity-50"
 				>
 					新增規則
 				</Button>
 			</div>
 
 			{rules.length === 0 ? (
-				<p className="rounded-md border border-dashed border-white/20 px-3 py-3 text-sm text-[#b9bbbe]">
+				<p className="rounded-md border border-white/20 border-dashed px-3 py-3 text-[#b9bbbe] text-sm">
 					尚未新增任何規則。
 				</p>
 			) : (
@@ -170,12 +170,12 @@ export function RulesField({
 				))
 			)}
 
-			<p className="text-xs text-[#b9bbbe]">
+			<p className="text-[#b9bbbe] text-xs">
 				已新增 {rules.length}/{maxRules} 條規則
 			</p>
 
 			{errorMessage ? (
-				<p className="text-sm text-[#ed4245]">{errorMessage}</p>
+				<p className="text-[#ed4245] text-sm">{errorMessage}</p>
 			) : null}
 		</div>
 	);

@@ -2,7 +2,6 @@ import { and, eq, inArray } from "drizzle-orm";
 import { Effect } from "effect";
 import { db } from "#/drizzle/db";
 import { authAccount, server } from "#/drizzle/schema";
-import { getSessionUserIdEffect } from "#/lib/edge-context";
 import { runEffect, tryEffectPromise } from "#/lib/effect-utils";
 import { fetchDiscordGuilds } from "./add-server.api";
 import type { DiscordGuild, GuildMembershipBundle } from "./add-server.types";

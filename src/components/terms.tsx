@@ -62,27 +62,27 @@ export default function TermsPage() {
 				dangerouslySetInnerHTML={{ __html: jsonLdString }}
 			/>
 
-			<div className="min-h-screen bg-[#1e1f22] text-gray-300 selection:bg-[#5865f2] selection:text-white pb-20">
-				<div className="bg-[#2b2d31] py-12 border-b border-[#1e1f22]">
-					<div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-						<div className="flex justify-center mb-6">
+			<div className="min-h-screen bg-[#1e1f22] pb-20 text-gray-300 selection:bg-[#5865f2] selection:text-white">
+				<div className="border-[#1e1f22] border-b bg-[#2b2d31] py-12">
+					<div className="mx-auto max-w-4xl px-4 text-center sm:px-6 lg:px-8">
+						<div className="mb-6 flex justify-center">
 							<ScrollText size={48} className="text-[#5865f2]" />
 						</div>
-						<h1 className="text-3xl md:text-4xl font-bold text-white mb-4">
+						<h1 className="mb-4 font-bold text-3xl text-white md:text-4xl">
 							服務條款 (Terms of Service)
 						</h1>
-						<p className="text-lg text-gray-400">
+						<p className="text-gray-400 text-lg">
 							最後更新日期：2026 年 6 月 8 日
 						</p>
 					</div>
 				</div>
 
-				<div className="max-w-4xl mx-auto px-4 py-12">
-					<div className="bg-[#2b2d31] rounded-lg p-6 md:p-8 shadow-lg">
+				<div className="mx-auto max-w-4xl px-4 py-12">
+					<div className="rounded-lg bg-[#2b2d31] p-6 shadow-lg md:p-8">
 						{/* 溫馨提示卡片 */}
-						<div className="mb-8 p-4 bg-[#2b2d31] border-l-4 border-[#5865f2] rounded-r-lg flex items-start gap-3">
-							<AlertCircle className="text-[#5865f2] shrink-0 mt-1" size={20} />
-							<p className="text-sm text-gray-300 leading-relaxed">
+						<div className="mb-8 flex items-start gap-3 rounded-r-lg border-[#5865f2] border-l-4 bg-[#2b2d31] p-4">
+							<AlertCircle className="mt-1 shrink-0 text-[#5865f2]" size={20} />
+							<p className="text-gray-300 text-sm leading-relaxed">
 								歡迎來到
 								DiscordHubs！在使用我們的伺服器與機器人列表服務之前，請務必詳細閱讀以下條款。
 								登入或使用本平台即表示您完全同意本文件所述之所有規範。
@@ -90,19 +90,19 @@ export default function TermsPage() {
 						</div>
 
 						{/* 目錄 */}
-						<div className="flex flex-col mb-12 p-5 bg-[#1e1f22] rounded-lg border border-[#36393f]">
-							<h2 className="text-xl font-bold text-white mb-4">目錄</h2>
+						<div className="mb-12 flex flex-col rounded-lg border border-[#36393f] bg-[#1e1f22] p-5">
+							<h2 className="mb-4 font-bold text-white text-xl">目錄</h2>
 							<ul className="flex flex-col gap-3">
 								{TABLE_OF_CONTENTS.map((item, index) => (
 									<li key={item.id}>
 										<Link
 											to="."
 											hash={item.id}
-											className="flex items-center text-gray-400 hover:text-[#5865f2] transition-colors duration-200 group w-fit"
+											className="group flex w-fit items-center text-gray-400 transition-colors duration-200 hover:text-[#5865f2]"
 										>
 											<ChevronRight
 												size={16}
-												className="mr-2 group-hover:translate-x-1 transition-transform"
+												className="mr-2 transition-transform group-hover:translate-x-1"
 											/>
 											<span>
 												{index + 1}. {item.title}
@@ -116,7 +116,7 @@ export default function TermsPage() {
 						{/* 條款具體內容 */}
 						<div className="space-y-12">
 							<section id="introduction" className="scroll-mt-8">
-								<h3 className="text-2xl font-bold text-white mb-4 border-b border-[#36393f] pb-2">
+								<h3 className="mb-4 border-[#36393f] border-b pb-2 font-bold text-2xl text-white">
 									1. 簡介與同意條款
 								</h3>
 								<p className="leading-relaxed">
@@ -129,10 +129,10 @@ export default function TermsPage() {
 							</section>
 
 							<section id="account-auth" className="scroll-mt-8">
-								<h3 className="text-2xl font-bold text-white mb-4 border-b border-[#36393f] pb-2">
+								<h3 className="mb-4 border-[#36393f] border-b pb-2 font-bold text-2xl text-white">
 									2. 帳號與 Discord 授權
 								</h3>
-								<ul className="list-disc pl-5 space-y-3">
+								<ul className="list-disc space-y-3 pl-5">
 									<li>
 										<strong>API 授權：</strong> 本平台使用 Discord 官方 API
 										提供登入及獲取資料功能。
@@ -154,7 +154,7 @@ export default function TermsPage() {
 							</section>
 
 							<section id="usage-rules" className="scroll-mt-8">
-								<h3 className="text-2xl font-bold text-white mb-4 border-b border-[#36393f] pb-2">
+								<h3 className="mb-4 border-[#36393f] border-b pb-2 font-bold text-2xl text-white">
 									3. 平台使用與發布規範
 								</h3>
 								<p className="mb-3">
@@ -164,7 +164,7 @@ export default function TermsPage() {
 										href="https://discord.com/terms"
 										target="_blank"
 										rel="noopener noreferrer"
-										className="text-[#5865f2] hover:underline transition-colors mx-1"
+										className="mx-1 text-[#5865f2] transition-colors hover:underline"
 									>
 										《服務條款》
 									</a>
@@ -173,13 +173,13 @@ export default function TermsPage() {
 										href="https://discord.com/guidelines"
 										target="_blank"
 										rel="noopener noreferrer"
-										className="text-[#5865f2] hover:underline transition-colors mx-1"
+										className="mx-1 text-[#5865f2] transition-colors hover:underline"
 									>
 										《社群守則》
 									</a>
 									：
 								</p>
-								<ul className="list-disc pl-5 space-y-2 text-gray-300">
+								<ul className="list-disc space-y-2 pl-5 text-gray-300">
 									<li>
 										<strong>禁止非法與惡意內容：</strong>{" "}
 										嚴禁發布涉及詐騙、惡意軟體、散佈仇恨言論、未成年人不當內容或任何違反法律的社群與機器人。
@@ -217,10 +217,10 @@ export default function TermsPage() {
 									</li>
 								</ul>
 
-								<p className="mt-4 p-4 bg-[#232428] border-l-4 border-[#ed4245] text-sm text-gray-300 leading-relaxed">
+								<p className="mt-4 border-[#ed4245] border-l-4 bg-[#232428] p-4 text-gray-300 text-sm leading-relaxed">
 									<AlertCircle
 										size={16}
-										className="inline-block mr-2 text-[#ed4245] shrink-0"
+										className="mr-2 inline-block shrink-0 text-[#ed4245]"
 									/>
 									<strong className="text-white">【強制移除條款】</strong>
 									未能如實標註您的內容類型可能會導致嚴重後果。如果本平台管理團隊發現您的內容（如機器人或伺服器）未正確標註為
@@ -233,15 +233,15 @@ export default function TermsPage() {
 							</section>
 
 							<section id="content-rights" className="scroll-mt-8">
-								<h3 className="text-2xl font-bold text-white mb-4 border-b border-[#36393f] pb-2">
+								<h3 className="mb-4 border-[#36393f] border-b pb-2 font-bold text-2xl text-white">
 									4. 內容與版權
 								</h3>
-								<p className="leading-relaxed mb-4">
+								<p className="mb-4 leading-relaxed">
 									您提交至本平台的文字敘述、標誌、橫幅等內容，其智慧財產權仍歸您或原創作者所有。但當您將其發布至本平台時，
 									即代表您授予我們非專屬、全球性、免權利金的授權，允許我們在平台上展示、複製與推廣這些內容，以提供服務。
 									您必須確保您有權發布這些內容，且未侵犯第三方的著作權、商標或智慧財產權。
 								</p>
-								<p className="leading-relaxed text-sm text-gray-400 bg-[#232428] p-3 rounded">
+								<p className="rounded bg-[#232428] p-3 text-gray-400 text-sm leading-relaxed">
 									<strong>侵權處理（DMCA 政策）：</strong>{" "}
 									本平台尊重他人智慧財產權。
 									若您為版權所有人，且發現本平台上的使用者內容侵犯了您的權利，請檢具相關證明聯繫本平台管理團隊，我們會依流程快速移除涉嫌侵權之內容。
@@ -249,10 +249,10 @@ export default function TermsPage() {
 							</section>
 
 							<section id="disclaimer" className="scroll-mt-8">
-								<h3 className="text-2xl font-bold text-white mb-4 border-b border-[#36393f] pb-2">
+								<h3 className="mb-4 border-[#36393f] border-b pb-2 font-bold text-2xl text-white">
 									5. 免責聲明
 								</h3>
-								<ul className="list-disc pl-5 space-y-3">
+								<ul className="list-disc space-y-3 pl-5">
 									<li>
 										<strong>非官方附屬聲明：</strong> DiscordHubs
 										是一個由社群開發者獨立營運的平台， 與 Discord, Inc.{" "}
@@ -275,7 +275,7 @@ export default function TermsPage() {
 							</section>
 
 							<section id="privacy" className="scroll-mt-8">
-								<h3 className="text-2xl font-bold text-white mb-4 border-b border-[#36393f] pb-2">
+								<h3 className="mb-4 border-[#36393f] border-b pb-2 font-bold text-2xl text-white">
 									6. 隱私與資料蒐集
 								</h3>
 								<p className="leading-relaxed">
@@ -286,10 +286,10 @@ export default function TermsPage() {
 							</section>
 
 							<section id="changes" className="scroll-mt-8">
-								<h3 className="text-2xl font-bold text-white mb-4 border-b border-[#36393f] pb-2">
+								<h3 className="mb-4 border-[#36393f] border-b pb-2 font-bold text-2xl text-white">
 									7. 條款修改與服務終止
 								</h3>
-								<p className="leading-relaxed mb-4">
+								<p className="mb-4 leading-relaxed">
 									本平台保留隨時修改本服務條款的權利。任何重大變更將會在此頁面更新，並修改頂部的「最後更新日期」。
 									變更生效後繼續使用本平台，即視為您同意接受修改後的條款。
 								</p>

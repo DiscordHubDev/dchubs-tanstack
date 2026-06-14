@@ -52,6 +52,7 @@ import type { CategoryType, Screenshot } from "#/lib/types";
 import type { CustomEmbedData } from "#/types/custom_embed";
 import DiscordEmbedPreview from "../DiscordEmbedPreview";
 import EmbedFieldsListField from "../EmbedFieldsListField";
+import { OptimizedImage } from "../OptimizedImage";
 import { Checkbox } from "../ui/checkbox";
 
 type BotFormDefaultValues = Partial<BotFormData> & {
@@ -251,7 +252,6 @@ function getSubmitErrorMessage(error: SubmitBotErrorPayload): string {
 			return "無法取得 Discord 機器人資訊，請稍後再試。";
 		case "NotificationFailed":
 			return "已提交，但通知送出失敗。";
-		case "SubmitBotFailed":
 		default:
 			return error.message || "提交失敗，請稍後再試。";
 	}
@@ -278,11 +278,12 @@ function ScreenshotGrid({
 		<div className="grid grid-cols-2 gap-3 md:grid-cols-3">
 			{screenshotPreviews.map((url, index) => (
 				<div key={url} className="group relative overflow-hidden rounded-md">
-					<img
+					<OptimizedImage
 						src={url}
 						alt={`Screenshot ${index + 1}`}
+						width={320}
+						height={128}
 						className="h-24 w-full object-cover md:h-32"
-						loading="lazy"
 					/>
 					<button
 						type="button"
@@ -327,7 +328,7 @@ function TagField({ field, categories = [], maxTags = 8 }: TagFieldProps) {
 
 	return (
 		<div className="space-y-3 text-[#dcddde]">
-			<Label className="text-sm font-medium text-[#eee]">標籤 *</Label>
+			<Label className="font-medium text-[#eee] text-sm">標籤 *</Label>
 
 			<div className="flex gap-2">
 				<Input
@@ -342,13 +343,13 @@ function TagField({ field, categories = [], maxTags = 8 }: TagFieldProps) {
 					}}
 					placeholder="輸入標籤後按 Enter"
 					disabled={tags.length >= maxTags}
-					className="bg-[#202225] border-[#18191c] text-white transition-colors duration-200 placeholder:text-[#72767d] focus-visible:border-[#5865f2] focus-visible:ring-1 focus-visible:ring-[#5865f2] disabled:opacity-50 disabled:bg-[#2f3136]"
+					className="border-[#18191c] bg-[#202225] text-white transition-colors duration-200 placeholder:text-[#72767d] focus-visible:border-[#5865f2] focus-visible:ring-1 focus-visible:ring-[#5865f2] disabled:bg-[#2f3136] disabled:opacity-50"
 				/>
 				<Button
 					type="button"
 					onClick={() => addTag(nextTag)}
 					disabled={!nextTag.trim() || tags.length >= maxTags}
-					className="bg-discord text-white border-transparent hover:bg-discord-hover active:bg-discord transition-all duration-200 shadow-sm disabled:bg-[#3c45a5]/50 disabled:opacity-50 cursor-pointer disabled:cursor-not-allowed"
+					className="cursor-pointer border-transparent bg-discord text-white shadow-sm transition-all duration-200 hover:bg-discord-hover active:bg-discord disabled:cursor-not-allowed disabled:bg-[#3c45a5]/50 disabled:opacity-50"
 				>
 					加入
 				</Button>
@@ -363,11 +364,11 @@ function TagField({ field, categories = [], maxTags = 8 }: TagFieldProps) {
 							onClick={() => addTag(category.name)}
 							disabled={tags.length >= maxTags}
 							// 按鈕本體改為深色 Discord 風格，hover 時稍微亮一點
-							className="inline-flex items-center gap-2 rounded-full bg-[#2f3136] hover:bg-[#35383e] border border-[#202225] px-3 py-1 text-xs font-medium text-[#b9bbbe] hover:text-white cursor-pointer transition-all duration-150 hover:scale-105 active:scale-95 shadow-sm disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:scale-100"
+							className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-[#202225] bg-[#2f3136] px-3 py-1 font-medium text-[#b9bbbe] text-xs shadow-sm transition-all duration-150 hover:scale-105 hover:bg-[#35383e] hover:text-white active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100"
 						>
 							{/* 顏色小點點 */}
 							<span
-								className={`h-2 w-2 rounded-full shrink-0 ${category.color}`}
+								className={`h-2 w-2 shrink-0 rounded-full ${category.color}`}
 							/>
 
 							{/* 分類文字 */}
@@ -382,7 +383,7 @@ function TagField({ field, categories = [], maxTags = 8 }: TagFieldProps) {
 				{tags.map((tag) => (
 					<span
 						key={tag}
-						className="inline-flex items-center gap-1.5 rounded-full bg-[#2f3136] hover:bg-[#35383e] text-[#b9bbbe] border border-[#202225] px-3 py-1 text-xs transition-all duration-150 hover:text-white"
+						className="inline-flex items-center gap-1.5 rounded-full border border-[#202225] bg-[#2f3136] px-3 py-1 text-[#b9bbbe] text-xs transition-all duration-150 hover:bg-[#35383e] hover:text-white"
 					>
 						{tag}
 						<button
@@ -390,7 +391,7 @@ function TagField({ field, categories = [], maxTags = 8 }: TagFieldProps) {
 							onClick={() => removeTag(tag)}
 							className="group cursor-pointer rounded-full p-0.5 transition-all duration-200 hover:bg-[#ed4245]/20"
 						>
-							<X className="h-3 w-3 text-[#b9bbbe] group-hover:text-[#ed4245] group-hover:scale-110 transition-transform" />
+							<X className="h-3 w-3 text-[#b9bbbe] transition-transform group-hover:scale-110 group-hover:text-[#ed4245]" />
 						</button>
 					</span>
 				))}
@@ -405,7 +406,7 @@ function TagField({ field, categories = [], maxTags = 8 }: TagFieldProps) {
 
 			{/* 錯誤訊息：當 tags.length === 0 且表單被觸碰（touched）或送出時，這裡會顯示最少 1 個的錯誤 */}
 			{errorMessage ? (
-				<p className="text-sm text-[#ed4245] font-medium animate-pulse">
+				<p className="animate-pulse font-medium text-[#ed4245] text-sm">
 					{errorMessage}
 				</p>
 			) : null}
@@ -466,7 +467,7 @@ function CommandListField({ field }: CommandListFieldProps) {
 			</div>
 
 			{commands.length === 0 ? (
-				<p className="rounded-md border border-dashed border-white/10 px-3 py-3 text-sm text-[#b9bbbe]">
+				<p className="rounded-md border border-white/10 border-dashed px-3 py-3 text-[#b9bbbe] text-sm">
 					尚未新增任何指令。
 				</p>
 			) : (
@@ -477,7 +478,7 @@ function CommandListField({ field }: CommandListFieldProps) {
 							className="space-y-3 rounded-lg border border-white/10 p-4"
 						>
 							<div className="flex items-center justify-between">
-								<p className="text-sm font-semibold text-white">
+								<p className="font-semibold text-sm text-white">
 									指令 {index + 1}
 								</p>
 								<Button
@@ -544,7 +545,7 @@ function CommandListField({ field }: CommandListFieldProps) {
 				</div>
 			)}
 			{errorMessage ? (
-				<p className="text-sm text-[#ed4245]">{errorMessage}</p>
+				<p className="text-[#ed4245] text-sm">{errorMessage}</p>
 			) : null}
 		</div>
 	);
@@ -632,7 +633,7 @@ export function DeveloperListField({ field }: DeveloperListFieldProps) {
 
 			{/* 1. 已選擇的開發者展示區 */}
 			{developers.length === 0 ? (
-				<p className="rounded-md border border-dashed border-white/10 px-3 py-3 text-sm text-[#b9bbbe]">
+				<p className="rounded-md border border-white/10 border-dashed px-3 py-3 text-[#b9bbbe] text-sm">
 					尚未新增任何開發者。
 				</p>
 			) : (
@@ -643,20 +644,22 @@ export function DeveloperListField({ field }: DeveloperListFieldProps) {
 						return (
 							<div
 								key={developer.name}
-								className="flex items-center gap-2 rounded-md border border-white/10 bg-[#2b2d31] pl-3 pr-1 py-1"
+								className="flex items-center gap-2 rounded-md border border-white/10 bg-[#2b2d31] py-1 pr-1 pl-3"
 							>
 								{developer.avatar ? (
-									<img
+									<OptimizedImage
 										src={developer.avatar}
 										alt="avatar"
-										className="h-5 w-5 rounded-full object-cover"
+										width={20}
+										height={20}
+										className="rounded-full object-cover"
 									/>
 								) : (
 									<div className="flex h-5 w-5 items-center justify-center rounded-full bg-[#1e1f22]">
 										<Search className="h-3 w-3 text-muted-foreground" />
 									</div>
 								)}
-								<span className="text-sm font-medium">{displayName}</span>
+								<span className="font-medium text-sm">{displayName}</span>
 								<Button
 									type="button"
 									onClick={() => removeDeveloper(index)}
@@ -675,7 +678,7 @@ export function DeveloperListField({ field }: DeveloperListFieldProps) {
 			{/* 2. 搜尋輸入框與下拉選單 */}
 			<div className="relative" ref={dropdownRef}>
 				<div className="relative">
-					<Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
+					<Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
 					<Input
 						value={searchTerm}
 						onChange={(e) => {
@@ -687,7 +690,7 @@ export function DeveloperListField({ field }: DeveloperListFieldProps) {
 						className="pl-9"
 					/>
 					{isFetching && (
-						<Loader2 className="absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />
+						<Loader2 className="absolute top-1/2 right-3 h-4 w-4 -translate-y-1/2 animate-spin text-muted-foreground" />
 					)}
 				</div>
 
@@ -695,11 +698,11 @@ export function DeveloperListField({ field }: DeveloperListFieldProps) {
 				{isDropdownOpen && searchTerm.length > 0 && (
 					<div className="absolute top-full z-50 mt-1 max-h-60 w-full overflow-y-auto overflow-x-hidden rounded-md border border-white/10 bg-[#2b2d31] p-1 shadow-lg">
 						{isFetching ? (
-							<div className="p-3 text-center text-sm text-[#b9bbbe]">
+							<div className="p-3 text-center text-[#b9bbbe] text-sm">
 								搜尋中...
 							</div>
 						) : searchResults.length === 0 ? (
-							<div className="p-3 text-center text-sm text-[#b9bbbe]">
+							<div className="p-3 text-center text-[#b9bbbe] text-sm">
 								找不到使用者
 							</div>
 						) : (
@@ -708,13 +711,15 @@ export function DeveloperListField({ field }: DeveloperListFieldProps) {
 									key={result.id}
 									type="button"
 									onClick={() => selectDeveloper(result)}
-									className="flex w-full items-center gap-3 rounded-sm px-2 py-2 text-left hover:bg-[#404249] transition-colors"
+									className="flex w-full items-center gap-3 rounded-sm px-2 py-2 text-left transition-colors hover:bg-[#404249]"
 								>
 									{result.avatar ? (
-										<img
+										<OptimizedImage
 											src={result.avatar}
 											alt="avatar"
-											className="h-8 w-8 shrink-0 rounded-full object-cover" /* 💡 確保頭像不被擠壓 (shrink-0) */
+											width={32}
+											height={32}
+											className="shrink-0 rounded-full object-cover" // 註：可省略 h-8 w-8
 										/>
 									) : (
 										<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#1e1f22]">
@@ -723,14 +728,14 @@ export function DeveloperListField({ field }: DeveloperListFieldProps) {
 									)}
 
 									{/* 💡 2. 加上 flex-1 min-w-0 讓文字區塊正確縮放，避免撐破 flex 容器 */}
-									<div className="flex flex-1 flex-col min-w-0">
+									<div className="flex min-w-0 flex-1 flex-col">
 										{/* 💡 3. 加上 truncate 讓過長文字顯示為 ... */}
-										<span className="truncate text-sm font-medium">
+										<span className="truncate font-medium text-sm">
 											{result.name && result.name.trim() !== ""
 												? result.name
 												: result.username}
 										</span>
-										<span className="truncate text-xs text-[#b9bbbe]">
+										<span className="truncate text-[#b9bbbe] text-xs">
 											{result.id}
 										</span>
 									</div>
@@ -743,7 +748,7 @@ export function DeveloperListField({ field }: DeveloperListFieldProps) {
 
 			{/* 錯誤訊息 */}
 			{errorMessage ? (
-				<p className="text-sm text-[#ed4245]">{errorMessage}</p>
+				<p className="text-[#ed4245] text-sm">{errorMessage}</p>
 			) : null}
 		</div>
 	);
@@ -821,15 +826,20 @@ export default function BotForm({
 			const program = Effect.gen(function* () {
 				// 1. 處理 Banner 上傳
 				let finalBannerUrl = media.banner?.url ?? undefined;
-				if (media.banner?.file) {
+				const bannerFile = media.banner?.file;
+
+				if (bannerFile) {
 					yield* Effect.sync(() => toast.info("上傳 Banner 中..."));
+
 					const uploadedBanner = yield* Effect.tryPromise({
-						try: () => ScreenshotUpload([media.banner!.file!]),
+						// 2. 這裡直接傳入 bannerFile，TypeScript 會自動推導它是 File 型別，不需驚嘆號
+						try: () => ScreenshotUpload([bannerFile]),
 						catch: (err) =>
 							new SubmitBotFailed({
 								message: `Banner 上傳失敗：${toErrorMessage(err)}`,
 							}),
 					});
+
 					finalBannerUrl = uploadedBanner[0]?.url ?? undefined;
 				}
 
@@ -962,7 +972,7 @@ export default function BotForm({
 	});
 	const [uploading] = useState(false);
 	const [loading, setLoading] = useState(false);
-	const [success, setSuccess] = useState(false);
+	const [_success, setSuccess] = useState(false);
 
 	const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 	const previewRef = useRef<HTMLDivElement | null>(null);
@@ -1283,7 +1293,7 @@ export default function BotForm({
 			<div className="mx-auto max-w-7xl space-y-6">
 				<div className="flex flex-wrap items-center justify-between gap-3">
 					<div>
-						<h1 className="text-2xl font-bold">
+						<h1 className="font-bold text-2xl">
 							{mode === "edit" ? "編輯" : "新增"}您的 Discord 機器人
 						</h1>
 					</div>
@@ -1306,7 +1316,7 @@ export default function BotForm({
 					className="grid gap-6 lg:grid-cols-2"
 				>
 					<div className="space-y-6 rounded-xl border border-white/10 bg-[#2b2d31] p-5">
-						<h2 className="border-b border-white/10 pb-2 font-bold text-lg">
+						<h2 className="border-white/10 border-b pb-2 font-bold text-lg">
 							基本資訊
 						</h2>
 
@@ -1330,7 +1340,7 @@ export default function BotForm({
 											aria-invalid={Boolean(errorMessage)}
 										/>
 										{errorMessage ? (
-											<p className="text-sm text-[#ed4245]">{errorMessage}</p>
+											<p className="text-[#ed4245] text-sm">{errorMessage}</p>
 										) : null}
 									</div>
 								);
@@ -1359,7 +1369,7 @@ export default function BotForm({
 											aria-invalid={Boolean(errorMessage)}
 										/>
 										{errorMessage ? (
-											<p className="text-sm text-[#ed4245]">{errorMessage}</p>
+											<p className="text-[#ed4245] text-sm">{errorMessage}</p>
 										) : null}
 									</div>
 								);
@@ -1389,12 +1399,12 @@ export default function BotForm({
 											placeholder="簡短描述您的機器人功能（最多 200 字）"
 											aria-invalid={Boolean(errorMessage)}
 										/>
-										<div className="flex items-center justify-between text-xs text-[#b9bbbe]">
+										<div className="flex items-center justify-between text-[#b9bbbe] text-xs">
 											<span>最多 200 字</span>
 											<span>{(field.state.value ?? "").length}/200</span>
 										</div>
 										{errorMessage ? (
-											<p className="text-sm text-[#ed4245]">{errorMessage}</p>
+											<p className="text-[#ed4245] text-sm">{errorMessage}</p>
 										) : null}
 									</div>
 								);
@@ -1432,7 +1442,7 @@ export default function BotForm({
 											aria-invalid={Boolean(errorMessage)}
 										/>
 										{errorMessage ? (
-											<p className="text-sm text-[#ed4245]">{errorMessage}</p>
+											<p className="text-[#ed4245] text-sm">{errorMessage}</p>
 										) : null}
 									</div>
 								);
@@ -1460,12 +1470,12 @@ export default function BotForm({
 												<Label htmlFor="nsfw" className="cursor-pointer">
 													NSFW 機器人
 												</Label>
-												<p className="text-sm text-muted-foreground">
+												<p className="text-muted-foreground text-sm">
 													如果你的機器人包含成人或敏感內容，請勾選此項。
 												</p>
 
 												{/* 警告元件：套用黃色樣式與 text-xs text-yellow-700 */}
-												<div className="max-w-sm rounded-md border border-yellow-400 bg-yellow-100 px-3 py-2 text-xs text-yellow-700 mt-2 flex gap-2 items-start">
+												<div className="mt-2 flex max-w-sm items-start gap-2 rounded-md border border-yellow-400 bg-yellow-100 px-3 py-2 text-xs text-yellow-700">
 													<div className="relative z-20 cursor-pointer text-yellow-600 hover:text-yellow-500">
 														<AlertTriangle className="h-5 w-5" />
 													</div>
@@ -1481,14 +1491,14 @@ export default function BotForm({
 												</div>
 
 												{errorMessage ? (
-													<p className="text-sm text-[#ed4245] mt-1">
+													<p className="mt-1 text-[#ed4245] text-sm">
 														{errorMessage}
 													</p>
 												) : null}
 											</div>
 
 											{errorMessage ? (
-												<p className="text-sm text-[#ed4245] mt-1">
+												<p className="mt-1 text-[#ed4245] text-sm">
 													{errorMessage}
 												</p>
 											) : null}
@@ -1520,7 +1530,7 @@ export default function BotForm({
 											aria-invalid={Boolean(errorMessage)}
 										/>
 										{errorMessage ? (
-											<p className="text-sm text-[#ed4245]">{errorMessage}</p>
+											<p className="text-[#ed4245] text-sm">{errorMessage}</p>
 										) : null}
 									</div>
 								);
@@ -1550,7 +1560,7 @@ export default function BotForm({
 												aria-invalid={Boolean(errorMessage)}
 											/>
 											{errorMessage ? (
-												<p className="text-sm text-[#ed4245]">{errorMessage}</p>
+												<p className="text-[#ed4245] text-sm">{errorMessage}</p>
 											) : null}
 										</div>
 									);
@@ -1579,7 +1589,7 @@ export default function BotForm({
 												aria-invalid={Boolean(errorMessage)}
 											/>
 											{errorMessage ? (
-												<p className="text-sm text-[#ed4245]">{errorMessage}</p>
+												<p className="text-[#ed4245] text-sm">{errorMessage}</p>
 											) : null}
 										</div>
 									);
@@ -1618,7 +1628,7 @@ export default function BotForm({
 							{(field) => <CommandListField field={field} />}
 						</form.Field>
 
-						<h2 className="border-b border-white/10 pb-2 font-bold text-lg">
+						<h2 className="border-white/10 border-b pb-2 font-bold text-lg">
 							投票通知
 						</h2>
 
@@ -1644,7 +1654,7 @@ export default function BotForm({
 											aria-invalid={Boolean(errorMessage)}
 										/>
 										{errorMessage ? (
-											<p className="text-sm text-[#ed4245]">{errorMessage}</p>
+											<p className="text-[#ed4245] text-sm">{errorMessage}</p>
 										) : null}
 									</div>
 								);
@@ -1673,14 +1683,14 @@ export default function BotForm({
 											aria-invalid={Boolean(errorMessage)}
 										/>
 										{errorMessage ? (
-											<p className="text-sm text-[#ed4245]">{errorMessage}</p>
+											<p className="text-[#ed4245] text-sm">{errorMessage}</p>
 										) : null}
 									</div>
 								);
 							}}
 						</form.Field>
 
-						<h2 className="border-b border-white/10 pb-2 font-bold text-lg mt-8">
+						<h2 className="mt-8 border-white/10 border-b pb-2 font-bold text-lg">
 							自訂投票 Embed 格式 (選填)
 						</h2>
 
@@ -1732,7 +1742,7 @@ export default function BotForm({
 											type="color"
 											value={field.state.value}
 											onChange={(e) => field.handleChange(e.target.value)}
-											className="h-9 w-12 cursor-pointer rounded bg-transparent p-0 border-0"
+											className="h-9 w-12 cursor-pointer rounded border-0 bg-transparent p-0"
 										/>
 										<Input
 											value={field.state.value}
@@ -1862,7 +1872,7 @@ export default function BotForm({
 							{(field) => <EmbedFieldsListField field={field} />}
 						</form.Field>
 
-						<h2 className="border-b border-white/10 pb-2 font-bold text-lg">
+						<h2 className="border-white/10 border-b pb-2 font-bold text-lg">
 							圖片上傳
 						</h2>
 
@@ -1885,7 +1895,7 @@ export default function BotForm({
 							>
 								{uploading ? "圖片上傳中..." : "選擇橫幅圖片"}
 							</Button>
-							<p className="text-xs text-[#b9bbbe]">
+							<p className="text-[#b9bbbe] text-xs">
 								上傳您機器人的自訂橫幅 (如不設置將以機器人橫幅代替)
 							</p>
 						</div>
@@ -1910,15 +1920,15 @@ export default function BotForm({
 							>
 								{uploading ? "圖片上傳中..." : "選擇截圖"}
 							</Button>
-							<p className="text-xs text-[#b9bbbe]">
+							<p className="text-[#b9bbbe] text-xs">
 								上傳您機器人的截圖，展示機器人的功能和使用場景
 							</p>
 						</div>
 
-						<div className="space-y-4 border-t border-white/10 pt-4">
+						<div className="space-y-4 border-white/10 border-t pt-4">
 							<div className="flex items-start gap-2">
 								<Info size={16} className="mt-0.5 text-[#5865f2]" />
-								<p className="text-sm text-[#b9bbbe]">
+								<p className="text-[#b9bbbe] text-sm">
 									{mode === "edit"
 										? "保存後，變更可能需要一段時間才會套用。"
 										: "提交後，我們將審核您的機器人。審核通常需要 1-2 個工作日。"}
@@ -1969,9 +1979,11 @@ export default function BotForm({
 							<div className="h-40 overflow-hidden rounded-lg border border-white/10 bg-[#36393f]">
 								{media.banner ? (
 									<div className="group relative h-full w-full">
-										<img
+										<OptimizedImage
 											src={media.banner.url}
 											alt="Banner preview"
+											width={960}
+											height={360}
 											className="h-full w-full object-cover"
 										/>
 										<button
@@ -1983,7 +1995,7 @@ export default function BotForm({
 										</button>
 									</div>
 								) : (
-									<div className="flex h-full items-center justify-center text-sm text-[#b9bbbe]">
+									<div className="flex h-full items-center justify-center text-[#b9bbbe] text-sm">
 										沒有機器人橫幅
 									</div>
 								)}
@@ -2002,7 +2014,7 @@ export default function BotForm({
 										removeScreenshot={removeScreenshot}
 									/>
 								) : (
-									<div className="flex h-full items-center justify-center pt-8 pb-8 text-sm text-[#b9bbbe]">
+									<div className="flex h-full items-center justify-center pt-8 pb-8 text-[#b9bbbe] text-sm">
 										沒有機器人截圖
 									</div>
 								)}
@@ -2010,7 +2022,7 @@ export default function BotForm({
 						</div>
 
 						{/* 3. Markdown 預覽（加上 flex-1 h-0 與內部滾動） */}
-						<div className="flex flex-1 h-0 flex-col space-y-2">
+						<div className="flex h-0 flex-1 flex-col space-y-2">
 							<Label>Markdown 預覽</Label>
 							<div
 								ref={previewRef}
@@ -2020,7 +2032,7 @@ export default function BotForm({
 									{sanitizedMarkdown.trim() ? (
 										<MarkdownRenderer content={sanitizedMarkdown} />
 									) : (
-										<p className="text-sm text-[#b9bbbe]">
+										<p className="text-[#b9bbbe] text-sm">
 											在左側輸入詳細介紹後，這裡會同步顯示預覽。
 										</p>
 									)}
@@ -2029,7 +2041,7 @@ export default function BotForm({
 						</div>
 
 						{/* 4. Embed 預覽（同樣加上 flex-1 h-0 與內部滾動，確保與 Markdown 平分高度） */}
-						<div className="flex flex-1 h-0 flex-col space-y-2">
+						<div className="flex h-0 flex-1 flex-col space-y-2">
 							<Label>Embed 預覽</Label>
 							<div className="flex-1 overflow-y-auto rounded-lg border border-white/10 bg-[#1f2124] p-4">
 								<ClientOnly>

@@ -7,17 +7,17 @@ export default function Footer({ className }: { className?: string }) {
 
 	return (
 		<footer
-			className={cn("border-t border-[#1e1f22] bg-[#2b2d31] py-8", className)}
+			className={cn("border-[#1e1f22] border-t bg-[#2b2d31] py-8", className)}
 		>
 			<div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
 				{/* 四欄內容 */}
 				<div className="grid grid-cols-1 gap-8 sm:grid-cols-2 md:grid-cols-4">
 					{/* Logo/簡介 */}
 					<div className="col-span-1">
-						<h3 className="mb-4 text-lg font-semibold text-white">
+						<h3 className="mb-4 font-semibold text-lg text-white">
 							DiscordHubs
 						</h3>
-						<p className="text-sm text-gray-400 leading-relaxed">
+						<p className="text-gray-400 text-sm leading-relaxed">
 							最佳的 Discord
 							伺服器和機器人列表平台，幫助您發現和加入有趣的社群，為伺服器增添功能。
 						</p>
@@ -26,21 +26,21 @@ export default function Footer({ className }: { className?: string }) {
 					{/* 導覽連結 */}
 					<div>
 						<h4 className="mb-4 font-medium text-white">連結</h4>
-						<ul className="space-y-2 text-sm text-gray-400">
+						<ul className="space-y-2 text-gray-400 text-sm">
 							<li>
-								<Link to="/" className="hover:text-white transition-colors">
+								<Link to="/" className="transition-colors hover:text-white">
 									伺服器列表
 								</Link>
 							</li>
 							<li>
-								<Link to="/bots" className="hover:text-white transition-colors">
+								<Link to="/bots" className="transition-colors hover:text-white">
 									機器人列表
 								</Link>
 							</li>
 							<li>
 								<Link
 									to="/protected/add-server"
-									className="hover:text-white transition-colors"
+									className="transition-colors hover:text-white"
 								>
 									新增伺服器
 								</Link>
@@ -48,7 +48,7 @@ export default function Footer({ className }: { className?: string }) {
 							<li>
 								<Link
 									to="/protected/add-bot"
-									className="hover:text-white transition-colors"
+									className="transition-colors hover:text-white"
 								>
 									新增機器人
 								</Link>
@@ -59,11 +59,11 @@ export default function Footer({ className }: { className?: string }) {
 					{/* 資源連結 */}
 					<div>
 						<h4 className="mb-4 font-medium text-white">資源</h4>
-						<ul className="space-y-2 text-sm text-gray-400">
+						<ul className="space-y-2 text-gray-400 text-sm">
 							<li>
 								<Link
 									to="/tutorial"
-									className="hover:text-white transition-colors"
+									className="transition-colors hover:text-white"
 								>
 									常見問題
 								</Link>
@@ -73,7 +73,7 @@ export default function Footer({ className }: { className?: string }) {
 								<Link
 									to="/tutorial"
 									hash="faq"
-									className="hover:text-white transition-colors"
+									className="transition-colors hover:text-white"
 								>
 									使用指南
 								</Link>
@@ -84,7 +84,7 @@ export default function Footer({ className }: { className?: string }) {
 									href="https://docs.dchubs.org"
 									target="_blank"
 									rel="noopener noreferrer"
-									className="hover:text-white transition-colors"
+									className="transition-colors hover:text-white"
 								>
 									開發者文檔
 								</a>
@@ -94,7 +94,7 @@ export default function Footer({ className }: { className?: string }) {
 									href="https://discord.gg/b2NSGX2ADb"
 									target="_blank"
 									rel="noopener noreferrer"
-									className="hover:text-white transition-colors"
+									className="transition-colors hover:text-white"
 								>
 									Discord 官方
 								</a>
@@ -105,11 +105,11 @@ export default function Footer({ className }: { className?: string }) {
 					{/* 規範 */}
 					<div>
 						<h4 className="mb-4 font-medium text-white">規範</h4>
-						<ul className="space-y-2 text-sm text-gray-400">
+						<ul className="space-y-2 text-gray-400 text-sm">
 							<li>
 								<Link
 									to="/terms"
-									className="hover:text-white transition-colors"
+									className="transition-colors hover:text-white"
 								>
 									服務條款
 								</Link>
@@ -117,7 +117,7 @@ export default function Footer({ className }: { className?: string }) {
 							<li>
 								<Link
 									to="/privacy"
-									className="hover:text-white transition-colors"
+									className="transition-colors hover:text-white"
 								>
 									隱私政策
 								</Link>
@@ -127,8 +127,8 @@ export default function Footer({ className }: { className?: string }) {
 				</div>
 
 				{/* 底部資訊 */}
-				<div className="mt-8 flex flex-col items-center justify-between border-t border-[#1e1f22] pt-8 md:flex-row">
-					<p className="text-center text-sm text-gray-400 md:text-left">
+				<div className="mt-8 flex flex-col items-center justify-between border-[#1e1f22] border-t pt-8 md:flex-row">
+					<p className="text-center text-gray-400 text-sm md:text-left">
 						© {currentYear} DiscordHubs. 保留所有權利。
 					</p>
 					<div className="mt-4 flex space-x-4 md:mt-0">
@@ -164,7 +164,7 @@ function SocialIcon({
 	return (
 		<a
 			href={href}
-			className="text-gray-400 hover:text-white transition-colors"
+			className="text-gray-400 transition-colors hover:text-white"
 			aria-label={title}
 			target="_blank"
 			rel="noopener noreferrer"

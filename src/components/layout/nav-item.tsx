@@ -51,10 +51,10 @@ export function NavItem({
 									rel="noopener noreferrer"
 									onClick={handleSelect}
 								>
-									<span className="relative flex items-center justify-center shrink-0 bg-transparent">
+									<span className="relative flex shrink-0 items-center justify-center bg-transparent">
 										<item.icon size={16} />
 										{badgeDisplay && (
-											<span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-md min-w-4 text-center px-1">
+											<span className="absolute -top-1 -right-1 min-w-4 rounded-md bg-red-500 px-1 text-center text-white text-xs">
 												{badgeDisplay}
 											</span>
 										)}
@@ -63,10 +63,10 @@ export function NavItem({
 								</a>
 							) : (
 								<Link to={item.url} onClick={handleSelect}>
-									<span className="relative flex items-center justify-center shrink-0 bg-transparent">
+									<span className="relative flex shrink-0 items-center justify-center bg-transparent">
 										<item.icon size={16} />
 										{badgeDisplay && (
-											<span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-md min-w-4 text-center px-1">
+											<span className="absolute -top-1 -right-1 min-w-4 rounded-md bg-red-500 px-1 text-center text-white text-xs">
 												{badgeDisplay}
 											</span>
 										)}

@@ -1,16 +1,8 @@
 import { Link } from "@tanstack/react-router";
-import { Image } from "@unpic/react";
-import {
-	AlertTriangle,
-	ArrowUp,
-	BadgeCheck,
-	Clock,
-	Heart,
-	Pin,
-	Users,
-} from "lucide-react";
+import { AlertTriangle, ArrowUp, Clock, Heart, Pin, Users } from "lucide-react";
 import { memo } from "react";
 import { FaCheck } from "react-icons/fa6";
+import { OptimizedImage } from "#/components/OptimizedImage";
 import { Badge } from "#/components/ui/badge";
 import { Button } from "#/components/ui/button";
 import {
@@ -44,20 +36,18 @@ function BotCard({ item, priority = false }: BotCardProps) {
 
 			<div className="flex flex-col gap-4 sm:flex-row">
 				{/* 首屏圖片給 priority，其餘 lazy */}
-				<Image
+				<OptimizedImage
 					src={item.icon ?? "https://cdn.discordapp.com/embed/avatars/0.png"}
 					alt={`${item.name} icon`}
 					width={64}
 					height={64}
 					className="h-16 w-16 rounded-xl object-cover"
-					priority={priority}
-					loading={priority ? undefined : "lazy"}
 				/>
 
 				<div className="min-w-0 flex-1">
 					<BotCardHeader item={item} />
 
-					<p className="line-clamp-2 text-sm text-gray-300">
+					<p className="line-clamp-2 text-gray-300 text-sm">
 						{item.description}
 					</p>
 
@@ -67,7 +57,7 @@ function BotCard({ item, priority = false }: BotCardProps) {
 						{item.nsfw && (
 							<Badge
 								variant="destructive" /* 這裡使用 shadcn 的 destructive 通常預設就是紅色，或者用 className 自訂 */
-								className="relative z-20 bg-red-600 hover:bg-red-700 text-white cursor-default font-bold"
+								className="relative z-20 cursor-default bg-red-600 font-bold text-white hover:bg-red-700"
 							>
 								<span className="mr-1">🔞</span>{" "}
 								{/* 你可以使用 Emoji 或是你的 Icon 組件 */}
@@ -80,7 +70,7 @@ function BotCard({ item, priority = false }: BotCardProps) {
 							<Badge
 								key={tag}
 								variant="secondary"
-								className="relative z-20 bg-[#36393f] hover:bg-[#4f545c] text-gray-300 cursor-default"
+								className="relative z-20 cursor-default bg-[#36393f] text-gray-300 hover:bg-[#4f545c]"
 							>
 								{tag}
 							</Badge>
@@ -99,7 +89,7 @@ function BotCard({ item, priority = false }: BotCardProps) {
 function BotCardHeader({ item }: { item: PublicBot }) {
 	return (
 		<div className="mb-2 flex flex-wrap items-center gap-2">
-			<h3 className="inline-flex items-center gap-2 text-lg font-semibold text-white">
+			<h3 className="inline-flex items-center gap-2 font-semibold text-lg text-white">
 				<span>{item.name}</span>
 				{item.pin && <Pin className="h-4 w-4 text-gray-400" />}
 			</h3>
@@ -142,7 +132,7 @@ function BotCardHeader({ item }: { item: PublicBot }) {
 			)}
 
 			{item.isFavorite && (
-				<span className="inline-flex items-center gap-1 rounded-full bg-rose-50 px-2 py-1 text-xs font-semibold text-rose-600 border border-rose-100">
+				<span className="inline-flex items-center gap-1 rounded-full border border-rose-100 bg-rose-50 px-2 py-1 font-semibold text-rose-600 text-xs">
 					<Heart className="h-3.5 w-3.5 fill-rose-500 stroke-rose-500" />
 					已收藏
 				</span>
@@ -153,7 +143,7 @@ function BotCardHeader({ item }: { item: PublicBot }) {
 
 function BotCardMeta({ item }: { item: PublicBot }) {
 	return (
-		<div className="mt-3 flex flex-wrap items-center gap-3 text-sm text-gray-400">
+		<div className="mt-3 flex flex-wrap items-center gap-3 text-gray-400 text-sm">
 			<span className="inline-flex items-center gap-1">
 				<Users className="h-4 w-4" />
 				{item.servers.toLocaleString()} 伺服器

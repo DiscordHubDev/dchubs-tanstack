@@ -83,12 +83,12 @@ export default function CategorySearch({
 					placeholder="搜尋分類..."
 					className="border-white/10 bg-[#1f2125] pl-9 text-white placeholder:text-gray-500"
 				/>
-				<Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
+				<Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-gray-500" />
 			</div>
 
 			{/* 頁籤切換 (有搜尋關鍵字時隱藏，因為搜尋是全域的) */}
 			{!keyword.trim() && (
-				<div className="flex items-center ju gap-2 border-b border-white/10 pb-2">
+				<div className="ju flex items-center gap-2 border-white/10 border-b pb-2">
 					{(
 						[
 							{ id: "preset", label: "預設" },
@@ -120,7 +120,7 @@ export default function CategorySearch({
 						onCategoryChange={onCategoryChange}
 					/>
 				) : (
-					<div className="text-center text-xs text-gray-500 py-4">
+					<div className="py-4 text-center text-gray-500 text-xs">
 						找不到相關分類
 					</div>
 				)}
@@ -128,7 +128,7 @@ export default function CategorySearch({
 
 			{/* 新增自訂分類區塊 */}
 			{onCustomCategoryAdd && (
-				<div className="flex flex-col gap-1 pt-2 border-t border-white/10">
+				<div className="flex flex-col gap-1 border-white/10 border-t pt-2">
 					<div className="flex gap-2">
 						<Input
 							value={customCategory}
@@ -153,7 +153,7 @@ export default function CategorySearch({
 					{/* 策略 C：上限提示 */}
 					{isCustomLimitReached && (
 						<span className="flex items-center text-[10px] text-yellow-500/80">
-							<AlertCircle className="w-3 h-3 mr-1" />
+							<AlertCircle className="mr-1 h-3 w-3" />
 							最多只能建立 {MAX_CUSTOM_LIMIT} 個自訂標籤
 						</span>
 					)}

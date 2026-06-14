@@ -598,7 +598,7 @@ function BotsPage() {
 							value={activeTab}
 							onValueChange={handleTabChange}
 						>
-							<TabsList className="relative h-full w-full border-b border-[#1e1f22] bg-[#2b2d31] p-1">
+							<TabsList className="relative h-full w-full border-[#1e1f22] border-b bg-[#2b2d31] p-1">
 								{BOT_CATEGORY_CONFIG.map(({ id, label }) => (
 									<BotTabTrigger
 										key={id}

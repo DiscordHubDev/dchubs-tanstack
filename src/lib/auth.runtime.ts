@@ -181,7 +181,7 @@ export async function createAuth() {
 								),
 						});
 
-						if (account && account.accessToken) {
+						if (account?.accessToken) {
 							try {
 								// 2. 直接向 Discord 請求最新的 Profile 資料
 								const res = await fetch("https://discord.com/api/users/@me", {

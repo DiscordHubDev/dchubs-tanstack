@@ -7,6 +7,7 @@ import ReactMarkdown from "react-markdown";
 import rehypeRaw from "rehype-raw";
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
 import remarkGfm from "remark-gfm";
+import { OptimizedImage } from "./OptimizedImage";
 
 type Props = {
 	content: string;
@@ -65,7 +66,7 @@ const SafeIframe = ({ src, title, className, ...rest }: SafeIframeProps) => {
 
 	if (!url) {
 		return (
-			<div className="bg-gray-700 p-4 rounded text-gray-300 text-sm">
+			<div className="rounded bg-gray-700 p-4 text-gray-300 text-sm">
 				無法嵌入（只允許 http/https）。
 				{src && (
 					<div className="mt-2 break-all">
@@ -87,7 +88,7 @@ const SafeIframe = ({ src, title, className, ...rest }: SafeIframeProps) => {
 
 	return (
 		<div
-			className={`aspect-video w-full my-2 rounded overflow-hidden border border-gray-600 ${className || ""}`}
+			className={`my-2 aspect-video w-full overflow-hidden rounded border border-gray-600 ${className || ""}`}
 		>
 			<iframe
 				src={url.toString()}
@@ -96,7 +97,7 @@ const SafeIframe = ({ src, title, className, ...rest }: SafeIframeProps) => {
 				referrerPolicy="strict-origin-when-cross-origin"
 				sandbox={sandbox || undefined}
 				allow=""
-				className="w-full h-full"
+				className="h-full w-full"
 			/>
 		</div>
 	);
@@ -110,7 +111,7 @@ const SafeImage = ({ src, alt, ...props }: SafeImageProps) => {
 
 	if (!src) {
 		return (
-			<div className="bg-gray-700 p-4 rounded text-gray-400 text-center">
+			<div className="rounded bg-gray-700 p-4 text-center text-gray-400">
 				圖片載入失敗：缺少圖片來源
 			</div>
 		);
@@ -118,9 +119,9 @@ const SafeImage = ({ src, alt, ...props }: SafeImageProps) => {
 
 	if (hasError) {
 		return (
-			<div className="bg-gray-700 p-4 rounded text-gray-400 text-center">
+			<div className="rounded bg-gray-700 p-4 text-center text-gray-400">
 				<div>圖片載入失敗</div>
-				<div className="text-xs mt-1 break-all">{src}</div>
+				<div className="mt-1 break-all text-xs">{src}</div>
 			</div>
 		);
 	}
@@ -128,15 +129,17 @@ const SafeImage = ({ src, alt, ...props }: SafeImageProps) => {
 	return (
 		<div className="my-2 text-center">
 			{isLoading && (
-				<div className="bg-gray-700 p-4 rounded text-gray-400 animate-pulse">
+				<div className="animate-pulse rounded bg-gray-700 p-4 text-gray-400">
 					載入圖片中...
 				</div>
 			)}
-			<img
+			<OptimizedImage
 				{...props}
 				src={src}
 				alt={alt || "圖片"}
-				className="max-w-full h-auto rounded shadow-lg"
+				width={800} // ✨ 提供寬度基準 (如 800)
+				height={450} // ✨ 提供高度基準 (如 450，滿足 h-auto 的比例)
+				className="h-auto max-w-full rounded shadow-lg"
 				onLoad={() => setIsLoading(false)}
 				onError={() => {
 					setIsLoading(false);
@@ -200,10 +203,10 @@ class MarkdownErrorBoundary extends React.Component<
 		if (this.state.hasError) {
 			return (
 				<div className="rounded-lg border border-red-400/30 bg-red-950/20 p-4">
-					<p className="mb-2 text-sm text-red-200">
+					<p className="mb-2 text-red-200 text-sm">
 						Markdown 內容無法完整解析，已改為純文字顯示。
 					</p>
-					<pre className="whitespace-pre-wrap wrap-break-word text-sm text-gray-300">
+					<pre className="wrap-break-word whitespace-pre-wrap text-gray-300 text-sm">
 						{this.props.content}
 					</pre>
 				</div>
@@ -224,7 +227,7 @@ export default function MarkdownRenderer({ content }: Props) {
 			: content;
 
 	return (
-		<div className="text-gray-300 whitespace-normal">
+		<div className="whitespace-normal text-gray-300">
 			<MarkdownErrorBoundary content={normalizedContent}>
 				<ReactMarkdown
 					remarkPlugins={[remarkGfm]}
@@ -267,7 +270,7 @@ export default function MarkdownRenderer({ content }: Props) {
 						h1: ({ children, ...props }) => (
 							<h1
 								id={customSlugify(extractText(children))}
-								className="text-2xl font-bold mt-3 mb-1"
+								className="mt-3 mb-1 font-bold text-2xl"
 								{...props}
 							>
 								{children}
@@ -276,7 +279,7 @@ export default function MarkdownRenderer({ content }: Props) {
 						h2: ({ children, ...props }) => (
 							<h2
 								id={customSlugify(extractText(children))}
-								className="text-xl font-semibold mt-2 mb-1"
+								className="mt-2 mb-1 font-semibold text-xl"
 								{...props}
 							>
 								{children}
@@ -285,19 +288,19 @@ export default function MarkdownRenderer({ content }: Props) {
 						h3: ({ children, ...props }) => (
 							<h3
 								id={customSlugify(extractText(children))}
-								className="text-lg font-medium mt-2 mb-1"
+								className="mt-2 mb-1 font-medium text-lg"
 								{...props}
 							>
 								{children}
 							</h3>
 						),
 						ul: ({ children, ...props }) => (
-							<ul className="list-disc pl-4 space-y-1 my-2" {...props}>
+							<ul className="my-2 list-disc space-y-1 pl-4" {...props}>
 								{children}
 							</ul>
 						),
 						ol: ({ children, ...props }) => (
-							<ol className="list-decimal pl-4 space-y-1 my-2" {...props}>
+							<ol className="my-2 list-decimal space-y-1 pl-4" {...props}>
 								{children}
 							</ol>
 						),
@@ -329,7 +332,7 @@ export default function MarkdownRenderer({ content }: Props) {
 								<a
 									{...props}
 									href={safeHref}
-									className="text-blue-400 hover:text-blue-600 underline transition-colors duration-200"
+									className="text-blue-400 underline transition-colors duration-200 hover:text-blue-600"
 									target={safeHref.startsWith("http") ? "_blank" : undefined}
 									rel={
 										safeHref.startsWith("http")
@@ -343,7 +346,7 @@ export default function MarkdownRenderer({ content }: Props) {
 						},
 						pre: ({ children, ...props }) => (
 							<pre
-								className="bg-gray-800 p-3 rounded-lg overflow-hidden my-2 border border-gray-600"
+								className="my-2 overflow-hidden rounded-lg border border-gray-600 bg-gray-800 p-3"
 								{...props}
 							>
 								{children}
@@ -354,7 +357,7 @@ export default function MarkdownRenderer({ content }: Props) {
 							if (isInline) {
 								return (
 									<code
-										className="bg-gray-700 px-1.5 py-0.5 rounded text-sm font-mono text-gray-200"
+										className="rounded bg-gray-700 px-1.5 py-0.5 font-mono text-gray-200 text-sm"
 										{...props}
 									>
 										{children}
@@ -363,7 +366,7 @@ export default function MarkdownRenderer({ content }: Props) {
 							}
 							return (
 								<code
-									className={`${className} text-gray-200 font-mono text-sm`}
+									className={`${className} font-mono text-gray-200 text-sm`}
 									{...props}
 								>
 									{children}
@@ -371,7 +374,7 @@ export default function MarkdownRenderer({ content }: Props) {
 							);
 						},
 						table: ({ children, ...props }) => (
-							<div className="overflow-hidden my-2">
+							<div className="my-2 overflow-hidden">
 								<table
 									className="min-w-full border border-gray-600 bg-gray-800"
 									{...props}
@@ -382,7 +385,7 @@ export default function MarkdownRenderer({ content }: Props) {
 						),
 						th: ({ children, ...props }) => (
 							<th
-								className="border border-gray-600 px-3 py-1.5 bg-gray-700 font-semibold"
+								className="border border-gray-600 bg-gray-700 px-3 py-1.5 font-semibold"
 								{...props}
 							>
 								{children}
@@ -395,7 +398,7 @@ export default function MarkdownRenderer({ content }: Props) {
 						),
 						blockquote: ({ children, ...props }) => (
 							<blockquote
-								className="border-l-4 border-gray-400 pl-3 my-2 text-gray-300 py-0.5"
+								className="my-2 border-gray-400 border-l-4 py-0.5 pl-3 text-gray-300"
 								{...props}
 							>
 								{children}

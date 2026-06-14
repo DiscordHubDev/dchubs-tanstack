@@ -106,6 +106,7 @@ const EqualizerAnimation: FC = () => (
 	>
 		{EQ_DELAYS.map((delay, i) => (
 			<div
+				// biome-ignore lint/suspicious/noArrayIndexKey: yeah
 				key={i}
 				style={{
 					width: 5,
@@ -296,6 +297,7 @@ const LoadingPage: FC<LoadingPageProps> = ({
 			{/* Floating particles */}
 			{PARTICLES.map((p, i) => (
 				<div
+					// biome-ignore lint/suspicious/noArrayIndexKey: yeah
 					key={i}
 					aria-hidden="true"
 					style={{

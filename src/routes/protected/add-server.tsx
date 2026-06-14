@@ -2,6 +2,8 @@ import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { AlertTriangle, RefreshCw } from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import LoadingPage from "#/components/loading";
+import { OptimizedImage } from "#/components/OptimizedImage";
+import { Avatar, AvatarFallback } from "#/components/ui/avatar";
 import { guildMembershipQueryOptions } from "#/features/servers/add-server.query";
 import type { DiscordGuild } from "#/features/servers/add-server.types";
 import { useGuilds } from "#/hooks/use-guilds";
@@ -133,18 +135,18 @@ function GuildCard({
 	return (
 		<div className="flex flex-col gap-4 rounded-xl border border-[#4f545c] bg-[#2f3136] p-4">
 			<div className="flex min-w-0 items-center gap-3">
-				<div className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-full bg-[#40444b] font-semibold text-[#dcddde] text-sm">
-					{iconUrl ? (
-						<img
-							src={iconUrl}
-							alt={guild.name}
-							className="h-full w-full object-cover"
-							loading="lazy"
-						/>
-					) : (
-						guild.name.slice(0, 1).toUpperCase()
-					)}
-				</div>
+				<Avatar className="h-12 w-12 shrink-0 items-center justify-center bg-[#40444b] font-semibold text-[#dcddde] text-sm shadow-sm">
+					<OptimizedImage
+						src={iconUrl}
+						alt={guild.name}
+						width={48} // 48px 完美對齊 h-12 尺寸需求
+						height={48}
+						className="h-full w-full object-cover"
+					/>
+					<AvatarFallback className="select-none bg-transparent font-semibold text-sm uppercase">
+						{guild.name?.slice(0, 1).toUpperCase() || "G"}
+					</AvatarFallback>
+				</Avatar>
 				<div className="min-w-0">
 					<p className="truncate font-medium text-white">{guild.name}</p>
 					<p className="text-[#b9bbbe] text-xs">

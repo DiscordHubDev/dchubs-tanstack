@@ -54,7 +54,7 @@ export default function Header() {
 		if (isSignedIn) {
 			return (
 				<div
-					className={`flex ${isMobile ? "flex-col gap-2 mt-2 w-full" : "items-center gap-3"}`}
+					className={`flex ${isMobile ? "mt-2 w-full flex-col gap-2" : "items-center gap-3"}`}
 				>
 					<Link
 						to="/protected/profile"
@@ -63,8 +63,8 @@ export default function Header() {
 						className={isMobile ? "w-full" : ""}
 					>
 						<Button
-							className={`cursor-pointer text-white flex items-center gap-2 justify-start bg-discord hover:bg-discord-hover transition-colors ${
-								isMobile ? "w-full px-3 py-2 text-sm h-10" : ""
+							className={`flex cursor-pointer items-center justify-start gap-2 bg-discord text-white transition-colors hover:bg-discord-hover ${
+								isMobile ? "h-10 w-full px-3 py-2 text-sm" : ""
 							} ${pathname === "/protected/profile" ? "bg-discord-hover" : ""}`}
 						>
 							<FaUser className="size-4 shrink-0" />
@@ -74,8 +74,8 @@ export default function Header() {
 					<Button
 						onClick={handleSignOut}
 						variant="destructive"
-						className={`cursor-pointer bg-red-700 hover:bg-red-600 text-white flex items-center gap-2 justify-start transition-colors ${
-							isMobile ? "w-full px-3 py-2 text-sm h-10" : "px-3"
+						className={`flex cursor-pointer items-center justify-start gap-2 bg-red-700 text-white transition-colors hover:bg-red-600 ${
+							isMobile ? "h-10 w-full px-3 py-2 text-sm" : "px-3"
 						}`}
 					>
 						<LogOut className="size-4 shrink-0" />
@@ -88,8 +88,8 @@ export default function Header() {
 		return (
 			<Button
 				onClick={handleDiscordSignIn}
-				className={`cursor-pointer text-white flex items-center gap-2 justify-center bg-discord hover:bg-discord-hover transition-colors ${
-					isMobile ? "w-full mt-2" : ""
+				className={`flex cursor-pointer items-center justify-center gap-2 bg-discord text-white transition-colors hover:bg-discord-hover ${
+					isMobile ? "mt-2 w-full" : ""
 				}`}
 			>
 				<FaDiscord className="size-5" />
@@ -111,19 +111,19 @@ export default function Header() {
 					{/* 左側：Logo 與 導覽連結 */}
 					<div className="flex min-w-0 items-center gap-2 md:gap-6">
 						{/* 行動端側邊欄觸發按鈕 */}
-						<SidebarTrigger className="cursor-pointer md:hidden text-white" />
+						<SidebarTrigger className="cursor-pointer text-white md:hidden" />
 
 						{/* Logo */}
 						<Link
 							to="/"
-							className="flex shrink-0 items-center font-bold text-white text-xl hover:opacity-90 transition-opacity"
+							className="flex shrink-0 items-center font-bold text-white text-xl transition-opacity hover:opacity-90"
 						>
 							<Image
 								src="/favicon.ico"
 								alt="DiscordHubs Logo"
 								width={26}
 								height={26}
-								className="rounded-full mr-2 shrink-0"
+								className="mr-2 shrink-0 rounded-full"
 							/>
 							<span className="truncate">DiscordHubs</span>
 						</Link>
@@ -168,14 +168,14 @@ export default function Header() {
 
 			{/* 行動端下拉選單選單 (md 以下顯示) */}
 			{isOpen && (
-				<div className="border-t border-white/5 bg-[#2b2d31] px-4 pt-2 pb-4 md:hidden shadow-xl">
+				<div className="border-white/5 border-t bg-[#2b2d31] px-4 pt-2 pb-4 shadow-xl md:hidden">
 					<div className="space-y-1">
 						{links.map(({ to, label }) => (
 							<Link
 								key={to}
 								to={to}
 								onClick={() => setIsOpen(false)}
-								className={`block w-full rounded-md px-3 py-2 text-base font-medium text-white hover:bg-[#36393f] transition-colors ${
+								className={`block w-full rounded-md px-3 py-2 font-medium text-base text-white transition-colors hover:bg-[#36393f] ${
 									pathname === to ? "bg-white/10 font-semibold" : ""
 								}`}
 							>
@@ -185,7 +185,7 @@ export default function Header() {
 					</div>
 
 					{/* 行動端認證按鈕 */}
-					<div className="mt-4 pt-4 border-t border-white/5">
+					<div className="mt-4 border-white/5 border-t pt-4">
 						<AuthButtons isMobile />
 					</div>
 				</div>

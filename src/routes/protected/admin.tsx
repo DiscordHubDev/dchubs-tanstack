@@ -55,7 +55,7 @@ function PanelSkeleton() {
 
 	return (
 		<div className="animate-pulse space-y-3 rounded-md border border-[#202225] bg-[#2b2d31] p-6">
-			{skeletonRows.map((row, i) => (
+			{skeletonRows.map((_row, i) => (
 				<div
 					// biome-ignore lint/suspicious/noArrayIndexKey: safe
 					key={i}

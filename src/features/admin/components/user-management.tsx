@@ -18,6 +18,7 @@ import {
 } from "lucide-react"; // 移除了 Mail icon
 import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Swal from "sweetalert2";
+import { OptimizedImage } from "#/components/OptimizedImage";
 import type { user as userSchema } from "#/drizzle/schema";
 import { queryKeys } from "#/lib/query-keys";
 import { SOCIAL_PLATFORMS } from "#/lib/socal";
@@ -74,28 +75,22 @@ const UserCard = memo(
 		return (
 			<button
 				type="button"
-				className="group flex h-full w-full cursor-pointer flex-col justify-between gap-3 overflow-hidden rounded-xl border border-[#000000] bg-[#2b2d31] p-3 text-left transition-all duration-300 hover:-translate-y-1 hover:border-indigo-500/50 hover:bg-[#2b2d31]/80 hover:shadow-lg hover:shadow-indigo-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 sm:gap-4 sm:p-5"
+				className="group flex h-full w-full cursor-pointer flex-col justify-between gap-3 overflow-hidden rounded-xl border border-[#000000] bg-[#2b2d31] p-3 text-left transition-all duration-300 hover:-translate-y-1 hover:border-indigo-500/50 hover:bg-[#2b2d31]/80 hover:shadow-indigo-500/10 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 sm:gap-4 sm:p-5"
 				onClick={() => onView(user)}
 			>
 				<div className="space-y-3">
 					<div className="flex items-start gap-3 sm:gap-4">
-						<img
-							src={
-								user.image ??
-								user.avatar ??
-								"https://cdn.discordapp.com/embed/avatars/0.png"
-							}
+						<OptimizedImage
+							src={user.image ?? user.avatar}
+							fallbackSrc="https://cdn.discordapp.com/embed/avatars/0.png"
 							alt={user.name}
-							onError={(e) => {
-								e.currentTarget.src =
-									"https://cdn.discordapp.com/embed/avatars/0.png";
-							}}
-							className="h-10 w-10 flex-shrink-0 rounded-full object-cover shadow-sm transition-transform duration-300 group-hover:scale-105 sm:h-12 sm:w-12"
-							loading="lazy"
+							width={48}
+							height={48}
+							className="flex-shrink-0 rounded-full object-cover shadow-sm transition-transform duration-300 group-hover:scale-105 sm:h-12 sm:w-12"
 						/>
 						<div className="min-w-0 flex-1">
 							<div className="flex flex-row items-center gap-2">
-								<h3 className="flex-1 line-clamp-1 break-words font-semibold text-zinc-100 text-base sm:text-lg">
+								<h3 className="line-clamp-1 flex-1 break-words font-semibold text-base text-zinc-100 sm:text-lg">
 									{user.name}
 								</h3>
 								{user.banned && (
@@ -107,7 +102,7 @@ const UserCard = memo(
 							</div>
 							{/* 改為顯示 Username 幫助辨識 */}
 							{user.username && (
-								<p className="mt-0.5 line-clamp-1 break-words text-zinc-400 text-xs sm:text-sm">
+								<p className="mt-0.5 line-clamp-1 break-words text-xs text-zinc-400 sm:text-sm">
 									@{user.username}
 								</p>
 							)}
@@ -167,10 +162,13 @@ const UserDetailsDialog = memo(
 
 					<div className="grid gap-6 py-4">
 						<div className="flex flex-col items-start gap-4 rounded-xl bg-[#2b2d31]/50 p-4 sm:flex-row sm:items-center">
-							<img
-								src={user.image ?? user.avatar ?? "/placeholder.png"}
+							<OptimizedImage
+								src={user.image ?? user.avatar}
+								fallbackSrc="/placeholder.png"
 								alt={user.name}
-								className="h-16 w-16 flex-shrink-0 rounded-full border-2 border-zinc-800 shadow-md sm:h-20 sm:w-20"
+								width={80}
+								height={80}
+								className="flex-shrink-0 rounded-full border-2 border-zinc-800 shadow-md sm:h-20 sm:w-20"
 							/>
 
 							<div className="w-full min-w-0 flex-1">
@@ -238,7 +236,7 @@ const UserDetailsDialog = memo(
 								<h4 className="font-medium text-sm text-zinc-400">
 									角色 (Role)
 								</h4>
-								<p className="mt-1.5 text-sm text-indigo-300 font-semibold">
+								<p className="mt-1.5 font-semibold text-indigo-300 text-sm">
 									{user.role ?? "User"}
 								</p>
 							</div>
@@ -253,14 +251,14 @@ const UserDetailsDialog = memo(
 
 						{isBanned && (
 							<div className="rounded-lg border border-rose-900/50 bg-rose-950/20 p-3 sm:col-span-2">
-								<h4 className="flex items-center gap-2 font-medium text-sm text-rose-400">
+								<h4 className="flex items-center gap-2 font-medium text-rose-400 text-sm">
 									<AlertTriangle className="h-4 w-4" /> 封鎖原因
 								</h4>
-								<p className="mt-1.5 text-sm text-rose-200">
+								<p className="mt-1.5 text-rose-200 text-sm">
 									{user.banReason ?? "未提供原因"}
 								</p>
 								{user.banExpires && (
-									<p className="mt-1 text-xs text-rose-400/80">
+									<p className="mt-1 text-rose-400/80 text-xs">
 										到期時間: {formatDate(user.banExpires)}
 									</p>
 								)}
@@ -346,7 +344,7 @@ const BanConfirmDialog = memo(
 						</DialogDescription>
 					</DialogHeader>
 
-					<div className="py-4 space-y-4">
+					<div className="space-y-4 py-4">
 						<p className="break-words text-base text-zinc-300">
 							您確定要{isCurrentlyBanned ? "解封" : "封鎖"}{" "}
 							<strong className="text-white">{user.name}</strong> 嗎？
@@ -467,10 +465,10 @@ function SocialLinks({
 							href={targetUrl}
 							target="_blank"
 							rel="noopener noreferrer"
-							className="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-zinc-900 border border-zinc-800 text-zinc-400 text-xs font-medium transition-all duration-200 hover:text-zinc-100 hover:bg-zinc-800 hover:border-zinc-700"
+							className="flex items-center gap-2 rounded-lg border border-zinc-800 bg-zinc-900 px-3 py-1.5 font-medium text-xs text-zinc-400 transition-all duration-200 hover:border-zinc-700 hover:bg-zinc-800 hover:text-zinc-100"
 						>
 							{/* 直接渲染你配置的 FaIcon */}
-							<Icon className="w-4 h-4" />
+							<Icon className="h-4 w-4" />
 							<span>{platform.name}</span>
 						</a>
 					);
@@ -481,7 +479,7 @@ function SocialLinks({
 }
 
 const EmptyState = ({ message }: { message: string }) => (
-	<div className="flex min-h-[200px] flex-col items-center justify-center rounded-xl border border-dashed border-zinc-800 bg-[#2b2d31]/20 py-12 text-center text-zinc-500">
+	<div className="flex min-h-[200px] flex-col items-center justify-center rounded-xl border border-zinc-800 border-dashed bg-[#2b2d31]/20 py-12 text-center text-zinc-500">
 		<Search className="mb-3 h-8 w-8 opacity-20" />
 		<p className="text-sm sm:text-base">{message}</p>
 	</div>
@@ -594,8 +592,8 @@ export default function UserManagement() {
 
 	return (
 		<Card className="overflow-hidden rounded-2xl border-zinc-800 bg-[#2b2d31] text-zinc-100 shadow-xl">
-			<CardHeader className="border-b border-zinc-800/50 bg-[#2b2d31]/20 space-y-1.5 p-5 sm:p-6">
-				<CardTitle className="flex items-center gap-2 text-xl font-bold tracking-tight sm:text-2xl">
+			<CardHeader className="space-y-1.5 border-zinc-800/50 border-b bg-[#2b2d31]/20 p-5 sm:p-6">
+				<CardTitle className="flex items-center gap-2 font-bold text-xl tracking-tight sm:text-2xl">
 					<UserIcon className="h-5 w-5 text-indigo-400" />
 					系統用戶管理
 				</CardTitle>
@@ -603,8 +601,8 @@ export default function UserManagement() {
 
 			<CardContent className="p-4 sm:p-6">
 				<div className="space-y-6">
-					<div className="relative group">
-						<Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-zinc-500" />
+					<div className="group relative">
+						<Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-zinc-500" />
 						<Input
 							placeholder="透過後端即時搜尋名稱 (Name)、使用者名稱 (Username) 或 ID..."
 							className="h-11 rounded-xl border-zinc-800 bg-[#2b2d31]/50 pl-10"
@@ -613,7 +611,7 @@ export default function UserManagement() {
 						/>
 					</div>
 
-					<div className="mt-4 animate-in fade-in duration-500">
+					<div className="fade-in mt-4 animate-in duration-500">
 						{isLoading ? (
 							<EmptyState message="載入用戶中..." />
 						) : users.length === 0 ? (
@@ -624,7 +622,7 @@ export default function UserManagement() {
 							/>
 						) : (
 							<>
-								<div className="grid grid-cols-1 gap-4 lg:grid-cols-2 xl:grid-cols-3 lg:gap-5">
+								<div className="grid grid-cols-1 gap-4 lg:grid-cols-2 lg:gap-5 xl:grid-cols-3">
 									{users.map((user) => (
 										<UserCard
 											key={user.id}

@@ -272,7 +272,7 @@ export function triggerVoteNotificationEffect(
 			}
 		} else {
 			if (secret) {
-				headers["Authorization"] = secret;
+				headers.Authorization = secret;
 			}
 			body = JSON.stringify({
 				...payload,

@@ -44,10 +44,10 @@ const fetchUpdatedBotInfoEffect = (botId: string) =>
 				verified: data.is_verified ?? false,
 			});
 		},
-		catch: (err) =>
+		catch: (_err) =>
 			new BotUpdateError({ botId, message: "Discord RPC Fetch Failed" }),
 	}).pipe(
-		Effect.catchAll((err) => {
+		Effect.catchAll((_err) => {
 			console.warn(`⚠️ 無法取得 ${botId} 的 Discord 官方資訊`);
 			return Effect.succeed(Option.none());
 		}),
@@ -78,10 +78,10 @@ const fetchBotServerCountEffect = (botId: string) =>
 					: null;
 			return count != null ? Option.some(count) : Option.none();
 		},
-		catch: (err) =>
+		catch: (_err) =>
 			new BotUpdateError({ botId, message: "Server Count Fetch Failed" }),
 	}).pipe(
-		Effect.catchAll((err) => {
+		Effect.catchAll((_err) => {
 			console.error(`❌ ${botId} 獲取 Server count 發生錯誤`);
 			return Effect.succeed(Option.none());
 		}),
@@ -98,7 +98,7 @@ const flushUpdatesEffect = (pending: PendingUpdate[]) =>
 			});
 			console.log(`💾 批次寫入 ${pending.length} 筆到資料庫`);
 		},
-		catch: (err) => new Error("Database Transaction Failed"),
+		catch: (_err) => new Error("Database Transaction Failed"),
 	});
 
 const updateBotsProgram = Effect.gen(function* () {

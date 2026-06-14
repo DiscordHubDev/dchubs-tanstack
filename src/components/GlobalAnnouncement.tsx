@@ -37,28 +37,25 @@ export function GlobalAnnouncement({
 
 	return (
 		<div
-			className={`
-        relative flex items-center justify-between px-4 py-3 sm:px-6 lg:px-8 
-        transition-all duration-300 ease-in-out z-50 sticky top-0 shadow-md overflow-hidden
-        ${themeClasses[theme]}
-        ${isVisible ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-full"}
+			className={`relative sticky top-0 z-50 flex items-center justify-between overflow-hidden px-4 py-3 shadow-md transition-all duration-300 ease-in-out sm:px-6 lg:px-8 ${themeClasses[theme]}
+        ${isVisible ? "translate-y-0 opacity-100" : "-translate-y-full opacity-0"}
       `}
 		>
 			{/* 裝飾性背景光暈/雜訊 (可選) */}
-			<div className="absolute inset-0 bg-white/10 mix-blend-overlay pointer-events-none" />
+			<div className="pointer-events-none absolute inset-0 bg-white/10 mix-blend-overlay" />
 
 			{/* 公告內容區 */}
-			<div className="flex flex-1 items-center justify-center gap-x-3 text-sm font-medium leading-6">
+			<div className="flex flex-1 items-center justify-center gap-x-3 font-medium text-sm leading-6">
 				<Megaphone
-					className="h-4 w-4 sm:h-5 sm:w-5 flex-shrink-0 text-white/90"
+					className="h-4 w-4 flex-shrink-0 text-white/90 sm:h-5 sm:w-5"
 					aria-hidden="true"
 				/>
-				<div className="flex flex-col sm:flex-row sm:items-center gap-x-2">
+				<div className="flex flex-col gap-x-2 sm:flex-row sm:items-center">
 					<p>{content}</p>
 					{linkText && linkHref && (
 						<a
 							href={linkHref}
-							className="inline-flex items-center whitespace-nowrap font-semibold underline decoration-white/50 underline-offset-4 hover:decoration-white transition-all"
+							className="inline-flex items-center whitespace-nowrap font-semibold underline decoration-white/50 underline-offset-4 transition-all hover:decoration-white"
 						>
 							{linkText}{" "}
 							<span aria-hidden="true" className="ml-1">
@@ -74,7 +71,7 @@ export function GlobalAnnouncement({
 				<button
 					type="button"
 					onClick={handleClose}
-					className="-m-1.5 p-1.5 rounded-full hover:bg-white/20 transition-colors focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
+					className="-m-1.5 rounded-full p-1.5 transition-colors hover:bg-white/20 focus:outline-none focus-visible:ring-2 focus-visible:ring-white"
 					aria-label="Close announcement"
 				>
 					<X className="h-5 w-5 text-white" aria-hidden="true" />
