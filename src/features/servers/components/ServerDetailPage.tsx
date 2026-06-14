@@ -364,6 +364,7 @@ export function ServerDetailPage() {
 								height={480}
 								className="absolute inset-0 h-full w-full object-cover"
 								loading="eager"
+								fetchPriority="high"
 							/>
 						) : (
 							<OptimizedImage
@@ -372,6 +373,7 @@ export function ServerDetailPage() {
 								width={1024}
 								height={400}
 								loading="eager" // 🟢 穿透屬性：讓首屏核心大圖立即加載，優化效能
+								fetchPriority="high"
 								className="absolute inset-0 h-full w-full object-cover"
 							/>
 						)}

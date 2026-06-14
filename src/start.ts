@@ -54,6 +54,8 @@ const securityHeadersMiddleware = createMiddleware().server(
 				);
 			}
 
+			result.response.headers.set("Cross-Origin-Opener-Policy", "same-origin");
+
 			// 🟢 修正 3: 補上 Referrer-Policy 防止隱私洩漏
 			result.response.headers.set(
 				"Referrer-Policy",
