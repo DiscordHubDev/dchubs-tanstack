@@ -26,6 +26,7 @@ import appCss from "../styles.css?url";
 export interface MyRouterContext {
 	queryClient: QueryClient;
 	session: NormalizedSession | null;
+	status: "authenticated" | "loading" | "unauthenticated";
 }
 
 declare module "@tanstack/react-router" {
@@ -83,8 +84,18 @@ const Devtools = import.meta.env.DEV
 // ==========================================
 export const Route = createRootRouteWithContext<MyRouterContext>()({
 	beforeLoad: async () => {
+		// 1. 取得後端 session 狀態
 		const session = await getSession();
-		return { session };
+
+		// 2. 根據 session 是否有值，決定 status 的狀態
+		// 因為 beforeLoad 是在路由載入時執行，執行完畢後狀態非黑即白
+		const status = session ? "authenticated" : "unauthenticated";
+
+		// 3. 回傳的物件會被淺合併 (Shallow Merge) 到 Router Context 中
+		return {
+			session,
+			status,
+		};
 	},
 	head: ({ matches }) => {
 		// 檢查目前的最深層匹配路由是不是首頁

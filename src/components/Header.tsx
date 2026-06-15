@@ -1,11 +1,11 @@
-import { Link, useLocation } from "@tanstack/react-router";
+import { Link, useLocation, useRouteContext } from "@tanstack/react-router";
 import { Image } from "@unpic/react";
 import { LogOut, Menu, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { FaUser } from "react-icons/fa";
 import { FaDiscord } from "react-icons/fa6";
 import { Button } from "#/components/ui/button";
-import { signIn, signOut, useSession } from "#/lib/auth-client";
+import { signIn, signOut } from "#/lib/auth-client";
 import { SidebarTrigger } from "./ui/sidebar";
 
 type LinkItem = {
@@ -24,7 +24,7 @@ export default function Header() {
 	const [isOpen, setIsOpen] = useState(false);
 	const [isScrolled, setIsScrolled] = useState(false);
 	const { pathname } = useLocation();
-	const { data: session, error } = useSession();
+	const { session } = useRouteContext({ from: "__root__" });
 
 	useEffect(() => {
 		const handleScroll = () => {
@@ -39,7 +39,7 @@ export default function Header() {
 		};
 	}, []);
 
-	const isSignedIn = Boolean(session?.user) && !error;
+	const isSignedIn = Boolean(session?.discordProfile?.id ?? session?.user?.id);
 
 	const handleDiscordSignIn = () => {
 		void signIn("/");

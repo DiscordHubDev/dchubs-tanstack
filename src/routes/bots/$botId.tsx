@@ -1,9 +1,11 @@
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import {
-	useMutation,
-	useQueryClient,
-	useSuspenseQuery,
-} from "@tanstack/react-query";
-import { createFileRoute, Link, notFound } from "@tanstack/react-router";
+	createFileRoute,
+	getRouteApi,
+	Link,
+	notFound,
+	useRouteContext,
+} from "@tanstack/react-router";
 import {
 	AlertTriangle,
 	ArrowUp,
@@ -47,10 +49,12 @@ import type {
 	BotReview,
 } from "#/features/bots/bot-detail.types";
 import { toggleFavoriteFn } from "#/features/users/users.functions";
-import { signIn, useSession } from "#/lib/auth-client";
+import type { NormalizedSession } from "#/lib/auth.functions";
+import { signIn } from "#/lib/auth-client";
 import { runEffect, tryEffectPromise } from "#/lib/effect-utils";
 import { showErrorAlert } from "#/lib/error-alert";
 import { queryKeys } from "#/lib/query-keys";
+import { cn } from "#/lib/utils";
 
 const DEFAULT_BOT_ICON_URL = "https://cdn.discordapp.com/embed/avatars/0.png";
 const BOT_DETAIL_TABS: readonly BotDetailTab[] = [
@@ -187,18 +191,23 @@ function validateSearch(search: Record<string, unknown>): BotDetailSearch {
 
 export const Route = createFileRoute("/bots/$botId")({
 	validateSearch,
-	head: ({ loaderData, params }) => {
-		const detail =
-			(loaderData as { detail: BotDetail | null } | undefined)?.detail ?? null;
-		return createBotHead(detail, params.botId);
-	},
-	loader: async ({ context, params }) => {
+	loader: async ({ context, params }): Promise<{ detail: BotDetail }> => {
 		const detail = await context.queryClient.ensureQueryData(
 			botDetailQueryOptions(params.botId),
 		);
+		if (!detail) throw notFound(); // 直接 404
 		return { detail };
 	},
-	component: BotDetailPage,
+	head: ({ loaderData, params }) => {
+		// 這裡可以安全地直接用了，不用 as 斷言
+		const detail = loaderData?.detail ?? null;
+		return createBotHead(detail, params.botId);
+	},
+
+	// 🚨 關鍵修改：明確標示 loader 的回傳型別
+
+	component: BotDetailPage, // 這裡可以安心放回原本的組件了
+
 	pendingComponent: () => (
 		<LoadingPage
 			loadingText="正在從茫茫大海中撈取機器人的資訊..."
@@ -236,9 +245,7 @@ function calculateAvgRating(reviewList: BotReview[]): number {
 	return Number((sum / reviewList.length).toFixed(2));
 }
 
-function getSessionUserId(
-	session: ReturnType<typeof useSession>["data"],
-): string | null {
+function getSessionUserId(session: NormalizedSession | null): string | null {
 	return (
 		session?.discordProfile?.id ??
 		session?.user?.discordId ??
@@ -343,20 +350,18 @@ const ReportBotForm = memo(
 	},
 );
 
+const routeApi = getRouteApi("/bots/$botId");
+
 function BotDetailPage() {
-	const { botId } = Route.useParams();
-	const search = Route.useSearch();
-	const navigate = Route.useNavigate();
+	const { botId } = routeApi.useParams();
+	const search = routeApi.useSearch();
+	const navigate = routeApi.useNavigate();
+
+	// 3. 這裡的 detail 型別將會被完美推導，不再會是 undefined 囉！
+	const { detail } = Route.useLoaderData();
+
 	const queryClient = useQueryClient();
-	const { data: session } = useSession();
-
-	const { data: detailData } = useSuspenseQuery(botDetailQueryOptions(botId));
-
-	if (!detailData) {
-		throw notFound();
-	}
-
-	const detail = detailData!;
+	const { session } = useRouteContext({ from: "__root__" });
 
 	const [isReportOpen, setIsReportOpen] = useState(false);
 
@@ -364,7 +369,7 @@ function BotDetailPage() {
 	const sessionUserId = getSessionUserId(session);
 	const isSignedIn = Boolean(sessionUserId);
 
-	const detailQueryKey = useMemo(() => queryKeys.bots.detail(botId), [botId]);
+	const detailQueryKey = queryKeys.bots.detail(botId);
 
 	const favoriteMutation = useMutation({
 		meta: { suppressErrorAlert: true },
@@ -402,8 +407,10 @@ function BotDetailPage() {
 			showErrorAlert(error, "收藏失敗");
 		},
 		onSettled: async () => {
-			await queryClient.invalidateQueries({ queryKey: detailQueryKey });
-			await queryClient.invalidateQueries({ queryKey: queryKeys.bots.all });
+			await Promise.all([
+				queryClient.invalidateQueries({ queryKey: detailQueryKey }),
+				queryClient.invalidateQueries({ queryKey: queryKeys.bots.all }),
+			]);
 		},
 	});
 
@@ -559,31 +566,46 @@ function BotDetailPage() {
 		void signIn(window.location.href);
 	}, []);
 
+	const { mutate: mutateFavorite } = favoriteMutation;
 	const handleFavoriteClick = useCallback(() => {
 		if (!isSignedIn) {
 			handleSignIn();
 			return;
 		}
-		favoriteMutation.mutate();
-	}, [isSignedIn, handleSignIn, favoriteMutation]);
+		mutateFavorite();
+	}, [isSignedIn, handleSignIn, mutateFavorite]);
 
-	const handleVoteClick = useCallback(() => {
-		if (!isSignedIn) {
-			handleSignIn();
-			return;
-		}
-		voteMutation.mutate();
-	}, [isSignedIn, handleSignIn, voteMutation]);
-
+	const { mutate: mutateRate } = rateMutation;
 	const handleRateClick = useCallback(
 		(rating: number) => {
 			if (!isSignedIn) {
 				handleSignIn();
 				return;
 			}
-			rateMutation.mutate(rating);
+			mutateRate(rating);
 		},
-		[isSignedIn, handleSignIn, rateMutation],
+		[isSignedIn, handleSignIn, mutateRate],
+	);
+
+	const { mutate: mutateVote } = voteMutation;
+	const handleVoteClick = useCallback(() => {
+		if (!isSignedIn) {
+			handleSignIn();
+			return;
+		}
+		mutateVote();
+	}, [isSignedIn, handleSignIn, mutateVote]);
+
+	const handleCloseReport = useCallback(() => setIsReportOpen(false), []);
+
+	const handleInviteClick = useCallback(() => {
+		if (!detail.inviteUrl) return;
+		window.open(detail.inviteUrl, "_blank", "noopener,noreferrer");
+	}, [detail.inviteUrl]);
+
+	const hasCategories = useMemo(
+		() => detail.commands.some((cmd) => cmd.category),
+		[detail.commands],
 	);
 
 	return (
@@ -609,22 +631,20 @@ function BotDetailPage() {
 			<div className="relative z-10 mx-auto -mt-14 max-w-7xl px-4 sm:px-6 lg:px-8">
 				<div className="flex flex-col gap-6 md:flex-row">
 					<div className="flex flex-col items-start gap-4 md:flex-row md:items-end">
-						<div className="h-24 w-24 overflow-hidden rounded-full border-4 border-[#1e1f22] bg-[#36393f] md:h-32 md:w-32">
-							<Avatar className="h-24 w-24 flex-shrink-0 border-4 border-[#1e1f22] bg-[#36393f] shadow-md md:h-32 md:w-32">
-								<OptimizedImage
-									src={detail.icon}
-									fallbackSrc="/placeholder.png"
-									alt={detail.name}
-									width={128} // 配合 md:w-32 (128px) 設定基準尺寸
-									height={128}
-									fetchPriority="high" // 🟢 穿透屬性：核心 Icon 頁面加載時優先抓取
-									className="h-full w-full object-cover"
-								/>
-								<AvatarFallback className="select-none bg-[#5865f2] font-bold text-3xl text-white uppercase">
-									{detail.name?.charAt(0) || "D"}
-								</AvatarFallback>
-							</Avatar>
-						</div>
+						<Avatar className="h-24 w-24 flex-shrink-0 border-4 border-[#1e1f22] bg-[#36393f] shadow-md md:h-32 md:w-32">
+							<OptimizedImage
+								src={detail.icon}
+								fallbackSrc="/placeholder.png"
+								alt={detail.name}
+								width={128} // 配合 md:w-32 (128px) 設定基準尺寸
+								height={128}
+								fetchPriority="high" // 🟢 穿透屬性：核心 Icon 頁面加載時優先抓取
+								className="h-full w-full object-cover"
+							/>
+							<AvatarFallback className="select-none bg-[#5865f2] font-bold text-3xl text-white uppercase">
+								{detail.name?.charAt(0) || "D"}
+							</AvatarFallback>
+						</Avatar>
 
 						<div className="flex flex-col">
 							<div className="flex items-center gap-2">
@@ -714,10 +734,7 @@ function BotDetailPage() {
 				<div className="mt-6 mb-4 flex flex-wrap gap-3">
 					<Button
 						size="lg"
-						onClick={() => {
-							if (!detail.inviteUrl) return;
-							window.open(detail.inviteUrl, "_blank", "noopener,noreferrer");
-						}}
+						onClick={handleInviteClick}
 						disabled={!detail.inviteUrl}
 						className="bg-[#5865f2] text-white hover:bg-[#4752c4]"
 					>
@@ -727,11 +744,13 @@ function BotDetailPage() {
 					<Button
 						onClick={handleFavoriteClick}
 						disabled={favoriteMutation.isPending}
-						className={`flex transform cursor-pointer items-center gap-2 rounded-md px-6 py-5 font-medium text-sm transition-all duration-150 hover:scale-105 ${
+						className={cn(
+							"flex transform cursor-pointer items-center gap-2 rounded-md px-6 py-5 font-medium text-sm",
+							"transition-all duration-150 hover:scale-105 text-white disabled:cursor-not-allowed",
 							detail.isFavorite
 								? "bg-rose-500 hover:bg-rose-600"
-								: "bg-indigo-500 hover:bg-indigo-600"
-						}text-white disabled:cursor-not-allowed`}
+								: "bg-indigo-500 hover:bg-indigo-600",
+						)}
 					>
 						<Heart
 							size={18}
@@ -758,7 +777,7 @@ function BotDetailPage() {
 						itemName={detail.name}
 						isSignedIn={isSignedIn}
 						onSignIn={handleSignIn}
-						onCancel={() => setIsReportOpen(false)}
+						onCancel={handleCloseReport}
 					/>
 				) : null}
 
@@ -802,7 +821,7 @@ function BotDetailPage() {
 
 								<div className="flex items-center">
 									<span className="w-24 text-gray-400">上架於:</span>
-									<span className="text-gray-300">
+									<span className="text-gray-300" suppressHydrationWarning>
 										{detail.approvedAt
 											? new Date(detail.approvedAt).toLocaleDateString("zh-TW")
 											: "未知"}
@@ -875,7 +894,10 @@ function BotDetailPage() {
 									</button>
 								))}
 							</div>
-							<p className="mt-2 text-center text-gray-400 text-xs">
+							<p
+								className="mt-2 text-center text-gray-400 text-xs"
+								suppressHydrationWarning
+							>
 								{isSignedIn ? "點擊星星即可更新你的評分" : "登入後可評分"}
 							</p>
 						</div>
@@ -903,7 +925,10 @@ function BotDetailPage() {
 							>
 								{detail.hasVotedRecently ? "稍後可再投票" : "投票"}
 							</Button>
-							<p className="mt-2 text-center text-gray-400 text-xs">
+							<p
+								className="mt-2 text-center text-gray-400 text-xs"
+								suppressHydrationWarning
+							>
 								{detail.nextVoteAt
 									? `下次可投票時間：${new Date(detail.nextVoteAt).toLocaleString("zh-TW")}`
 									: "每 12 小時可投一次票"}
@@ -1017,7 +1042,7 @@ function BotDetailPage() {
 														<th className="px-4 py-3 text-gray-300">指令</th>
 														<th className="px-4 py-3 text-gray-300">描述</th>
 														<th className="px-4 py-3 text-gray-300">用法</th>
-														{detail.commands.some((cmd) => cmd.category) ? (
+														{hasCategories ? (
 															<th className="px-4 py-3 text-gray-300">分類</th>
 														) : null}
 													</tr>
@@ -1037,7 +1062,7 @@ function BotDetailPage() {
 															<td className="px-4 py-3 font-mono text-gray-400 text-xs">
 																{command.usage}
 															</td>
-															{detail.commands.some((cmd) => cmd.category) ? (
+															{hasCategories ? (
 																<td className="px-4 py-3 text-gray-300">
 																	{command.category ? (
 																		<Badge

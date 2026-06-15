@@ -1,9 +1,9 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useRouteContext } from "@tanstack/react-router";
 import LoadingPage from "#/components/loading";
 import { UserProfilePage } from "#/features/users/components/profile-page";
 import type { ProfileTab } from "#/features/users/profile.schemas";
 import { userProfileQueryOptions } from "#/features/users/users.query";
-import { useSession } from "#/lib/auth-client";
+import type { NormalizedSession } from "#/lib/auth.functions";
 
 const PROFILE_TABS: readonly ProfileTab[] = [
 	"servers",
@@ -23,9 +23,7 @@ function parseProfileTab(value: unknown): ProfileTab | undefined {
 		: undefined;
 }
 
-function getSessionUserId(
-	session: ReturnType<typeof useSession>["data"],
-): string | null {
+function getSessionUserId(session: NormalizedSession | null): string | null {
 	return (
 		session?.discordProfile?.id ??
 		session?.user?.discordId ??
@@ -61,7 +59,7 @@ function RouteComponent() {
 	const navigate = Route.useNavigate();
 	const search = Route.useSearch();
 	const { viewedUserId } = Route.useLoaderData();
-	const { data: session } = useSession();
+	const { session } = useRouteContext({ from: "__root__" });
 
 	const activeTab = (search.tab ?? "servers") as ProfileTab;
 	const currentUserId = getSessionUserId(session);

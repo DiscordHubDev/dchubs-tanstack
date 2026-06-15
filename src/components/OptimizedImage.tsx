@@ -14,6 +14,14 @@ interface OptimizedImageProps
 	layout?: "constrained" | "fixed";
 }
 
+// 輔助函式：將 width 轉換為符合 Discord 規範的尺寸（1024 的倍數，最低 1024）
+function calculateDiscordSize(targetWidth: number): number {
+	const base = 1024;
+	// 使用 Math.ceil 向上取整，確保解析度足夠；若寬度小於 1024 則保底 1024
+	if (targetWidth <= base) return base;
+	return Math.ceil(targetWidth / base) * base;
+}
+
 export function OptimizedImage({
 	src,
 	alt,
@@ -41,8 +49,12 @@ export function OptimizedImage({
 		// 只有非 Blob 網址才進行 Proxy 與 Discord 最佳化
 		const isDiscord = actualSrc.includes("cdn.discordapp.com");
 		const cleanUrl = actualSrc.split("?")[0];
+
+		// 這裡套用 1024 倍數的計算（考量到 Retina 螢幕，傳入 width * 2 去計算最接近的倍數）
+		const discordSize = calculateDiscordSize(width * 2);
+
 		const optimizedUrl = isDiscord
-			? `${cleanUrl}?size=${width * 2}`
+			? `${cleanUrl}?size=${discordSize}`
 			: actualSrc;
 
 		finalSrc = getProxyImageUrl(optimizedUrl);
@@ -52,7 +64,6 @@ export function OptimizedImage({
 		<Image
 			{...(props as any)}
 			src={finalSrc}
-			cdn="none"
 			alt={alt || "圖片"}
 			width={width}
 			height={height}

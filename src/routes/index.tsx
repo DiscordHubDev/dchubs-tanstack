@@ -5,7 +5,7 @@ import {
 	useQueryClient,
 	useSuspenseQuery,
 } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useRouteContext } from "@tanstack/react-router";
 import { Image } from "@unpic/react";
 import { motion } from "framer-motion";
 import { Search } from "lucide-react";
@@ -35,7 +35,7 @@ import {
 	paginateServers,
 	sortServersByCategory,
 } from "#/features/servers/servers.utils";
-import { signIn, useSession } from "#/lib/auth-client";
+import { signIn } from "#/lib/auth-client";
 import { ServerCategories } from "#/lib/categories";
 import type { CategoryType } from "#/lib/types";
 
@@ -237,7 +237,7 @@ function HomePage() {
 	const navigate = Route.useNavigate();
 	const search = Route.useSearch();
 	const queryClient = useQueryClient();
-	const { status } = useSession();
+	const { status } = useRouteContext({ from: "__root__" });
 	const autoSignInTriggeredRef = useRef(false);
 	const [isPending, startTransition] = useTransition();
 

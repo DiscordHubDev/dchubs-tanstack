@@ -1,5 +1,5 @@
 import { type AnyFieldApi, useForm } from "@tanstack/react-form";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useSelector } from "@tanstack/react-store";
 import { Effect, Schema } from "effect";
@@ -13,7 +13,13 @@ import {
 	UserPlus,
 	X,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import React, {
+	useCallback,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
 import { toast } from "react-toastify";
 import Swal from "sweetalert2";
 import MarkdownRenderer from "#/components/MarkdownRenderer";
@@ -55,13 +61,17 @@ import EmbedFieldsListField from "../EmbedFieldsListField";
 import { OptimizedImage } from "../OptimizedImage";
 import { Checkbox } from "../ui/checkbox";
 
-type BotFormDefaultValues = Partial<BotFormData> & {
+// ============================================================================
+// Types
+// ============================================================================
+
+export type BotFormDefaultValues = Partial<BotFormData> & {
 	screenshots?: string[];
 	banner?: string | undefined;
-	iconUrl?: string | null; // 補充未定義的 iconUrl
+	iconUrl?: string | null;
 };
 
-type BotFormProps = {
+export type BotFormProps = {
 	mode?: "create" | "edit";
 	defaultValues?: BotFormDefaultValues;
 };
@@ -86,12 +96,6 @@ const ALLOWED_IMAGE_TYPES = [
 	"image/gif",
 ] as const;
 
-const OptionalStringSchema = Schema.Union(
-	Schema.String,
-	Schema.Null,
-	Schema.Undefined,
-);
-
 type AllowedImageType = (typeof ALLOWED_IMAGE_TYPES)[number];
 
 type ValidationResult = {
@@ -102,10 +106,94 @@ type ValidationResult = {
 type CommandItem = BotFormData["commands"][number];
 type BaseDeveloperItem = BotFormData["developers"][number];
 
+// ============================================================================
+// Static Validators (Moved outside component to prevent re-creation on render)
+// ============================================================================
+
+const OptionalStringSchema = Schema.Union(
+	Schema.String,
+	Schema.Null,
+	Schema.Undefined,
+);
+
+const validateBotName = effectValidator(BotNameSchema, {
+	label: "機器人名稱",
+	required: "機器人名稱不可為空",
+	maxLength: { value: 50, message: "機器人名稱最多 50 字" },
+});
+
+const validateBotPrefix = effectValidator(BotPrefixSchema, {
+	label: "機器人前綴",
+	required: "機器人前綴不可為空",
+	maxLength: { value: 10, message: "機器人前綴最多 10 字" },
+});
+
+const validateIsNsfw = effectValidator(Schema.Boolean, {
+	label: "NSFW",
+	required: "請選擇是否為 NSFW 伺服器",
+});
+
+const validateBotDescription = effectValidator(BotDescriptionSchema, {
+	label: "簡短描述",
+	required: "請填寫簡短描述",
+	minLength: { value: 10, message: "簡短描述至少 10 字" },
+	maxLength: { value: 200, message: "簡短描述最多 200 字" },
+});
+
+const validateBotLongDescription = effectValidator(BotLongDescriptionSchema, {
+	label: "詳細描述",
+	required: "請填寫詳細描述",
+});
+
+const validateBotInvite = effectValidator(BotInviteSchema, {
+	label: "機器人邀請連結",
+	required: "請填寫機器人邀請連結",
+	fallback: "請輸入有效的機器人邀請連結",
+});
+
+const validateBotWebsite = effectValidator(OptionalStringSchema, {
+	label: "網站連結",
+	fallback: "網站連結格式不正確",
+});
+
+const validateBotSupport = effectValidator(OptionalStringSchema, {
+	label: "支援伺服器連結",
+	fallback: "支援伺服器連結格式不正確",
+});
+
+const baseTagsValidator = effectValidator(BotTagsSchema, {
+	fallback: "格式不正確",
+});
+const validateTags = (value: readonly string[]) => {
+	if (!value || value.length < 1) return "請至少新增一個標籤";
+	if (value.length > 8) return "最多只能新增 8 個標籤";
+	return baseTagsValidator(value);
+};
+
+const validateDevelopers = effectValidator(BotDevelopersSchema, {
+	fallback: "開發者格式不正確",
+});
+
+const validateCommands = effectValidator(BotCommandsSchema, {
+	fallback: "指令格式不正確",
+});
+
+const validateSecret = effectValidator(OptionalStringSchema, {
+	label: "Secret",
+	fallback: "Secret 格式不正確",
+});
+
+const validateWebhookUrl = effectValidator(OptionalStringSchema, {
+	label: "Webhook URL",
+	fallback: "Webhook URL 格式不正確",
+});
+
+// ============================================================================
+// Helper Functions
+// ============================================================================
+
 function readFirstError(errors: unknown[] | undefined): string | null {
-	if (!Array.isArray(errors) || errors.length === 0) {
-		return null;
-	}
+	if (!Array.isArray(errors) || errors.length === 0) return null;
 	const first = errors[0];
 	if (typeof first === "string") return first;
 	if (first instanceof Error) return first.message;
@@ -113,9 +201,7 @@ function readFirstError(errors: unknown[] | undefined): string | null {
 }
 
 function readPersistedFormValues(): Partial<BotFormData> {
-	if (typeof window === "undefined") {
-		return {};
-	}
+	if (typeof window === "undefined") return {};
 	try {
 		const saved = window.localStorage.getItem("bot_form_backup");
 		return saved ? JSON.parse(saved) : {};
@@ -129,11 +215,9 @@ function buildScreenshotFromUrl(url: string): Screenshot {
 	const parts = url.split("/");
 	const filename = parts[parts.length - 1] || "";
 	const publicId = filename.split(".")[0] || filename;
-
 	return { url, public_id: publicId };
 }
 
-// 記憶體優化：讀取為 Data URL 後，僅作為短暫傳輸用，不會長期掛載在 DOM 上
 async function readFileAsDataUrl(file: File): Promise<string> {
 	return new Promise((resolve, reject) => {
 		const reader = new FileReader();
@@ -158,10 +242,7 @@ async function ScreenshotUpload(files: File[]): Promise<Screenshot[]> {
 		})),
 	);
 
-	const result = await uploadBotImagesFn({
-		data: { files: payload },
-	});
-
+	const result = await uploadBotImagesFn({ data: { files: payload } });
 	if (!result.success) throw new Error(result.error.message);
 	return result.items;
 }
@@ -171,13 +252,12 @@ async function deleteCloudinaryImage(publicId: string): Promise<void> {
 	if (!result.success) throw new Error(result.error.message);
 }
 
-// 修復：改為對應 BotFormData 的欄位名稱
 function hasRequiredPublishFields(values: {
 	botDescription: string;
 	botLongDescription: string;
 	botInvite: string;
-	botDevelopers: readonly unknown[]; // 加上 readonly
-	botTags: readonly string[]; // 加上 botTags 和 readonly
+	botDevelopers: readonly unknown[];
+	botTags: readonly string[];
 }): boolean {
 	return (
 		values.botDescription.trim().length > 0 &&
@@ -207,14 +287,14 @@ function validateFiles(
 
 			if (mimeType === "image/gif" && file.size > MAX_GIF_SIZE_BYTES) {
 				warnings.push(
-					`動圖 ${file.name} 大於 ${MAX_GIF_SIZE_BYTES / (1024 * 1024)}MB，請傳送更小的動圖。`,
+					`動圖 ${file.name} 大於 ${MAX_GIF_SIZE_BYTES / (1024 * 1024)}MB，請傳送更小檔案。`,
 				);
 				continue;
 			}
 
 			if (mimeType !== "image/gif" && file.size > MAX_IMAGE_SIZE_BYTES) {
 				warnings.push(
-					`圖片 ${file.name} 大於 ${MAX_IMAGE_SIZE_BYTES / (1024 * 1024)}MB，請傳送更小的圖片。`,
+					`圖片 ${file.name} 大於 ${MAX_IMAGE_SIZE_BYTES / (1024 * 1024)}MB，請傳送更小檔案。`,
 				);
 				continue;
 			}
@@ -257,6 +337,10 @@ function getSubmitErrorMessage(error: SubmitBotErrorPayload): string {
 	}
 }
 
+// ============================================================================
+// Sub-components
+// ============================================================================
+
 function ClientOnly({ children }: { children: React.ReactNode }) {
 	const [mounted, setMounted] = useState(false);
 	useEffect(() => setMounted(true), []);
@@ -264,72 +348,79 @@ function ClientOnly({ children }: { children: React.ReactNode }) {
 	return <>{children}</>;
 }
 
-type ScreenshotGridProps = {
-	screenshotPreviews: string[];
-	removeScreenshot: (index: number) => void;
-};
+const ScreenshotGrid = React.memo(
+	({
+		screenshotPreviews,
+		removeScreenshot,
+	}: {
+		screenshotPreviews: string[];
+		removeScreenshot: (index: number) => void;
+	}) => {
+		if (screenshotPreviews.length === 0) return null;
+		return (
+			<div className="grid grid-cols-2 gap-3 md:grid-cols-3">
+				{screenshotPreviews.map((url, index) => (
+					<div key={url} className="group relative overflow-hidden rounded-md">
+						<OptimizedImage
+							src={url}
+							alt={`Screenshot ${index + 1}`}
+							width={320}
+							height={128}
+							className="h-24 w-full object-cover md:h-32"
+						/>
+						<button
+							type="button"
+							onClick={() => removeScreenshot(index)}
+							className="absolute top-2 right-2 rounded-full bg-black/60 p-1 text-white opacity-0 transition-opacity group-hover:opacity-100"
+						>
+							<X size={14} />
+						</button>
+					</div>
+				))}
+			</div>
+		);
+	},
+);
+ScreenshotGrid.displayName = "ScreenshotGrid";
 
-function ScreenshotGrid({
-	screenshotPreviews,
-	removeScreenshot,
-}: ScreenshotGridProps) {
-	if (screenshotPreviews.length === 0) return null;
-	return (
-		<div className="grid grid-cols-2 gap-3 md:grid-cols-3">
-			{screenshotPreviews.map((url, index) => (
-				<div key={url} className="group relative overflow-hidden rounded-md">
-					<OptimizedImage
-						src={url}
-						alt={`Screenshot ${index + 1}`}
-						width={320}
-						height={128}
-						className="h-24 w-full object-cover md:h-32"
-					/>
-					<button
-						type="button"
-						onClick={() => removeScreenshot(index)}
-						className="absolute top-2 right-2 rounded-full bg-black/60 p-1 text-white opacity-0 transition-opacity group-hover:opacity-100"
-					>
-						<X size={14} />
-					</button>
-				</div>
-			))}
-		</div>
-	);
-}
-
-type TagFieldProps = {
+function TagField({
+	field,
+	categories = [],
+	maxTags = 8,
+}: {
 	field: AnyFieldApi;
 	categories?: CategoryType[];
 	maxTags?: number;
-};
-
-function TagField({ field, categories = [], maxTags = 8 }: TagFieldProps) {
+}) {
 	const [nextTag, setNextTag] = useState("");
 	const tags = Array.isArray(field.state.value)
 		? (field.state.value as string[])
 		: [];
 	const errorMessage = readFirstError(field.state.meta.errors);
 
-	const addTag = (raw: string) => {
-		const value = raw.trim();
-		if (!value || tags.length >= maxTags) return;
-		if (tags.some((item) => item.toLowerCase() === value.toLowerCase())) return;
+	const addTag = useCallback(
+		(raw: string) => {
+			const value = raw.trim();
+			if (!value || tags.length >= maxTags) return;
+			if (tags.some((item) => item.toLowerCase() === value.toLowerCase()))
+				return;
 
-		// 新增標籤並觸發欄位更新（這會觸發你的表單驗證）
-		field.handleChange([...tags, value]);
-		setNextTag("");
-	};
+			field.handleChange([...tags, value]);
+			setNextTag("");
+		},
+		[field, tags, maxTags],
+	);
 
-	const removeTag = (value: string) => {
-		// 移除標籤並觸發欄位更新（若移除到 0 個，驗證機制會自動跳出錯誤）
-		field.handleChange(tags.filter((item) => item !== value));
-	};
+	const removeTag = useCallback(
+		(value: string) => {
+			field.handleChange(tags.filter((item) => item !== value));
+		},
+		[field, tags],
+	);
 
 	return (
 		<div className="space-y-3 text-[#dcddde]">
 			<Label className="font-medium text-[#eee] text-sm">標籤 *</Label>
-
 			<div className="flex gap-2">
 				<Input
 					value={nextTag}
@@ -355,7 +446,7 @@ function TagField({ field, categories = [], maxTags = 8 }: TagFieldProps) {
 				</Button>
 			</div>
 
-			{categories.length > 0 ? (
+			{categories.length > 0 && (
 				<div className="flex flex-wrap gap-2">
 					{categories.map((category) => (
 						<button
@@ -363,22 +454,17 @@ function TagField({ field, categories = [], maxTags = 8 }: TagFieldProps) {
 							type="button"
 							onClick={() => addTag(category.name)}
 							disabled={tags.length >= maxTags}
-							// 按鈕本體改為深色 Discord 風格，hover 時稍微亮一點
 							className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-[#202225] bg-[#2f3136] px-3 py-1 font-medium text-[#b9bbbe] text-xs shadow-sm transition-all duration-150 hover:scale-105 hover:bg-[#35383e] hover:text-white active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100"
 						>
-							{/* 顏色小點點 */}
 							<span
 								className={`h-2 w-2 shrink-0 rounded-full ${category.color}`}
 							/>
-
-							{/* 分類文字 */}
 							<span>{category.name}</span>
 						</button>
 					))}
 				</div>
-			) : null}
+			)}
 
-			{/* 標籤顯示區域 */}
 			<div className="flex flex-wrap gap-2">
 				{tags.map((tag) => (
 					<span
@@ -397,59 +483,54 @@ function TagField({ field, categories = [], maxTags = 8 }: TagFieldProps) {
 				))}
 			</div>
 
-			{/* 修改：動態提示文字，未滿 1 個時用黃色/紅色提醒 */}
 			<p
 				className={`text-xs ${tags.length === 0 ? "text-[#f1c40f]" : "text-[#b9bbbe]"}`}
 			>
 				目前已有 {tags.length} 個標籤（最少 1 個，最多 {maxTags} 個）
 			</p>
 
-			{/* 錯誤訊息：當 tags.length === 0 且表單被觸碰（touched）或送出時，這裡會顯示最少 1 個的錯誤 */}
-			{errorMessage ? (
+			{errorMessage && (
 				<p className="animate-pulse font-medium text-[#ed4245] text-sm">
 					{errorMessage}
 				</p>
-			) : null}
+			)}
 		</div>
 	);
 }
 
-type CommandListFieldProps = {
-	field: AnyFieldApi;
-};
-
-function CommandListField({ field }: CommandListFieldProps) {
+function CommandListField({ field }: { field: AnyFieldApi }) {
 	const commands = Array.isArray(field.state.value)
 		? (field.state.value as CommandItem[])
 		: [];
 	const errorMessage = readFirstError(field.state.meta.errors);
-
-	// 最佳實踐：改用隨機 UUID 作為陣列 Key，避免因增刪導致的渲染錯誤
 	const [commandKeys, setCommandKeys] = useState<string[]>(() =>
 		commands.map(() => crypto.randomUUID()),
 	);
 
-	const addCommand = () => {
+	const addCommand = useCallback(() => {
 		field.handleChange([
 			...commands,
 			{ name: "", description: "", usage: "", category: "" },
 		]);
 		setCommandKeys((prev) => [...prev, crypto.randomUUID()]);
-	};
+	}, [field, commands]);
 
-	const updateCommand = (index: number, patch: Partial<CommandItem>) => {
-		field.handleChange(
-			commands.map((command, currentIndex) =>
-				currentIndex === index ? { ...command, ...patch } : command,
-			),
-		);
-	};
+	const updateCommand = useCallback(
+		(index: number, patch: Partial<CommandItem>) => {
+			field.handleChange(
+				commands.map((cmd, i) => (i === index ? { ...cmd, ...patch } : cmd)),
+			);
+		},
+		[field, commands],
+	);
 
-	const removeCommand = (index: number) => {
-		const nextCommands = commands.filter((_, i) => i !== index);
-		field.handleChange(nextCommands);
-		setCommandKeys((prev) => prev.filter((_, i) => i !== index));
-	};
+	const removeCommand = useCallback(
+		(index: number) => {
+			field.handleChange(commands.filter((_, i) => i !== index));
+			setCommandKeys((prev) => prev.filter((_, i) => i !== index));
+		},
+		[field, commands],
+	);
 
 	return (
 		<div className="space-y-3">
@@ -461,8 +542,7 @@ function CommandListField({ field }: CommandListFieldProps) {
 					size="sm"
 					className="bg-[#5865f2] text-white hover:bg-[#4752c4]"
 				>
-					<Plus className="h-4 w-4" />
-					新增指令
+					<Plus className="h-4 w-4" /> 新增指令
 				</Button>
 			</div>
 
@@ -490,15 +570,14 @@ function CommandListField({ field }: CommandListFieldProps) {
 									<Trash2 className="h-4 w-4" />
 								</Button>
 							</div>
-
 							<div className="grid gap-3 md:grid-cols-2">
 								<div className="space-y-2">
 									<Label>指令名稱</Label>
 									<Input
 										value={command.name}
 										onBlur={field.handleBlur}
-										onChange={(event) =>
-											updateCommand(index, { name: event.target.value })
+										onChange={(e) =>
+											updateCommand(index, { name: e.target.value })
 										}
 										placeholder="例如：help"
 									/>
@@ -508,34 +587,32 @@ function CommandListField({ field }: CommandListFieldProps) {
 									<Input
 										value={command.category ?? ""}
 										onBlur={field.handleBlur}
-										onChange={(event) =>
-											updateCommand(index, { category: event.target.value })
+										onChange={(e) =>
+											updateCommand(index, { category: e.target.value })
 										}
 										placeholder="例如：管理"
 									/>
 								</div>
 							</div>
-
 							<div className="space-y-2">
 								<Label>指令描述</Label>
 								<Textarea
 									value={command.description}
 									onBlur={field.handleBlur}
-									onChange={(event) =>
-										updateCommand(index, { description: event.target.value })
+									onChange={(e) =>
+										updateCommand(index, { description: e.target.value })
 									}
 									placeholder="描述指令用途"
 									rows={2}
 								/>
 							</div>
-
 							<div className="space-y-2">
 								<Label>用法</Label>
 								<Input
 									value={command.usage}
 									onBlur={field.handleBlur}
-									onChange={(event) =>
-										updateCommand(index, { usage: event.target.value })
+									onChange={(e) =>
+										updateCommand(index, { usage: e.target.value })
 									}
 									placeholder="例如：/help"
 								/>
@@ -544,9 +621,7 @@ function CommandListField({ field }: CommandListFieldProps) {
 					))}
 				</div>
 			)}
-			{errorMessage ? (
-				<p className="text-[#ed4245] text-sm">{errorMessage}</p>
-			) : null}
+			{errorMessage && <p className="text-[#ed4245] text-sm">{errorMessage}</p>}
 		</div>
 	);
 }
@@ -556,37 +631,26 @@ type DeveloperItem = BaseDeveloperItem & {
 	avatar?: string | null;
 };
 
-export type DeveloperListFieldProps = {
-	field: AnyFieldApi;
-};
-
-export function DeveloperListField({ field }: DeveloperListFieldProps) {
+function DeveloperListField({ field }: { field: AnyFieldApi }) {
 	const developers = Array.isArray(field.state.value)
 		? (field.state.value as DeveloperItem[])
 		: [];
 	const errorMessage = readFirstError(field.state.meta.errors);
-
 	const [searchTerm, setSearchTerm] = useState("");
 	const [debouncedTerm, setDebouncedTerm] = useState("");
 	const [isDropdownOpen, setIsDropdownOpen] = useState(false);
 	const dropdownRef = useRef<HTMLDivElement>(null);
 
-	// 防抖
 	useEffect(() => {
-		const timer = setTimeout(() => {
-			setDebouncedTerm(searchTerm.trim());
-		}, 300);
+		const timer = setTimeout(() => setDebouncedTerm(searchTerm.trim()), 300);
 		return () => clearTimeout(timer);
 	}, [searchTerm]);
 
-	// 獲取搜尋結果
-	// 💡 將預設值改為空陣列 []，並將變數重新命名為 searchResults 以符合陣列語意
 	const { data: searchResults = [], isFetching } = useQuery({
 		...userGetBaseProfileByNameOrIdQueryOptions(debouncedTerm),
 		enabled: debouncedTerm.length > 0,
 	});
 
-	// 點擊外部關閉
 	useEffect(() => {
 		const handleClickOutside = (event: MouseEvent) => {
 			if (
@@ -600,38 +664,34 @@ export function DeveloperListField({ field }: DeveloperListFieldProps) {
 		return () => document.removeEventListener("mousedown", handleClickOutside);
 	}, []);
 
-	const removeDeveloper = (index: number) => {
-		const nextDevelopers = developers.filter((_, i) => i !== index);
-		field.handleChange(nextDevelopers);
-	};
+	const removeDeveloper = useCallback(
+		(index: number) => {
+			field.handleChange(developers.filter((_, i) => i !== index));
+		},
+		[field, developers],
+	);
 
-	const selectDeveloper = (user: DevUser) => {
-		// 檢查重複 (依賴 user.id)
-		const isDuplicate = developers.some((dev) => dev.name === user.id);
-
-		if (!isDuplicate) {
-			const displayName =
-				user.name && user.name.trim() !== "" ? user.name : user.username;
-
-			field.handleChange([
-				...developers,
-				{
-					name: user.id,
-					_displayUsername: displayName,
-					avatar: user.avatar,
-				},
-			]);
-		}
-
-		setSearchTerm("");
-		setIsDropdownOpen(false);
-	};
+	const selectDeveloper = useCallback(
+		(user: DevUser) => {
+			if (!developers.some((dev) => dev.name === user.id)) {
+				field.handleChange([
+					...developers,
+					{
+						name: user.id,
+						_displayUsername: user.name?.trim() ? user.name : user.username,
+						avatar: user.avatar,
+					},
+				]);
+			}
+			setSearchTerm("");
+			setIsDropdownOpen(false);
+		},
+		[field, developers],
+	);
 
 	return (
 		<div className="space-y-4">
 			<Label>開發者列表 *</Label>
-
-			{/* 1. 已選擇的開發者展示區 */}
 			{developers.length === 0 ? (
 				<p className="rounded-md border border-white/10 border-dashed px-3 py-3 text-[#b9bbbe] text-sm">
 					尚未新增任何開發者。
@@ -640,7 +700,6 @@ export function DeveloperListField({ field }: DeveloperListFieldProps) {
 				<div className="flex flex-wrap gap-2">
 					{developers.map((developer, index) => {
 						const displayName = developer._displayUsername || developer.name;
-
 						return (
 							<div
 								key={developer.name}
@@ -675,7 +734,6 @@ export function DeveloperListField({ field }: DeveloperListFieldProps) {
 				</div>
 			)}
 
-			{/* 2. 搜尋輸入框與下拉選單 */}
 			<div className="relative" ref={dropdownRef}>
 				<div className="relative">
 					<Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -694,7 +752,6 @@ export function DeveloperListField({ field }: DeveloperListFieldProps) {
 					)}
 				</div>
 
-				{/* 下拉選單結果 */}
 				{isDropdownOpen && searchTerm.length > 0 && (
 					<div className="absolute top-full z-50 mt-1 max-h-60 w-full overflow-y-auto overflow-x-hidden rounded-md border border-white/10 bg-[#2b2d31] p-1 shadow-lg">
 						{isFetching ? (
@@ -719,21 +776,16 @@ export function DeveloperListField({ field }: DeveloperListFieldProps) {
 											alt="avatar"
 											width={32}
 											height={32}
-											className="shrink-0 rounded-full object-cover" // 註：可省略 h-8 w-8
+											className="shrink-0 rounded-full object-cover"
 										/>
 									) : (
 										<div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-[#1e1f22]">
 											<UserPlus className="h-4 w-4 text-muted-foreground" />
 										</div>
 									)}
-
-									{/* 💡 2. 加上 flex-1 min-w-0 讓文字區塊正確縮放，避免撐破 flex 容器 */}
 									<div className="flex min-w-0 flex-1 flex-col">
-										{/* 💡 3. 加上 truncate 讓過長文字顯示為 ... */}
 										<span className="truncate font-medium text-sm">
-											{result.name && result.name.trim() !== ""
-												? result.name
-												: result.username}
+											{result.name?.trim() ? result.name : result.username}
 										</span>
 										<span className="truncate text-[#b9bbbe] text-xs">
 											{result.id}
@@ -745,28 +797,39 @@ export function DeveloperListField({ field }: DeveloperListFieldProps) {
 					</div>
 				)}
 			</div>
-
-			{/* 錯誤訊息 */}
-			{errorMessage ? (
-				<p className="text-[#ed4245] text-sm">{errorMessage}</p>
-			) : null}
+			{errorMessage && <p className="text-[#ed4245] text-sm">{errorMessage}</p>}
 		</div>
 	);
 }
 
-// Embed
+// ============================================================================
+// Main Form Component
+// ============================================================================
+
 export default function BotForm({
 	mode = "create",
 	defaultValues,
 }: BotFormProps) {
 	const navigate = useNavigate();
-	const persistedValues = useMemo(() => readPersistedFormValues(), []);
-
+	const queryClient = useQueryClient();
 	const objectUrlsRef = useRef<Set<string>>(new Set());
+	const [media, setMedia] = useState<MediaState>({
+		screenshots: [],
+		banner: undefined,
+	});
+	const [isUploadingMedia, setIsUploadingMedia] = useState(false);
+
+	// Initial state hydration from localStorage (CSR only to avoid SSR mismatch)
+	const [persistedValues, setPersistedValues] = useState<Partial<BotFormData>>(
+		{},
+	);
+	useEffect(() => {
+		setPersistedValues(readPersistedFormValues());
+	}, []);
 
 	useEffect(() => {
 		return () => {
-			// Adding curly braces prevents the implicit return
+			// Adding braces stops the implicit return
 			objectUrlsRef.current.forEach((url) => {
 				URL.revokeObjectURL(url);
 			});
@@ -819,31 +882,37 @@ export default function BotForm({
 			},
 		},
 		onSubmit: async ({ value }) => {
-			setLoading(true);
-			setSuccess(false);
+			submitMutation.mutate({ value, media, mode });
+		},
+	});
 
-			// 將核心業務邏輯全部封裝進 Effect 流程中
+	// Extracting mutation out of onSubmit for better React Query integration
+	const submitMutation = useMutation({
+		mutationFn: async ({
+			value,
+			media,
+			mode,
+		}: {
+			value: BotFormData;
+			media: MediaState;
+			mode: "create" | "edit";
+		}) => {
 			const program = Effect.gen(function* () {
-				// 1. 處理 Banner 上傳
 				let finalBannerUrl = media.banner?.url ?? undefined;
 				const bannerFile = media.banner?.file;
 
 				if (bannerFile) {
 					yield* Effect.sync(() => toast.info("上傳 Banner 中..."));
-
 					const uploadedBanner = yield* Effect.tryPromise({
-						// 2. 這裡直接傳入 bannerFile，TypeScript 會自動推導它是 File 型別，不需驚嘆號
 						try: () => ScreenshotUpload([bannerFile]),
 						catch: (err) =>
 							new SubmitBotFailed({
 								message: `Banner 上傳失敗：${toErrorMessage(err)}`,
 							}),
 					});
-
 					finalBannerUrl = uploadedBanner[0]?.url ?? undefined;
 				}
 
-				// 2. 處理 Screenshots 上傳
 				const finalScreenshots = [...media.screenshots];
 				const localScreenshotIndices: number[] = [];
 				const localScreenshotFiles: File[] = [];
@@ -871,7 +940,7 @@ export default function BotForm({
 						finalScreenshots[originalIndex] = uploadedScreenshots[newIndex];
 					});
 				}
-				// 3. 組裝 Payload 並送出最終表單資料
+
 				const payload = {
 					form: value,
 					screenshots: finalScreenshots,
@@ -879,100 +948,72 @@ export default function BotForm({
 					mode,
 				};
 
-				const response = yield* Effect.tryPromise({
+				return yield* Effect.tryPromise({
 					try: () => submitBotFn({ data: payload }),
 					catch: (err) =>
 						new SubmitBotFailed({
 							message: `資料提交失敗：${toErrorMessage(err)}`,
 						}),
 				});
-
-				return response;
 			}).pipe(
-				// 統一捕捉此 Effect 鏈中的所有自訂錯誤 (SubmitBotFailed)
 				Effect.catchAll((error) =>
 					Effect.succeed({
 						success: false as const,
-						error: {
-							tag: error._tag,
-							message: error.message,
-						},
+						error: { tag: error._tag, message: error.message },
 					} satisfies SubmitBotResult),
 				),
 			);
 
-			try {
-				// 執行 Effect
-				const response = await Effect.runPromise(program);
-
-				// 統一處理後端/上傳回應的失敗狀態
-				if (!response.success) {
-					await Swal.fire({
-						icon: "error",
-						title: "儲存失敗",
-						text: getSubmitErrorMessage(response.error),
-						confirmButtonText: "重新嘗試",
-					});
-					setLoading(false);
-					return;
-				}
-
-				// 成功後的共同行為
-				setSuccess(true);
-				window.localStorage.removeItem("bot_form_backup");
-
-				// 根據模式 (create / edit) 執行對應的 Swal 彈窗與後續動作
-				if (mode === "create") {
-					form.reset();
-					setMedia({ screenshots: [], banner: undefined });
-
-					await Swal.fire({
-						icon: "success",
-						title: "發布成功",
-						text: "請等待審核，審核通過後機器人便會出現在列表中。",
-						confirmButtonText: "前往個人頁面",
-					}).then(() => {
-						void navigate({
-							to: "/protected/profile",
-							search: { tab: "bots" },
-						});
-					});
-				}
-
-				if (mode === "edit") {
-					await Swal.fire({
-						icon: "success",
-						title: "儲存成功",
-						text: "機器人資料已成功儲存。",
-						confirmButtonText: "前往機器人頁面",
-					}).then(() => {
-						void navigate({
-							to: "/bots/$botId",
-							params: { botId: response.botId },
-						});
-					});
-				}
-			} catch (error) {
-				// 這裡只會捕捉到非預期的運行時嚴重崩潰 (如代碼 bug、NullPointer 等)
+			return Effect.runPromise(program);
+		},
+		onSuccess: async (response) => {
+			if (!response.success) {
 				await Swal.fire({
 					icon: "error",
-					title: "系統錯誤",
-					text: `發生非預期錯誤：${toErrorMessage(error)}`,
-					confirmButtonText: "確定",
+					title: "儲存失敗",
+					text: getSubmitErrorMessage(response.error),
+					confirmButtonText: "重新嘗試",
 				});
-			} finally {
-				setLoading(false);
+				return;
+			}
+
+			window.localStorage.removeItem("bot_form_backup");
+
+			if (mode === "create") {
+				form.reset();
+				setMedia({ screenshots: [], banner: undefined });
+				queryClient.invalidateQueries({ queryKey: ["bots"] });
+
+				await Swal.fire({
+					icon: "success",
+					title: "發布成功",
+					text: "請等待審核，審核通過後機器人便會出現在列表中。",
+					confirmButtonText: "前往個人頁面",
+				});
+				void navigate({ to: "/protected/profile", search: { tab: "bots" } });
+			} else {
+				queryClient.invalidateQueries({ queryKey: ["bot", response.botId] });
+				await Swal.fire({
+					icon: "success",
+					title: "儲存成功",
+					text: "機器人資料已成功儲存。",
+					confirmButtonText: "前往機器人頁面",
+				});
+				void navigate({
+					to: "/bots/$botId",
+					params: { botId: response.botId },
+				});
 			}
 		},
+		onError: async (error) => {
+			await Swal.fire({
+				icon: "error",
+				title: "系統錯誤",
+				text: `發生非預期錯誤：${toErrorMessage(error)}`,
+				confirmButtonText: "確定",
+			});
+		},
 	});
-
-	const [media, setMedia] = useState<MediaState>({
-		screenshots: [],
-		banner: undefined,
-	});
-	const [uploading] = useState(false);
-	const [loading, setLoading] = useState(false);
-	const [_success, setSuccess] = useState(false);
 
 	const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 	const previewRef = useRef<HTMLDivElement | null>(null);
@@ -983,211 +1024,60 @@ export default function BotForm({
 		form.store,
 		(state) => state.values.botLongDescription,
 	);
-
 	const customEmbedValues = useSelector(
 		form.store,
 		(state) => state.values.customEmbed,
 	);
 
 	useEffect(() => {
-		const handleBeforeUnload = (event: BeforeUnloadEvent) => {
-			// 檢查表單是否被修改過 (isDirty)
-			const isDirty = form.state.isDirty;
-
-			if (isDirty) {
-				// 觸發瀏覽器原生的離開確認對話框
-				event.preventDefault();
-				event.returnValue = "";
-			}
-		};
-
-		window.addEventListener("beforeunload", handleBeforeUnload);
-		return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-	}, [form.state.isDirty]); // 依賴 isDirty 狀態
-
-	useEffect(() => {
 		if (typeof window === "undefined") return;
 
 		const handleBeforeUnload = (event: BeforeUnloadEvent) => {
-			// 1. 直接從 form.store 拿到當下「最即時」的 state，避免閉包記住舊值
 			const currentState = form.store.state;
-			const isDirty = currentState.isDirty;
-
-			if (isDirty) {
+			if (currentState.isDirty) {
 				try {
-					// 2. 【核心關鍵】既然使用者要離開了，不等 debounce 的 500ms 了！
-					// 立刻、同步地將當前最新的 values 強制塞進 localStorage 進行最後搶救
 					window.localStorage.setItem(
 						"bot_form_backup",
 						JSON.stringify(currentState.values),
 					);
-					console.log("偵測到頁面重新整理，已強制同步備份最新資料！");
 				} catch (error) {
 					console.error("緊急備份失敗:", error);
 				}
-
-				// 3. 觸發瀏覽器原生的離開確認對話框
 				event.preventDefault();
-				event.returnValue = ""; // 瀏覽器會根據此設定顯示「系統可能不會儲存你所做的變更」
+				event.returnValue = "";
 				return "";
 			}
 		};
 
 		window.addEventListener("beforeunload", handleBeforeUnload);
-		return () => {
-			window.removeEventListener("beforeunload", handleBeforeUnload);
-		};
+		return () => window.removeEventListener("beforeunload", handleBeforeUnload);
 	}, [form.store]);
 
 	useEffect(() => {
-		const screenshots = defaultValues?.screenshots;
-		if (Array.isArray(screenshots) && screenshots.length > 0) {
-			setMedia((previous) => ({
-				...previous,
-				screenshots: screenshots.map((url) => buildScreenshotFromUrl(url)),
+		if (defaultValues?.screenshots?.length) {
+			setMedia((prev) => ({
+				...prev,
+				screenshots: defaultValues.screenshots!.map(buildScreenshotFromUrl),
 			}));
 		}
-
-		const banner = defaultValues?.banner;
-		if (typeof banner === "string" && banner.length > 0) {
-			setMedia((previous) => ({
-				...previous,
-				banner: buildScreenshotFromUrl(banner),
+		if (defaultValues?.banner) {
+			setMedia((prev) => ({
+				...prev,
+				banner: buildScreenshotFromUrl(defaultValues.banner!),
 			}));
 		}
-	}, [defaultValues?.screenshots, defaultValues?.banner]);
+	}, [defaultValues]);
 
-	const validateBotName = useMemo(
-		() =>
-			effectValidator(BotNameSchema, {
-				label: "機器人名稱",
-				required: "機器人名稱不可為空",
-				maxLength: { value: 50, message: "機器人名稱最多 50 字" },
-			}),
-		[],
-	);
-	const validateBotPrefix = useMemo(
-		() =>
-			effectValidator(BotPrefixSchema, {
-				label: "機器人前綴",
-				required: "機器人前綴不可為空",
-				maxLength: { value: 10, message: "機器人前綴最多 10 字" },
-			}),
-		[],
-	);
-	const validateisNsfw = useMemo(
-		() =>
-			effectValidator(Schema.Boolean, {
-				label: "NSFW",
-				required: "請選擇是否為 NSFW 伺服器",
-			}),
-		[],
-	);
-	const validateBotDescription = useMemo(
-		() =>
-			effectValidator(BotDescriptionSchema, {
-				label: "簡短描述",
-				required: "請填寫簡短描述",
-				minLength: { value: 10, message: "簡短描述至少 10 字" },
-				maxLength: { value: 200, message: "簡短描述最多 200 字" },
-			}),
-		[],
-	);
-	const validateBotLongDescription = useMemo(
-		() =>
-			effectValidator(BotLongDescriptionSchema, {
-				label: "詳細描述",
-				required: "請填寫詳細描述",
-			}),
-		[],
-	);
-	const validateBotInvite = useMemo(
-		() =>
-			effectValidator(BotInviteSchema, {
-				label: "機器人邀請連結",
-				required: "請填寫機器人邀請連結",
-				fallback: "請輸入有效的機器人邀請連結",
-			}),
-		[],
-	);
-	const validateBotWebsite = useMemo(
-		() =>
-			effectValidator(OptionalStringSchema, {
-				label: "網站連結",
-				fallback: "網站連結格式不正確",
-			}),
-		[],
-	);
-	const validateBotSupport = useMemo(
-		() =>
-			effectValidator(OptionalStringSchema, {
-				label: "支援伺服器連結",
-				fallback: "支援伺服器連結格式不正確",
-			}),
-		[],
-	);
-	const validateTags = useMemo(() => {
-		// 1. 建立原本的驗證器
-		const baseValidator = effectValidator(BotTagsSchema, {
-			fallback: "格式不正確",
-		});
-
-		// 2. 回傳一個自訂的驗證邏輯，手動攔截陣列長度
-		return (value: readonly string[]) => {
-			if (!value || value.length < 1) {
-				return "請至少新增一個標籤";
-			}
-			if (value.length > 8) {
-				return "最多只能新增 8 個標籤";
-			}
-
-			// 長度沒問題，再丟給原來的 Effect decode 去檢查單一 tag 的 maxLength(24)
-			return (baseValidator as any)(value);
-		};
-	}, []);
-	const validateDevelopers = useMemo(
-		() =>
-			effectValidator(BotDevelopersSchema, {
-				fallback: "開發者格式不正確",
-			}),
-		[],
-	);
-	const validateCommands = useMemo(
-		() =>
-			effectValidator(BotCommandsSchema, {
-				fallback: "指令格式不正確",
-			}),
-		[],
-	);
-	const validateSecret = useMemo(
-		() =>
-			effectValidator(OptionalStringSchema, {
-				label: "Secret",
-				fallback: "Secret 格式不正確",
-			}),
-		[],
-	);
-	const validateWebhookUrl = useMemo(
-		() =>
-			effectValidator(OptionalStringSchema, {
-				label: "Webhook URL",
-				fallback: "Webhook URL 格式不正確",
-			}),
-		[],
-	);
-
-	const handleScroll = () => {
+	const handleScroll = useCallback(() => {
 		const textarea = textareaRef.current;
 		const preview = previewRef.current;
-
 		if (textarea && preview) {
 			const scrollRatio =
 				textarea.scrollTop / (textarea.scrollHeight - textarea.clientHeight);
-			const previewScrollTop =
+			preview.scrollTop =
 				scrollRatio * (preview.scrollHeight - preview.clientHeight);
-			preview.scrollTop = previewScrollTop;
 		}
-	};
+	}, []);
 
 	const handleMediaUpload = async (
 		event: React.ChangeEvent<HTMLInputElement>,
@@ -1203,85 +1093,81 @@ export default function BotForm({
 					? 0
 					: 1
 				: Math.max(0, 5 - media.screenshots.length);
-
 		if (remainingSlots <= 0) return;
 
-		// 僅驗證檔案
-		const validFiles = await Effect.runPromise(
-			validateFiles(files, remainingSlots).pipe(
-				Effect.catchAll(() => Effect.succeed([] as File[])),
-			),
-		);
+		setIsUploadingMedia(true);
+		try {
+			const validFiles = await Effect.runPromise(
+				validateFiles(files, remainingSlots).pipe(
+					Effect.catchAll(() => Effect.succeed([] as File[])),
+				),
+			);
 
-		if (validFiles.length === 0) return;
+			if (validFiles.length === 0) return;
 
-		// 建立本機預覽 (Object URL)
-		const newItems: MediaItem[] = validFiles.map((file) => {
-			const url = URL.createObjectURL(file);
-			objectUrlsRef.current.add(url);
-			return { url, file };
-		});
+			const newItems: MediaItem[] = validFiles.map((file) => {
+				const url = URL.createObjectURL(file);
+				objectUrlsRef.current.add(url);
+				return { url, file };
+			});
 
-		if (kind === "banner") {
-			// 若原有本地 banner，先釋放
-			if (media.banner?.file) {
-				URL.revokeObjectURL(media.banner.url);
-				objectUrlsRef.current.delete(media.banner.url);
+			if (kind === "banner") {
+				if (media.banner?.file) {
+					URL.revokeObjectURL(media.banner.url);
+					objectUrlsRef.current.delete(media.banner.url);
+				}
+				setMedia((prev) => ({ ...prev, banner: newItems[0] }));
+			} else {
+				setMedia((prev) => ({
+					...prev,
+					screenshots: [...prev.screenshots, ...newItems],
+				}));
 			}
-			setMedia((previous) => ({
-				...previous,
-				banner: newItems[0] ?? undefined,
-			}));
-		} else {
-			setMedia((previous) => ({
-				...previous,
-				screenshots: [...previous.screenshots, ...newItems],
-			}));
+		} finally {
+			setIsUploadingMedia(false);
 		}
 	};
 
-	const removeScreenshot = (index: number) => {
-		const toDelete = media.screenshots[index];
-		if (!toDelete) return;
+	const removeScreenshot = useCallback((index: number) => {
+		setMedia((prev) => {
+			const toDelete = prev.screenshots[index];
+			if (!toDelete) return prev;
 
-		if (toDelete.file) {
-			// 本地圖片：釋放記憶體
-			URL.revokeObjectURL(toDelete.url);
-			objectUrlsRef.current.delete(toDelete.url);
-		} else if (toDelete.public_id) {
-			// 遠端圖片：呼叫刪除 API
-			void Effect.runPromise(
-				deleteImage(toDelete.public_id).pipe(
-					Effect.catchAll(() => Effect.succeed(undefined)),
-				),
-			);
-		}
+			if (toDelete.file) {
+				URL.revokeObjectURL(toDelete.url);
+				objectUrlsRef.current.delete(toDelete.url);
+			} else if (toDelete.public_id) {
+				void Effect.runPromise(
+					deleteImage(toDelete.public_id).pipe(
+						Effect.catchAll(() => Effect.succeed(undefined)),
+					),
+				);
+			}
+			return {
+				...prev,
+				screenshots: prev.screenshots.filter((_, i) => i !== index),
+			};
+		});
+	}, []);
 
-		setMedia((previous) => ({
-			...previous,
-			screenshots: previous.screenshots.filter(
-				(_, current) => current !== index,
-			),
-		}));
-	};
+	const removeBanner = useCallback(() => {
+		setMedia((prev) => {
+			const toDelete = prev.banner;
+			if (!toDelete) return prev;
 
-	const removeBanner = () => {
-		const toDelete = media.banner;
-		if (!toDelete) return;
-
-		if (toDelete.file) {
-			URL.revokeObjectURL(toDelete.url);
-			objectUrlsRef.current.delete(toDelete.url);
-		} else if (toDelete.public_id) {
-			void Effect.runPromise(
-				deleteImage(toDelete.public_id).pipe(
-					Effect.catchAll(() => Effect.succeed(undefined)),
-				),
-			);
-		}
-		// 修正：改用 undefined 替代 null
-		setMedia((previous) => ({ ...previous, banner: undefined }));
-	};
+			if (toDelete.file) {
+				URL.revokeObjectURL(toDelete.url);
+				objectUrlsRef.current.delete(toDelete.url);
+			} else if (toDelete.public_id) {
+				void Effect.runPromise(
+					deleteImage(toDelete.public_id).pipe(
+						Effect.catchAll(() => Effect.succeed(undefined)),
+					),
+				);
+			}
+			return { ...prev, banner: undefined };
+		});
+	}, []);
 
 	const sanitizedMarkdown = useMemo(
 		() => longDescription || "詳細描述預覽 (支援Markdown)",
@@ -1333,15 +1219,13 @@ export default function BotForm({
 											id="botName"
 											value={field.state.value ?? ""}
 											onBlur={field.handleBlur}
-											onChange={(event) =>
-												field.handleChange(event.target.value)
-											}
+											onChange={(e) => field.handleChange(e.target.value)}
 											placeholder="輸入您的機器人名稱"
 											aria-invalid={Boolean(errorMessage)}
 										/>
-										{errorMessage ? (
+										{errorMessage && (
 											<p className="text-[#ed4245] text-sm">{errorMessage}</p>
-										) : null}
+										)}
 									</div>
 								);
 							}}
@@ -1349,9 +1233,7 @@ export default function BotForm({
 
 						<form.Field
 							name="botPrefix"
-							validators={{
-								onChange: ({ value }) => validateBotPrefix(value),
-							}}
+							validators={{ onChange: ({ value }) => validateBotPrefix(value) }}
 						>
 							{(field) => {
 								const errorMessage = readFirstError(field.state.meta.errors);
@@ -1362,15 +1244,13 @@ export default function BotForm({
 											id="botPrefix"
 											value={field.state.value ?? ""}
 											onBlur={field.handleBlur}
-											onChange={(event) =>
-												field.handleChange(event.target.value)
-											}
+											onChange={(e) => field.handleChange(e.target.value)}
 											placeholder="例如：! 或 /"
 											aria-invalid={Boolean(errorMessage)}
 										/>
-										{errorMessage ? (
+										{errorMessage && (
 											<p className="text-[#ed4245] text-sm">{errorMessage}</p>
-										) : null}
+										)}
 									</div>
 								);
 							}}
@@ -1393,9 +1273,7 @@ export default function BotForm({
 											rows={3}
 											maxLength={200}
 											onBlur={field.handleBlur}
-											onChange={(event) =>
-												field.handleChange(event.target.value)
-											}
+											onChange={(e) => field.handleChange(e.target.value)}
 											placeholder="簡短描述您的機器人功能（最多 200 字）"
 											aria-invalid={Boolean(errorMessage)}
 										/>
@@ -1403,15 +1281,14 @@ export default function BotForm({
 											<span>最多 200 字</span>
 											<span>{(field.state.value ?? "").length}/200</span>
 										</div>
-										{errorMessage ? (
+										{errorMessage && (
 											<p className="text-[#ed4245] text-sm">{errorMessage}</p>
-										) : null}
+										)}
 									</div>
 								);
 							}}
 						</form.Field>
 
-						{/* 效能優化：對長文本區塊加入防抖 (Debounce) 驗證 */}
 						<form.Field
 							name="botLongDescription"
 							validators={{
@@ -1435,15 +1312,13 @@ export default function BotForm({
 											value={field.state.value ?? ""}
 											onBlur={field.handleBlur}
 											onScroll={handleScroll}
-											onChange={(event) =>
-												field.handleChange(event.target.value)
-											}
+											onChange={(e) => field.handleChange(e.target.value)}
 											placeholder="請輸入詳細描述 (支援Markdown)"
 											aria-invalid={Boolean(errorMessage)}
 										/>
-										{errorMessage ? (
+										{errorMessage && (
 											<p className="text-[#ed4245] text-sm">{errorMessage}</p>
-										) : null}
+										)}
 									</div>
 								);
 							}}
@@ -1451,7 +1326,7 @@ export default function BotForm({
 
 						<form.Field
 							name="nsfw"
-							validators={{ onChange: ({ value }) => validateisNsfw(value) }}
+							validators={{ onChange: ({ value }) => validateIsNsfw(value) }}
 						>
 							{(field) => {
 								const errorMessage = readFirstError(field.state.meta.errors);
@@ -1460,48 +1335,36 @@ export default function BotForm({
 										<Checkbox
 											id="nsfw"
 											checked={field.state.value ?? false}
-											onCheckedChange={(checked) => {
-												field.handleChange(checked === true);
-											}}
+											onCheckedChange={(checked) =>
+												field.handleChange(checked === true)
+											}
 										/>
 										<div className="space-y-1 leading-none">
-											{/* 新加入的警告元件 */}
-											<div className="space-y-1 leading-none">
-												<Label htmlFor="nsfw" className="cursor-pointer">
-													NSFW 機器人
-												</Label>
-												<p className="text-muted-foreground text-sm">
-													如果你的機器人包含成人或敏感內容，請勾選此項。
-												</p>
-
-												{/* 警告元件：套用黃色樣式與 text-xs text-yellow-700 */}
-												<div className="mt-2 flex max-w-sm items-start gap-2 rounded-md border border-yellow-400 bg-yellow-100 px-3 py-2 text-xs text-yellow-700">
-													<div className="relative z-20 cursor-pointer text-yellow-600 hover:text-yellow-500">
-														<AlertTriangle className="h-5 w-5" />
-													</div>
-													<div className="space-y-0.5">
-														<p className="font-semibold text-yellow-900">
-															警告：誠實申報
-														</p>
-														<p className="leading-relaxed">
-															未能如實標註您的機器人內容類型可能會導致嚴重後果。如果我們發現您的機器人未正確標註為
-															NSFW，可能會導致其遭到系統強制移除，並且不另行通知。請確保遵循相關社群準則。
-														</p>
-													</div>
+											<Label htmlFor="nsfw" className="cursor-pointer">
+												NSFW 機器人
+											</Label>
+											<p className="text-muted-foreground text-sm">
+												如果你的機器人包含成人或敏感內容，請勾選此項。
+											</p>
+											<div className="mt-2 flex max-w-sm items-start gap-2 rounded-md border border-yellow-400 bg-yellow-100 px-3 py-2 text-xs text-yellow-700">
+												<div className="relative z-20 cursor-pointer text-yellow-600 hover:text-yellow-500">
+													<AlertTriangle className="h-5 w-5" />
 												</div>
-
-												{errorMessage ? (
-													<p className="mt-1 text-[#ed4245] text-sm">
-														{errorMessage}
+												<div className="space-y-0.5">
+													<p className="font-semibold text-yellow-900">
+														警告：誠實申報
 													</p>
-												) : null}
+													<p className="leading-relaxed">
+														未能如實標註您的機器人內容類型可能會導致嚴重後果。如果我們發現您的機器人未正確標註為
+														NSFW，可能會導致其遭到系統強制移除，並且不另行通知。請確保遵循相關社群準則。
+													</p>
+												</div>
 											</div>
-
-											{errorMessage ? (
+											{errorMessage && (
 												<p className="mt-1 text-[#ed4245] text-sm">
 													{errorMessage}
 												</p>
-											) : null}
+											)}
 										</div>
 									</div>
 								);
@@ -1510,9 +1373,7 @@ export default function BotForm({
 
 						<form.Field
 							name="botInvite"
-							validators={{
-								onChange: ({ value }) => validateBotInvite(value),
-							}}
+							validators={{ onChange: ({ value }) => validateBotInvite(value) }}
 						>
 							{(field) => {
 								const errorMessage = readFirstError(field.state.meta.errors);
@@ -1523,15 +1384,13 @@ export default function BotForm({
 											id="botInvite"
 											value={field.state.value ?? ""}
 											onBlur={field.handleBlur}
-											onChange={(event) =>
-												field.handleChange(event.target.value)
-											}
+											onChange={(e) => field.handleChange(e.target.value)}
 											placeholder="例如：https://discord.com/oauth2/authorize?client_id=..."
 											aria-invalid={Boolean(errorMessage)}
 										/>
-										{errorMessage ? (
+										{errorMessage && (
 											<p className="text-[#ed4245] text-sm">{errorMessage}</p>
-										) : null}
+										)}
 									</div>
 								);
 							}}
@@ -1553,20 +1412,17 @@ export default function BotForm({
 												id="botWebsite"
 												value={field.state.value ?? ""}
 												onBlur={field.handleBlur}
-												onChange={(event) =>
-													field.handleChange(event.target.value)
-												}
+												onChange={(e) => field.handleChange(e.target.value)}
 												placeholder="例如：https://example.com"
 												aria-invalid={Boolean(errorMessage)}
 											/>
-											{errorMessage ? (
+											{errorMessage && (
 												<p className="text-[#ed4245] text-sm">{errorMessage}</p>
-											) : null}
+											)}
 										</div>
 									);
 								}}
 							</form.Field>
-
 							<form.Field
 								name="botSupport"
 								validators={{
@@ -1582,15 +1438,13 @@ export default function BotForm({
 												id="botSupport"
 												value={field.state.value ?? ""}
 												onBlur={field.handleBlur}
-												onChange={(event) =>
-													field.handleChange(event.target.value)
-												}
+												onChange={(e) => field.handleChange(e.target.value)}
 												placeholder="例如：https://discord.gg/example"
 												aria-invalid={Boolean(errorMessage)}
 											/>
-											{errorMessage ? (
+											{errorMessage && (
 												<p className="text-[#ed4245] text-sm">{errorMessage}</p>
-											) : null}
+											)}
 										</div>
 									);
 								}}
@@ -1609,11 +1463,8 @@ export default function BotForm({
 						<form.Field
 							name="tags"
 							validators={{
-								// 💡 將 validateTags 斷言為可以接收參數的函式
 								onChange: ({ value }) =>
-									(validateTags as (v: typeof value) => string | undefined)(
-										value,
-									),
+									validateTags(value as readonly string[]),
 							}}
 						>
 							{(field) => <TagField field={field} categories={botCategories} />}
@@ -1621,9 +1472,7 @@ export default function BotForm({
 
 						<form.Field
 							name="commands"
-							validators={{
-								onChange: ({ value }) => validateCommands(value),
-							}}
+							validators={{ onChange: ({ value }) => validateCommands(value) }}
 						>
 							{(field) => <CommandListField field={field} />}
 						</form.Field>
@@ -1634,9 +1483,7 @@ export default function BotForm({
 
 						<form.Field
 							name="secret"
-							validators={{
-								onChange: ({ value }) => validateSecret(value),
-							}}
+							validators={{ onChange: ({ value }) => validateSecret(value) }}
 						>
 							{(field) => {
 								const errorMessage = readFirstError(field.state.meta.errors);
@@ -1647,15 +1494,13 @@ export default function BotForm({
 											id="secret"
 											value={field.state.value ?? ""}
 											onBlur={field.handleBlur}
-											onChange={(event) =>
-												field.handleChange(event.target.value)
-											}
+											onChange={(e) => field.handleChange(e.target.value)}
 											placeholder="可選：Webhook 密鑰 (用於驗證來自自訂端點的 Webhook 請求)"
 											aria-invalid={Boolean(errorMessage)}
 										/>
-										{errorMessage ? (
+										{errorMessage && (
 											<p className="text-[#ed4245] text-sm">{errorMessage}</p>
-										) : null}
+										)}
 									</div>
 								);
 							}}
@@ -1676,15 +1521,13 @@ export default function BotForm({
 											id="webhook_url"
 											value={field.state.value ?? ""}
 											onBlur={field.handleBlur}
-											onChange={(event) =>
-												field.handleChange(event.target.value)
-											}
+											onChange={(e) => field.handleChange(e.target.value)}
 											placeholder="可選：Discord Webhook 網址 或 自訂端點網址"
 											aria-invalid={Boolean(errorMessage)}
 										/>
-										{errorMessage ? (
+										{errorMessage && (
 											<p className="text-[#ed4245] text-sm">{errorMessage}</p>
-										) : null}
+										)}
 									</div>
 								);
 							}}
@@ -1884,16 +1727,16 @@ export default function BotForm({
 								type="file"
 								accept="image/*"
 								className="sr-only"
-								disabled={uploading || !!media.banner}
+								disabled={isUploadingMedia || !!media.banner}
 								onChange={(event) => handleMediaUpload(event, "banner")}
 							/>
 							<Button
 								type="button"
 								className="bg-[#5865f2] text-white hover:bg-[#4752c4] disabled:cursor-not-allowed disabled:bg-[#5865f2]/70"
-								disabled={uploading || !!media.banner}
+								disabled={isUploadingMedia || !!media.banner}
 								onClick={() => bannerFileInputRef.current?.click()}
 							>
-								{uploading ? "圖片上傳中..." : "選擇橫幅圖片"}
+								{isUploadingMedia ? "圖片上傳中..." : "選擇橫幅圖片"}
 							</Button>
 							<p className="text-[#b9bbbe] text-xs">
 								上傳您機器人的自訂橫幅 (如不設置將以機器人橫幅代替)
@@ -1909,16 +1752,16 @@ export default function BotForm({
 								accept="image/*"
 								multiple
 								className="sr-only"
-								disabled={uploading || media.screenshots.length >= 5}
+								disabled={isUploadingMedia || media.screenshots.length >= 5}
 								onChange={(event) => handleMediaUpload(event, "screenshots")}
 							/>
 							<Button
 								type="button"
 								className="bg-[#5865f2] text-white hover:bg-[#4752c4] disabled:cursor-not-allowed disabled:bg-[#5865f2]/70"
-								disabled={uploading || media.screenshots.length >= 5}
+								disabled={isUploadingMedia || media.screenshots.length >= 5}
 								onClick={() => screenshotsFileInputRef.current?.click()}
 							>
-								{uploading ? "圖片上傳中..." : "選擇截圖"}
+								{isUploadingMedia ? "圖片上傳中..." : "選擇截圖"}
 							</Button>
 							<p className="text-[#b9bbbe] text-xs">
 								上傳您機器人的截圖，展示機器人的功能和使用場景
@@ -1935,7 +1778,6 @@ export default function BotForm({
 								</p>
 							</div>
 
-							{/* 修復：清除了未定義變數，並綁定正確的表單屬性 */}
 							<form.Subscribe
 								selector={(state) => ({
 									canSubmit: state.canSubmit,
@@ -1956,12 +1798,12 @@ export default function BotForm({
 											!hasRequiredFields ||
 											!canSubmit ||
 											isSubmitting ||
-											loading ||
-											uploading
+											submitMutation.isPending ||
+											isUploadingMedia
 										}
 										className="w-full bg-[#5865f2] text-white hover:bg-[#4752c4] disabled:cursor-not-allowed disabled:bg-[#5865f2]/70"
 									>
-										{loading || isSubmitting
+										{submitMutation.isPending || isSubmitting
 											? "儲存中..."
 											: mode === "edit"
 												? "更新機器人"
@@ -1973,7 +1815,6 @@ export default function BotForm({
 					</div>
 
 					<div className="flex h-full flex-col space-y-4 rounded-xl border border-white/10 bg-[#2b2d31] p-5">
-						{/* 1. 橫幅預覽 */}
 						<div className="space-y-2">
 							<Label>橫幅預覽</Label>
 							<div className="h-40 overflow-hidden rounded-lg border border-white/10 bg-[#36393f]">
@@ -2002,7 +1843,6 @@ export default function BotForm({
 							</div>
 						</div>
 
-						{/* 2. 截圖預覽 */}
 						<div className="space-y-2">
 							<Label>截圖預覽</Label>
 							<div className="min-h-32 rounded-lg border border-white/10 bg-[#36393f] p-4">
@@ -2021,7 +1861,6 @@ export default function BotForm({
 							</div>
 						</div>
 
-						{/* 3. Markdown 預覽（加上 flex-1 h-0 與內部滾動） */}
 						<div className="flex h-0 flex-1 flex-col space-y-2">
 							<Label>Markdown 預覽</Label>
 							<div
@@ -2040,7 +1879,6 @@ export default function BotForm({
 							</div>
 						</div>
 
-						{/* 4. Embed 預覽（同樣加上 flex-1 h-0 與內部滾動，確保與 Markdown 平分高度） */}
 						<div className="flex h-0 flex-1 flex-col space-y-2">
 							<Label>Embed 預覽</Label>
 							<div className="flex-1 overflow-y-auto rounded-lg border border-white/10 bg-[#1f2124] p-4">

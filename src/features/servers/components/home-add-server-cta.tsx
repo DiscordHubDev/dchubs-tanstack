@@ -1,6 +1,6 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useRouteContext } from "@tanstack/react-router";
 import { Button, buttonVariants } from "#/components/ui/button";
-import { signIn, useSession } from "#/lib/auth-client";
+import { signIn } from "#/lib/auth-client";
 import { cn } from "#/lib/utils";
 
 type HomeAddServerCtaProps = {
@@ -10,7 +10,8 @@ type HomeAddServerCtaProps = {
 export default function HomeAddServerCta({
 	mobile = false,
 }: HomeAddServerCtaProps) {
-	const { data: session } = useSession();
+	const { session } = useRouteContext({ from: "__root__" });
+
 	const isSignedIn = Boolean(session?.discordProfile?.id ?? session?.user?.id);
 
 	return (

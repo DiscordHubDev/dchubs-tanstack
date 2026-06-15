@@ -1,13 +1,14 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useRouteContext } from "@tanstack/react-router";
 import { Button } from "#/components/ui/button";
-import { signIn, useSession } from "#/lib/auth-client";
+import { signIn } from "#/lib/auth-client";
 
 type BotsAddCtaProps = {
 	mobile?: boolean;
 };
 
 export default function BotsAddCta({ mobile = false }: BotsAddCtaProps) {
-	const { data: session } = useSession();
+	const { session } = useRouteContext({ from: "__root__" });
+
 	const isSignedIn = Boolean(session?.discordProfile?.id ?? session?.user?.id);
 
 	if (isSignedIn) {

@@ -1,6 +1,6 @@
 import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { AlertTriangle, RefreshCw } from "lucide-react";
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import LoadingPage from "#/components/loading";
 import { OptimizedImage } from "#/components/OptimizedImage";
 import { Avatar, AvatarFallback } from "#/components/ui/avatar";
@@ -90,10 +90,12 @@ function buildGuildIconUrl(guild: DiscordGuild): string | null {
 	return `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png?size=128`;
 }
 
+// 💡 優化：將 origin 作為參數傳入，避免 SSR 環境下找不到 window 導致報錯
 function buildBotInviteUrl(input: {
 	clientId: string;
 	guildId: string;
 	permissions: string;
+	origin: string;
 }) {
 	const inviteUrl = new URL("https://discord.com/oauth2/authorize");
 	inviteUrl.searchParams.set("client_id", input.clientId);
@@ -107,8 +109,7 @@ function buildBotInviteUrl(input: {
 	inviteUrl.searchParams.set("disable_guild_select", "true");
 
 	// 💡 關鍵改動 2：加入成功後要跳轉回來的目標網址
-	// 例如跳轉回目前網頁：window.location.origin + "/success" 或直接回首頁
-	const redirectUri = `${window.location.origin}/protected/add-server`;
+	const redirectUri = `${input.origin}/protected/add-server`;
 	inviteUrl.searchParams.set("redirect_uri", redirectUri);
 
 	// 💡 關鍵改動 3：Discord 規定有 redirect_uri 就必須帶上 response_type
@@ -124,7 +125,8 @@ type GuildCardProps = {
 	actionClassName: string;
 };
 
-function GuildCard({
+// 💡 優化：使用 React.memo 避免父層載入更多資料時，不必要的子元件全面重繪
+const GuildCard = memo(function GuildCard({
 	guild,
 	actionLabel,
 	onAction,
@@ -164,7 +166,7 @@ function GuildCard({
 			</button>
 		</div>
 	);
-}
+});
 
 function RouteComponent() {
 	const navigate = useNavigate();
@@ -175,7 +177,9 @@ function RouteComponent() {
 
 	const [activeLimit, setActiveLimit] = useState(INITIAL_SERVERS_LOAD);
 	const [inactiveLimit, setInactiveLimit] = useState(INITIAL_SERVERS_LOAD);
-	const [isLoadingMore, setIsLoadingMore] = useState(false);
+
+	// 💡 優化：加入 useRef 搭配 IntersectionObserver 實作效能更好的無限滾動
+	const loadMoreObserverRef = useRef<HTMLDivElement>(null);
 
 	const visibleActive = useMemo(
 		() => activeGuilds.slice(0, activeLimit),
@@ -215,6 +219,7 @@ function RouteComponent() {
 				clientId,
 				guildId,
 				permissions: DEFAULT_BOT_PERMISSIONS,
+				origin: window.location.origin, // 在 Event Handler 中讀取 window 是安全的
 			});
 
 			window.location.assign(inviteUrl);
@@ -222,59 +227,45 @@ function RouteComponent() {
 		[data?.botInviteClientId],
 	);
 
-	const handleScroll = useCallback(() => {
-		if (isLoadingMore || (!canLoadMoreActive && !canLoadMoreInactive)) {
-			return;
-		}
+	// 💡 優化：使用 IntersectionObserver 取代昂貴的 window scroll 事件
+	useEffect(() => {
+		const observerTarget = loadMoreObserverRef.current;
+		if (!observerTarget) return;
 
-		if (
-			window.innerHeight + window.scrollY >=
-			document.body.offsetHeight - 800
-		) {
-			setIsLoadingMore(true);
-
-			window.setTimeout(() => {
-				if (canLoadMoreActive) {
-					setActiveLimit((previous) =>
-						Math.min(previous + LOAD_MORE_AMOUNT, activeGuilds.length),
-					);
-				} else if (canLoadMoreInactive) {
-					setInactiveLimit((previous) =>
-						Math.min(previous + LOAD_MORE_AMOUNT, inactiveGuilds.length),
-					);
+		const observer = new IntersectionObserver(
+			(entries) => {
+				const target = entries[0];
+				if (target.isIntersecting) {
+					if (canLoadMoreActive) {
+						setActiveLimit((previous) =>
+							Math.min(previous + LOAD_MORE_AMOUNT, activeGuilds.length),
+						);
+					} else if (canLoadMoreInactive) {
+						setInactiveLimit((previous) =>
+							Math.min(previous + LOAD_MORE_AMOUNT, inactiveGuilds.length),
+						);
+					}
 				}
+			},
+			{
+				root: null,
+				rootMargin: "400px", // 提前 400px 觸發，讓使用者有無縫滾動體驗
+				threshold: 0.1,
+			},
+		);
 
-				setIsLoadingMore(false);
-			}, 0);
-		}
+		observer.observe(observerTarget);
+
+		return () => {
+			observer.unobserve(observerTarget);
+			observer.disconnect();
+		};
 	}, [
-		isLoadingMore,
 		canLoadMoreActive,
 		canLoadMoreInactive,
 		activeGuilds.length,
 		inactiveGuilds.length,
 	]);
-
-	useEffect(() => {
-		// 移除原有的 isLoading 與 isError 判斷，因為元件能掛載代表資料已就緒
-		let ticking = false;
-
-		const scrollListener = () => {
-			if (ticking) {
-				return;
-			}
-
-			window.requestAnimationFrame(() => {
-				handleScroll();
-				ticking = false;
-			});
-
-			ticking = true;
-		};
-
-		window.addEventListener("scroll", scrollListener, { passive: true });
-		return () => window.removeEventListener("scroll", scrollListener);
-	}, [handleScroll]); // 依賴陣列同樣移除 isLoading, isError
 
 	return (
 		<div className="min-h-dvh bg-[#36393f] text-white">
@@ -307,8 +298,6 @@ function RouteComponent() {
 					</p>
 				</header>
 
-				{/* 完全移除原先的 isLoading 與 isError 的 JSX */}
-
 				{!hasGuilds && (
 					<div className="rounded-xl border border-[#4f545c] bg-[#2f3136] p-6 text-center text-[#b9bbbe]">
 						No Discord guilds were found for your account.
@@ -339,15 +328,6 @@ function RouteComponent() {
 										/>
 									))}
 								</div>
-
-								{canLoadMoreActive && (
-									<div className="mt-6 text-center">
-										<div className="text-[#b9bbbe] text-sm">
-											往下滑已加載更多
-											{isLoadingMore && " • Loading more..."}
-										</div>
-									</div>
-								)}
 							</div>
 						)}
 
@@ -371,15 +351,15 @@ function RouteComponent() {
 										/>
 									))}
 								</div>
+							</div>
+						)}
 
-								{canLoadMoreInactive && !canLoadMoreActive && (
-									<div className="mt-6 text-center">
-										<div className="text-[#b9bbbe] text-sm">
-											往下滑已加載更多
-											{isLoadingMore && " • Loading more..."}
-										</div>
-									</div>
-								)}
+						{/* 💡 底部觀測標記：IntersectionObserver 會監聽這個 div 來決定是否加載更多 */}
+						<div ref={loadMoreObserverRef} className="h-10 w-full" />
+
+						{(canLoadMoreActive || canLoadMoreInactive) && (
+							<div className="mt-2 text-center">
+								<div className="text-[#b9bbbe] text-sm">往下滑以加載更多</div>
 							</div>
 						)}
 

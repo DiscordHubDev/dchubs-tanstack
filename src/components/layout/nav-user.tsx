@@ -1,6 +1,6 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useRouteContext } from "@tanstack/react-router";
 import { ChevronsUpDown, LogOut, Settings, User } from "lucide-react";
-import { signIn, signOut, useSession } from "@/lib/auth-client";
+import { signIn, signOut } from "@/lib/auth-client";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
 import {
 	DropdownMenu,
@@ -23,7 +23,7 @@ interface NavUserProps {
 }
 
 export function NavUser({ user }: NavUserProps) {
-	const { data: session } = useSession();
+	const { session } = useRouteContext({ from: "__root__" });
 	const { isMobile } = useSidebar();
 
 	const userFallback =

@@ -1,8 +1,4 @@
-import {
-	useQuery,
-	useQueryClient,
-	useSuspenseQuery,
-} from "@tanstack/react-query";
+import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { Image } from "@unpic/react";
 import { Search } from "lucide-react";
@@ -112,19 +108,17 @@ export const Route = createFileRoute("/bots/")({
 	}),
 
 	loader: async ({ context, deps }) => {
-		await context.queryClient.ensureQueryData(
-			botsListQueryOptions({
-				category: deps.category,
-				page: deps.page,
-				limit: ITEMS_PER_PAGE,
-			}),
-		);
-		void context.queryClient.prefetchQuery(botFilterBundleQueryOptions());
-
-		// ⭐ 在這裡回傳 deps，讓 head 可以透過 loaderData 取得
-		return {
-			searchData: deps,
-		};
+		await Promise.all([
+			context.queryClient.ensureQueryData(
+				botsListQueryOptions({
+					category: deps.category,
+					page: deps.page,
+					limit: ITEMS_PER_PAGE,
+				}),
+			),
+			context.queryClient.ensureQueryData(botFilterBundleQueryOptions()), // ← await it
+		]);
+		return { searchData: deps };
 	},
 	head: ({ loaderData }) => {
 		if (!loaderData) {
@@ -275,7 +269,7 @@ function BotsPage() {
 
 	// filterBundle：loader 改為 fire-and-forget，改用 useQuery 配合 optional chaining
 	// 快取命中時立即同步取得，尚未載入時為 undefined（各消費端有安全 fallback）
-	const filterBundle = useQuery(botFilterBundleQueryOptions());
+	const filterBundle = useSuspenseQuery(botFilterBundleQueryOptions());
 
 	const mergedCategories = useMemo(() => {
 		const map = new Map<string, CategoryType>();

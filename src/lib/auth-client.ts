@@ -31,58 +31,6 @@ export type NormalizedLegacySession = NonNullable<LegacySessionData> & {
 	discordProfile?: LegacyDiscordProfile;
 };
 
-function withDiscordProfile(session: null): null;
-function withDiscordProfile(
-	session: NonNullable<LegacySessionData>,
-): NormalizedLegacySession;
-function withDiscordProfile(
-	session: LegacySessionData | null,
-): NormalizedLegacySession | null;
-function withDiscordProfile(
-	session: LegacySessionData | null,
-): NormalizedLegacySession | null {
-	if (!session) return null;
-	if (session.discordProfile?.id) return session as NormalizedLegacySession;
-
-	const user = session.user;
-	const id = user?.discordId || user?.id;
-	if (!id) return session as NormalizedLegacySession;
-
-	return {
-		...session,
-		discordProfile: {
-			id,
-			username: user?.username || "",
-			name: user?.name || "",
-			image_url: user?.image || "",
-			avatar: user?.image || "",
-			banner_url: null,
-			banner_color: null,
-		},
-		error: session.error ?? null,
-	};
-}
-
-export function useSession() {
-	const { data, isPending, error, refetch } = authClient.useSession();
-
-	const normalizedData = withDiscordProfile(
-		(data as LegacySessionData | null) ?? null,
-	);
-
-	return {
-		data: normalizedData,
-		isPending,
-		error,
-		status: isPending
-			? "loading"
-			: normalizedData
-				? "authenticated"
-				: "unauthenticated",
-		update: refetch,
-	};
-}
-
 export function signIn(callbackURL?: string) {
 	return authClient.signIn.social({
 		provider: "discord",

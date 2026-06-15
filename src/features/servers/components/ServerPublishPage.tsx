@@ -1,10 +1,18 @@
-import { useForm, useStore } from "@tanstack/react-form";
+import { useForm } from "@tanstack/react-form";
+
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { ClientOnly, useNavigate } from "@tanstack/react-router";
 import { useSelector } from "@tanstack/react-store";
 import { Schema } from "effect";
 import { AlertTriangle } from "lucide-react";
-import { type ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
+import {
+	type ChangeEvent,
+	useCallback,
+	useEffect,
+	useMemo,
+	useRef,
+	useState,
+} from "react";
 import Swal from "sweetalert2";
 import DiscordEmbedPreview from "#/components/DiscordEmbedPreview";
 import EmbedFieldsListField from "#/components/EmbedFieldsListField";
@@ -139,10 +147,151 @@ function hasRequiredPublishFields(values: {
 	);
 }
 
+// 💡 【效能優化】將靜態 Validators 提至組件外，避免在渲染時重複建立與觸發 Hook 依賴比對
+const validateServerName = effectValidator(ServerNameSchema, {
+	label: "伺服器名稱",
+	required: "伺服器名稱不可為空",
+	maxLength: { value: 120, message: "伺服器名稱最多 120 字" },
+});
+const validateShortDescription = effectValidator(ShortDescriptionSchema, {
+	label: "簡短描述",
+	required: "請填寫簡短描述",
+	maxLength: { value: 200, message: "簡短描述最多 200 字" },
+});
+const validateLongDescription = effectValidator(LongDescriptionSchema, {
+	label: "詳細介紹",
+	required: "請填寫詳細介紹",
+	maxLength: { value: 8000, message: "詳細介紹最多 8000 字" },
+});
+const validateInviteLink = effectValidator(InviteLinkSchema, {
+	label: "Discord 邀請連結",
+	required: "請填寫 Discord 邀請連結",
+	maxLength: { value: 500, message: "Discord 邀請連結最多 500 字" },
+	fallback:
+		"請輸入有效的 Discord 邀請連結（例如 https://discord.gg/your-server）",
+});
+const validateWebsiteLink = effectValidator(WebsiteLinkSchema, {
+	label: "網站連結",
+	maxLength: { value: 500, message: "網站連結最多 500 字" },
+	fallback: "網站連結格式不正確，請使用 http:// 或 https:// 開頭",
+});
+const validateRules = effectValidator(RulesSchema, {
+	fallback: "規則內容格式不正確",
+});
+const validateRule = effectValidator(RuleSchema, {
+	label: "規則",
+	required: "規則不可為空",
+	maxLength: { value: 300, message: "單條規則最多 300 字" },
+});
+const validateisNsfw = effectValidator(Schema.Boolean, {
+	label: "NSFW",
+	required: "請選擇是否為 NSFW 伺服器",
+});
+const validateTags = effectValidator(TagsSchema, {
+	fallback: "標籤格式不正確",
+});
+const validateTag = effectValidator(TagSchema, {
+	label: "標籤",
+	required: "標籤不可為空",
+	maxLength: { value: 24, message: "單一標籤最多 24 字" },
+});
+const validateSecret = effectValidator(SecretSchema, {
+	label: "secret",
+	maxLength: { value: 500, message: "secret 最多 500 字" },
+});
+const validateWebhookUrl = effectValidator(WebhookUrlSchema, {
+	label: "webhook_url",
+	maxLength: { value: 500, message: "webhook_url 最多 500 字" },
+	fallback: "Webhook 網址格式不正確，請使用 http:// 或 https:// 開頭",
+});
+const validateForm = effectValidator(ServerFormSchema, {
+	fallback: "表單內容有誤，請檢查欄位後再送出",
+});
+
+// 💡 【效能優化】分離草稿儲存與警告邏輯，避免整個頁面因為 values 改變而導致每個字元的輸入都造成 Re-render
+const DraftManager = ({ form, draftKey }: { form: any; draftKey: string }) => {
+	const values = useSelector(form.store, (state: any) => state.values);
+	const isDirty = useSelector(form.store, (state: any) => state.isDirty);
+
+	useEffect(() => {
+		if (!isDirty || typeof window === "undefined") return;
+		// 使用 debounce 優化儲存效能
+		const handler = setTimeout(() => {
+			localStorage.setItem(draftKey, JSON.stringify(values));
+		}, 1000);
+		return () => clearTimeout(handler);
+	}, [values, isDirty, draftKey]);
+
+	useEffect(() => {
+		const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+			if (isDirty) {
+				e.preventDefault();
+				e.returnValue = "您有未儲存的變更，確定要離開嗎？";
+			}
+		};
+		window.addEventListener("beforeunload", handleBeforeUnload);
+		return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+	}, [isDirty]);
+
+	return null;
+};
+
+// 💡 【效能優化】分離 Markdown 預覽區塊，避免主表單隨打字而整體重繪
+const MarkdownPreviewSection = ({
+	form,
+	previewRef,
+}: {
+	form: any;
+	previewRef: React.RefObject<HTMLDivElement | null>;
+}) => {
+	const longDescriptionValue = useSelector(
+		form.store,
+		(state: any) => state.values.longDescription,
+	);
+	const sanitizedMarkdown = useMemo(
+		() => longDescriptionValue || "詳細描述預覽 (支援Markdown)",
+		[longDescriptionValue],
+	);
+
+	return (
+		<div
+			ref={previewRef}
+			className="h-0 flex-1 overflow-y-auto rounded-lg border border-white/10 bg-[#1f2124] p-4"
+		>
+			<ClientOnly>
+				{sanitizedMarkdown.trim() ? (
+					<MarkdownRenderer content={sanitizedMarkdown} />
+				) : (
+					<p className="text-[#b9bbbe] text-sm">
+						在左側輸入詳細介紹後，這裡會同步顯示預覽。
+					</p>
+				)}
+			</ClientOnly>
+		</div>
+	);
+};
+
+// 💡 【效能優化】分離 Embed 預覽區塊
+const EmbedPreviewSection = ({ form }: { form: any }) => {
+	const customEmbedValues = useSelector(
+		form.store,
+		(state: any) => state.values.customEmbed,
+	);
+	return (
+		<div className="flex-1 overflow-y-auto rounded-lg border border-white/10 bg-[#1f2124] p-4">
+			<ClientOnly>
+				<DiscordEmbedPreview
+					data={(customEmbedValues ?? { fields: [] }) as CustomEmbedData}
+				/>
+			</ClientOnly>
+		</div>
+	);
+};
+
 export type ServerPublishPageProps = {
 	serverId: string;
 	mode: "edit" | "create";
-	bundle: ServerPublishBundle; // ✨ 新增這行
+	bundle: ServerPublishBundle;
 };
 
 export function ServerPublishPage({
@@ -154,31 +303,23 @@ export function ServerPublishPage({
 	const queryClient = useQueryClient();
 
 	const [iconPreviewUrl, setIconPreviewUrl] = useState(bundle.iconUrl ?? "");
-	const [bannerPreviewUrl, setBannerPreviewUrl] = useState<string>(
-		bundle.bannerUrl ?? "",
-	);
-	const [bannerFingerprint, setBannerFingerprint] = useState<string | null>(
-		null,
-	);
-	const [bannerUploadStatus, setBannerUploadStatus] = useState<string | null>(
-		null,
-	);
-	const [bannerUploadError, setBannerUploadError] = useState<string | null>(
-		null,
-	);
+	// 💡 【效能優化】將多個相關的 banner state 合併為一個物件，減少重複的 re-renders
+	const [bannerState, setBannerState] = useState<{
+		file: File | null;
+		previewUrl: string;
+		fingerprint: string | null;
+		status: string | null;
+		error: string | null;
+	}>({
+		file: null,
+		previewUrl: bundle.bannerUrl ?? "",
+		fingerprint: null,
+		status: null,
+		error: null,
+	});
 	const [isIconUploading] = useState(false);
 
-	const [bannerFile, setBannerFile] = useState<File | null>(null);
-	const [localPreviewUrl] = useState<string | null>(null);
-
-	// 定義 localStorage 的鍵值，確保不同伺服器的草稿不會互相污染
 	const DRAFT_KEY = `server-publish-draft-${serverId}`;
-
-	useEffect(() => {
-		return () => {
-			if (localPreviewUrl) URL.revokeObjectURL(localPreviewUrl);
-		};
-	}, [localPreviewUrl]);
 
 	const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 	const previewRef = useRef<HTMLDivElement | null>(null);
@@ -186,117 +327,20 @@ export function ServerPublishPage({
 
 	useEffect(() => {
 		setIconPreviewUrl(bundle.iconUrl ?? "");
-		setBannerPreviewUrl(bundle.bannerUrl ?? "");
-		setBannerFingerprint(null);
-		setBannerUploadStatus(null);
-		setBannerUploadError(null);
+		setBannerState({
+			file: null,
+			previewUrl: bundle.bannerUrl ?? "",
+			fingerprint: null,
+			status: null,
+			error: null,
+		});
 	}, [bundle.iconUrl, bundle.bannerUrl]);
 
-	const validateServerName = useMemo(
-		() =>
-			effectValidator(ServerNameSchema, {
-				label: "伺服器名稱",
-				required: "伺服器名稱不可為空",
-				maxLength: { value: 120, message: "伺服器名稱最多 120 字" },
-			}),
-		[],
-	);
-	const validateShortDescription = useMemo(
-		() =>
-			effectValidator(ShortDescriptionSchema, {
-				label: "簡短描述",
-				required: "請填寫簡短描述",
-				maxLength: { value: 200, message: "簡短描述最多 200 字" },
-			}),
-		[],
-	);
-	const validateLongDescription = useMemo(
-		() =>
-			effectValidator(LongDescriptionSchema, {
-				label: "詳細介紹",
-				required: "請填寫詳細介紹",
-				maxLength: { value: 8000, message: "詳細介紹最多 8000 字" },
-			}),
-		[],
-	);
-	const validateInviteLink = useMemo(
-		() =>
-			effectValidator(InviteLinkSchema, {
-				label: "Discord 邀請連結",
-				required: "請填寫 Discord 邀請連結",
-				maxLength: { value: 500, message: "Discord 邀請連結最多 500 字" },
-				fallback:
-					"請輸入有效的 Discord 邀請連結（例如 https://discord.gg/your-server）",
-			}),
-		[],
-	);
-	const validateWebsiteLink = useMemo(
-		() =>
-			effectValidator(WebsiteLinkSchema, {
-				label: "網站連結",
-				maxLength: { value: 500, message: "網站連結最多 500 字" },
-				fallback: "網站連結格式不正確，請使用 http:// 或 https:// 開頭",
-			}),
-		[],
-	);
-	const validateRules = useMemo(
-		() => effectValidator(RulesSchema, { fallback: "規則內容格式不正確" }),
-		[],
-	);
-	const validateRule = useMemo(
-		() =>
-			effectValidator(RuleSchema, {
-				label: "規則",
-				required: "規則不可為空",
-				maxLength: { value: 300, message: "單條規則最多 300 字" },
-			}),
-		[],
-	);
-	const validateisNsfw = useMemo(
-		() =>
-			effectValidator(Schema.Boolean, {
-				label: "NSFW",
-				required: "請選擇是否為 NSFW 伺服器",
-			}),
-		[],
-	);
-	const validateTags = useMemo(
-		() => effectValidator(TagsSchema, { fallback: "標籤格式不正確" }),
-		[],
-	);
-	const validateTag = useMemo(
-		() =>
-			effectValidator(TagSchema, {
-				label: "標籤",
-				required: "標籤不可為空",
-				maxLength: { value: 24, message: "單一標籤最多 24 字" },
-			}),
-		[],
-	);
-	const validateSecret = useMemo(
-		() =>
-			effectValidator(SecretSchema, {
-				label: "secret",
-				maxLength: { value: 500, message: "secret 最多 500 字" },
-			}),
-		[],
-	);
-	const validateWebhookUrl = useMemo(
-		() =>
-			effectValidator(WebhookUrlSchema, {
-				label: "webhook_url",
-				maxLength: { value: 500, message: "webhook_url 最多 500 字" },
-				fallback: "Webhook 網址格式不正確，請使用 http:// 或 https:// 開頭",
-			}),
-		[],
-	);
-	const validateForm = useMemo(
-		() =>
-			effectValidator(ServerFormSchema, {
-				fallback: "表單內容有誤，請檢查欄位後再送出",
-			}),
-		[],
-	);
+	// 💡 【最佳實踐】使用 useCallback 避免每次渲染都重新生成滾動同步函式
+	const handleScroll = useCallback(() => {
+		if (!textareaRef.current || !previewRef.current) return;
+		previewRef.current.scrollTop = textareaRef.current.scrollTop;
+	}, []);
 
 	const saveMutation = useMutation({
 		mutationFn: (payload: ServerPublishSubmitInput) =>
@@ -308,7 +352,7 @@ export function ServerPublishPage({
 		onSuccess: async (result, payload) => {
 			queryClient.setQueryData(
 				queryKeys.servers.detail(serverId),
-				(oldData: any) => {
+				(oldData: Record<string, unknown> | undefined) => {
 					if (!oldData) return oldData;
 					return {
 						...oldData,
@@ -361,11 +405,11 @@ export function ServerPublishPage({
 			const fingerprint = await buildFileFingerprint(file);
 
 			if (
-				bannerFingerprint === fingerprint &&
-				bannerPreviewUrl.trim().length > 0
+				bannerState.fingerprint === fingerprint &&
+				bannerState.previewUrl.trim().length > 0
 			) {
 				return {
-					bannerUrl: bannerPreviewUrl,
+					bannerUrl: bannerState.previewUrl,
 					fingerprint,
 					skipped: true,
 					message: "選擇的圖片與目前 Banner 相同，已略過上傳",
@@ -389,38 +433,43 @@ export function ServerPublishPage({
 			);
 		},
 		onMutate: () => {
-			setBannerUploadError(null);
-			setBannerUploadStatus("Banner 圖片上傳中...");
+			setBannerState((prev) => ({
+				...prev,
+				error: null,
+				status: "Banner 圖片上傳中...",
+			}));
 		},
 		onSuccess: (result) => {
-			setBannerPreviewUrl(result.bannerUrl);
-			setBannerFingerprint(result.fingerprint);
-			setBannerUploadStatus(result.message);
-			setBannerUploadError(null);
+			setBannerState((prev) => ({
+				...prev,
+				previewUrl: result.bannerUrl,
+				fingerprint: result.fingerprint,
+				status: result.message,
+				error: null,
+			}));
 		},
 		onError: (error) => {
 			const message = getErrorMessage(error);
-			setBannerUploadStatus(null);
-			setBannerUploadError(message);
+			setBannerState((prev) => ({
+				...prev,
+				status: null,
+				error: message,
+			}));
 			showErrorAlert(message, "Banner 上傳失敗");
 		},
 	});
 
-	// 【功能 1】：初始化時合併資料庫 bundle 與 localStorage 的草稿
 	const defaultFormValues = useMemo<ServerPublishFormValues>(() => {
-		// 1. 初始化一個用來收集最終資料的物件
 		let rawData: Record<string, any> = {
 			...bundle.formValues,
 			nsfw: bundle.formValues?.nsfw ?? false,
 		};
 
-		// 2. 嘗試載入 localStorage 的草稿並覆蓋
 		if (typeof window !== "undefined") {
 			try {
 				const draftStr = localStorage.getItem(DRAFT_KEY);
 				if (draftStr) {
 					const draftParsed = JSON.parse(draftStr);
-					// 合併遠端資料與本地草稿
 					rawData = { ...rawData, ...draftParsed };
 				}
 			} catch (err) {
@@ -428,7 +477,6 @@ export function ServerPublishPage({
 			}
 		}
 
-		// 3. 安全解析與清洗 customEmbed (此時 rawData.customEmbed 可能是字串、物件或 undefined)
 		let rawcustomEmbed = rawData.customEmbed;
 		if (typeof rawcustomEmbed === "string") {
 			try {
@@ -438,24 +486,19 @@ export function ServerPublishPage({
 			}
 		}
 
-		// 4. 將合併後的髒資料，嚴格格式化為符合 ServerFormSchema 的外觀
-		const formattedcustomEmbed = rawcustomEmbed
-			? {
-					...rawcustomEmbed, // 保留其他可能存在的屬性
-					content: rawcustomEmbed.content ?? undefined, // 迎合 Schema.optional
-					color: rawcustomEmbed.color ?? undefined,
-					// 關鍵：將 fields 轉為一般可變動陣列，解開 readonly 鎖定
-					fields: rawcustomEmbed.fields
-						? rawcustomEmbed.fields.map((f: any) => ({
-								name: f.name ?? "",
-								value: f.value ?? "",
-								inline: f.inline ?? false,
-							}))
-						: undefined,
-				}
-			: undefined;
+		const formattedcustomEmbed = {
+			...(rawcustomEmbed || {}),
+			content: rawcustomEmbed?.content ?? undefined,
+			color: rawcustomEmbed?.color ?? "#5865F2",
+			fields: rawcustomEmbed?.fields
+				? rawcustomEmbed.fields.map((f: Record<string, unknown>) => ({
+						name: (f.name as string) ?? "",
+						value: (f.value as string) ?? "",
+						inline: (f.inline as boolean) ?? false,
+					}))
+				: undefined,
+		};
 
-		// 5. 回傳完全符合 TypeScript 期待的乾淨資料
 		return {
 			serverName: rawData.serverName ?? "",
 			shortDescription: rawData.shortDescription ?? "",
@@ -477,11 +520,13 @@ export function ServerPublishPage({
 			onSubmit: ({ value }) => validateForm(value),
 		},
 		onSubmit: async ({ value }) => {
-			let finalBannerUrl = normalizeExternalUrl(bannerPreviewUrl);
+			let finalBannerUrl = normalizeExternalUrl(bannerState.previewUrl);
 
-			if (bannerFile) {
+			if (bannerState.file) {
 				try {
-					const result = await bannerUploadMutation.mutateAsync(bannerFile);
+					const result = await bannerUploadMutation.mutateAsync(
+						bannerState.file,
+					);
 					finalBannerUrl = normalizeExternalUrl(result.bannerUrl);
 				} catch (error) {
 					console.error("Banner 圖片上傳失敗，已取消發布流程:", error);
@@ -496,45 +541,18 @@ export function ServerPublishPage({
 				form: value,
 			});
 
-			// 送出成功後，清除快取的草稿
 			if (typeof window !== "undefined") {
 				localStorage.removeItem(DRAFT_KEY);
 			}
 		},
 	});
 
-	// 取出表單目前狀態，用於判斷是否需要警告或儲存
-	const currentFormValues = useStore(form.store, (state) => state.values);
-	const isFormDirty = useStore(form.store, (state) => state.isDirty);
-
-	// 【功能 1.2】：表單有變動且為 dirty 狀態時，自動寫入 localStorage
-	useEffect(() => {
-		if (isFormDirty && typeof window !== "undefined") {
-			localStorage.setItem(DRAFT_KEY, JSON.stringify(currentFormValues));
-		}
-	}, [currentFormValues, isFormDirty, DRAFT_KEY]);
-
-	// 【功能 2】：防止瀏覽器意外重整、關閉分頁
-	useEffect(() => {
-		const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-			if (isFormDirty) {
-				e.preventDefault();
-				// 賦值給 returnValue 才能觸發標準瀏覽器提示框
-				e.returnValue = "您有未儲存的變更，確定要離開嗎？";
-			}
-		};
-
-		window.addEventListener("beforeunload", handleBeforeUnload);
-		return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-	}, [isFormDirty]);
-
-	// 【加碼】：處理內部 Router 的返回行為
 	const handleGoBack = () => {
-		if (isFormDirty) {
+		if (form.state.isDirty) {
 			const confirmLeave = window.confirm(
 				"您有未儲存的內容，確定要放棄草稿並離開嗎？",
 			);
-			if (!confirmLeave) return; // 使用者按取消則停留在原地
+			if (!confirmLeave) return;
 		}
 
 		void navigate({
@@ -544,33 +562,12 @@ export function ServerPublishPage({
 	};
 
 	useEffect(() => {
-		// 當組件卸載時，如果當前是 blob 網址，就釋放它
 		return () => {
-			if (bannerPreviewUrl?.startsWith("blob:")) {
-				URL.revokeObjectURL(bannerPreviewUrl);
+			if (bannerState.previewUrl?.startsWith("blob:")) {
+				URL.revokeObjectURL(bannerState.previewUrl);
 			}
 		};
-	}, [bannerPreviewUrl]);
-
-	const longDescriptionValue = useSelector(
-		form.store,
-		(state) => state.values.longDescription,
-	);
-
-	const customEmbedValues = useSelector(
-		form.store,
-		(state) => state.values.customEmbed,
-	);
-
-	const sanitizedMarkdown = useMemo(
-		() => longDescriptionValue || "詳細描述預覽 (支援Markdown)",
-		[longDescriptionValue],
-	);
-
-	const handleScroll = () => {
-		if (!textareaRef.current || !previewRef.current) return;
-		previewRef.current.scrollTop = textareaRef.current.scrollTop;
-	};
+	}, [bannerState.previewUrl]);
 
 	const handleBannerFileChange = (event: ChangeEvent<HTMLInputElement>) => {
 		const file = event.target.files?.[0];
@@ -595,20 +592,20 @@ export function ServerPublishPage({
 			return;
 		}
 
-		// --- 修正部分 ---
-		// 先前產生的舊 blob URL 可以先不用急著手動 revoke，或是只在確認它是 blob 時才釋放
-		if (bannerPreviewUrl?.startsWith("blob:")) {
-			URL.revokeObjectURL(bannerPreviewUrl);
+		if (bannerState.previewUrl?.startsWith("blob:")) {
+			URL.revokeObjectURL(bannerState.previewUrl);
 		}
 
 		const newPreviewUrl = URL.createObjectURL(file);
 
-		// 統一更新這個狀態即可
-		setBannerPreviewUrl(newPreviewUrl);
-		setBannerFile(file);
+		setBannerState({
+			file,
+			previewUrl: newPreviewUrl,
+			fingerprint: null,
+			status: "已選擇新圖片，將於儲存時上傳",
+			error: null,
+		});
 
-		setBannerUploadStatus("已選擇新圖片，將於儲存時上傳");
-		setBannerUploadError(null);
 		event.target.value = "";
 	};
 
@@ -617,6 +614,9 @@ export function ServerPublishPage({
 
 	return (
 		<div className="min-h-screen bg-[#1e1f22] px-4 py-8 text-white">
+			{/* 💡 注入草稿管理器，分離渲染負擔 */}
+			<DraftManager form={form} draftKey={DRAFT_KEY} />
+
 			<div className="mx-auto max-w-7xl space-y-6">
 				<div className="flex flex-wrap items-center justify-between gap-3">
 					<div>
@@ -641,7 +641,6 @@ export function ServerPublishPage({
 					}}
 					className="grid gap-6 lg:grid-cols-2"
 				>
-					{/* ... 後續的表單 JSX 不需要變更 ... */}
 					<div className="space-y-6 rounded-xl border border-white/10 bg-[#2b2d31] p-5">
 						<h2 className="border-white/10 border-b pb-2 font-bold text-lg">
 							基本資訊
@@ -980,11 +979,11 @@ export function ServerPublishPage({
 							>
 								{isBannerUploading ? "圖片上傳中..." : "選擇 Banner 圖片"}
 							</Button>
-							{bannerUploadStatus ? (
-								<p className="text-[#57f287] text-sm">{bannerUploadStatus}</p>
+							{bannerState.status ? (
+								<p className="text-[#57f287] text-sm">{bannerState.status}</p>
 							) : null}
-							{bannerUploadError ? (
-								<p className="text-[#ed4245] text-sm">{bannerUploadError}</p>
+							{bannerState.error ? (
+								<p className="text-[#ed4245] text-sm">{bannerState.error}</p>
 							) : null}
 						</div>
 
@@ -1229,9 +1228,9 @@ export function ServerPublishPage({
 						<div className="space-y-2">
 							<Label>Banner 預覽</Label>
 							<div className="h-40 overflow-hidden rounded-lg border border-white/10 bg-[#36393f]">
-								{bannerPreviewUrl ? (
+								{bannerState.previewUrl ? (
 									<OptimizedImage
-										src={bannerPreviewUrl}
+										src={bannerState.previewUrl}
 										alt="Server banner preview"
 										width={960}
 										height={320}
@@ -1247,32 +1246,11 @@ export function ServerPublishPage({
 
 						<div className="flex h-0 flex-1 flex-col space-y-2">
 							<Label>Markdown 預覽</Label>
-							<div
-								ref={previewRef}
-								className="h-0 flex-1 overflow-y-auto rounded-lg border border-white/10 bg-[#1f2124] p-4"
-							>
-								<ClientOnly>
-									{sanitizedMarkdown.trim() ? (
-										<MarkdownRenderer content={sanitizedMarkdown} />
-									) : (
-										<p className="text-[#b9bbbe] text-sm">
-											在左側輸入詳細介紹後，這裡會同步顯示預覽。
-										</p>
-									)}
-								</ClientOnly>
-							</div>
+							<MarkdownPreviewSection form={form} previewRef={previewRef} />
 						</div>
 						<div className="flex h-0 flex-1 flex-col space-y-2">
 							<Label>Embed 預覽</Label>
-							<div className="flex-1 overflow-y-auto rounded-lg border border-white/10 bg-[#1f2124] p-4">
-								<ClientOnly>
-									<DiscordEmbedPreview
-										data={
-											(customEmbedValues ?? { fields: [] }) as CustomEmbedData
-										}
-									/>
-								</ClientOnly>
-							</div>
+							<EmbedPreviewSection form={form} />
 						</div>
 					</div>
 				</form>
