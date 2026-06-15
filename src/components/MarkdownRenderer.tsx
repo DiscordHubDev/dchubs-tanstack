@@ -6,6 +6,7 @@ import { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import rehypeRaw from "rehype-raw";
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
+import remarkBreaks from "remark-breaks";
 import remarkGfm from "remark-gfm";
 import { OptimizedImage } from "./OptimizedImage";
 
@@ -230,7 +231,7 @@ export default function MarkdownRenderer({ content }: Props) {
 		<div className="whitespace-normal text-gray-300">
 			<MarkdownErrorBoundary content={normalizedContent}>
 				<ReactMarkdown
-					remarkPlugins={[remarkGfm]}
+					remarkPlugins={[remarkGfm, remarkBreaks]}
 					rehypePlugins={[
 						rehypeRaw,
 						[
@@ -403,6 +404,11 @@ export default function MarkdownRenderer({ content }: Props) {
 							>
 								{children}
 							</blockquote>
+						),
+						strong: ({ children, ...props }) => (
+							<strong className="font-bold text-white" {...props}>
+								{children}
+							</strong>
 						),
 					}}
 				>
