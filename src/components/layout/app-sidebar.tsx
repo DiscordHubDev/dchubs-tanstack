@@ -12,8 +12,6 @@ import {
 	Sparkles,
 	SquareTerminal,
 } from "lucide-react";
-import { useEffect } from "react";
-import { useIsMobile } from "#/hooks/use-mobile";
 import type { LegacySessionData } from "@/lib/auth-client";
 import {
 	Sidebar,
@@ -22,7 +20,6 @@ import {
 	SidebarHeader,
 	SidebarRail,
 	SidebarTrigger,
-	useSidebar,
 } from "../ui/sidebar";
 import { NavItem } from "./nav-item";
 import { NavMain } from "./nav-main";
@@ -115,17 +112,11 @@ export function DiscordUser(session?: LegacySessionData) {
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
 	const { session } = useRouteContext({ from: "__root__" });
-	const isMobile = useIsMobile();
-	const { setOpenMobile } = useSidebar();
 
 	const location = useLocation();
 	const pathname = location.pathname;
 
 	const status = session ? "authenticated" : "unauthenticated";
-
-	useEffect(() => {
-		if (isMobile) setOpenMobile(true);
-	}, [isMobile, setOpenMobile]);
 
 	const navItem = [
 		{
