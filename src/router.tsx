@@ -17,6 +17,7 @@ export function getRouter() {
 		context: {
 			queryClient,
 			session: null, // 給予 session 一個預設值，這會滿足你 Root Route 的型別要求
+			status: "unauthenticated",
 		},
 		ssr: { nonce },
 		scrollRestoration: true,

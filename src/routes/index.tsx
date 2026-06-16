@@ -7,7 +7,6 @@ import {
 } from "@tanstack/react-query";
 import { createFileRoute, useRouteContext } from "@tanstack/react-router";
 import { Image } from "@unpic/react";
-import { motion } from "framer-motion";
 import { Search } from "lucide-react";
 import {
 	lazy,
@@ -141,18 +140,22 @@ function normalizeRedirectTarget(value: string): string {
 // ─── Route ───────────────────────────────────────────────────────────────────
 
 export const Route = createFileRoute("/")({
+	ssr: true,
 	validateSearch,
+	// 加入預先連線，解決 DNS + TLS 延遲
+	head: () => {
+		return {
+			links: [
+				{ rel: "preconnect", href: "https://api.dchubs.org" },
+				{ rel: "preconnect", href: "https://cdn.dchubs.org" },
+			],
+		};
+	},
 	loaderDeps: ({ search }) => ({
 		category: (search.tab ?? DEFAULT_CATEGORY) as ServerCategory,
 		page: search.page ?? 1,
 	}),
 	loader: async ({ context, deps }) => {
-		/**
-		 * OPTIMISATION 1 — Split blocking vs. background fetches.
-		 * 保持你的優化邏輯不變，確保首屏渲染不會被 filterBundle 卡住。
-		 */
-
-		// 1. 阻塞型獲取：等待伺服器列表載入完成
 		await context.queryClient.ensureQueryData(
 			serversListQueryOptions({
 				category: deps.category,
@@ -160,21 +163,15 @@ export const Route = createFileRoute("/")({
 				limit: ITEMS_PER_PAGE,
 			}),
 		);
-
-		// 2. 背景預先獲取：不加 await，讓它在背景執行
 		void context.queryClient.prefetchQuery(serverFilterBundleQueryOptions());
 
-		// 3. 【新增】將當前 queryClient 的狀態脫水 (dehydrate) 並回傳
 		return {
 			dehydratedState: dehydrate(context.queryClient),
 		};
 	},
 
-	// 4. 【修改】用 HydrationBoundary 包裝你的 HomePage
 	component: () => {
-		// 從 loader 中取出剛才脫水的狀態
 		const { dehydratedState } = Route.useLoaderData();
-
 		return (
 			<HydrationBoundary state={dehydratedState}>
 				<HomePage />
@@ -210,23 +207,22 @@ function PrefetchTabTrigger({
 	isPending,
 	onPrefetch,
 }: PrefetchTabTriggerProps) {
+	const isActive = activeTab === value;
+
 	return (
 		<TabsTrigger
 			value={value}
 			disabled={isPending}
 			onMouseEnter={() => onPrefetch(value)}
 			onFocus={() => onPrefetch(value)}
-			className="relative z-10 bg-transparent data-[state=active]:bg-transparent"
+			className="relative z-10 bg-transparent px-4 py-2 transition-colors data-[state=active]:bg-transparent"
 		>
 			<span className="relative z-20">{TAB_LABELS[value]}</span>
-
-			{activeTab === value && (
-				<motion.div
-					layoutId="active-indicator"
-					className="absolute inset-0 z-10 rounded-sm bg-[#36393f]"
-					transition={{ type: "spring", stiffness: 380, damping: 30 }}
-				/>
-			)}
+			<div
+				className={`absolute inset-0 z-10 rounded-sm bg-[#36393f] transition-opacity duration-200 ease-in-out ${
+					isActive ? "opacity-100" : "opacity-0"
+				}`}
+			/>
 		</TabsTrigger>
 	);
 }

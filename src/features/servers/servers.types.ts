@@ -43,3 +43,18 @@ export type ServerFilterBundle = {
 		totalTags: number;
 	};
 };
+
+export interface DiscordWidgetMember {
+	id: string;
+	username: string;
+	status: "online" | "idle" | "dnd";
+	avatar_url: string;
+}
+
+export interface DiscordWidgetData {
+	id: string;
+	name: string;
+	instant_invite: string;
+	presence_count: number;
+	members: DiscordWidgetMember[];
+}

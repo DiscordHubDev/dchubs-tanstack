@@ -35,13 +35,15 @@ function BotCard({ item, priority = false }: BotCardProps) {
 			</Link>
 
 			<div className="flex flex-col gap-4 sm:flex-row">
-				{/* 首屏圖片給 priority，其餘 lazy */}
+				{/* 效能優化：首屏前幾張核心圖片直接強制加載，其餘卡片使用延遲載入 */}
 				<OptimizedImage
 					src={item.icon ?? "https://cdn.discordapp.com/embed/avatars/0.png"}
 					alt={`${item.name} icon`}
 					width={64}
 					height={64}
 					className="h-16 w-16 rounded-xl object-cover"
+					loading={priority ? "eager" : "lazy"}
+					fetchPriority={priority ? "high" : "auto"}
 				/>
 
 				<div className="min-w-0 flex-1">
@@ -56,16 +58,13 @@ function BotCard({ item, priority = false }: BotCardProps) {
 					<div className="mt-3 flex flex-wrap gap-2">
 						{item.nsfw && (
 							<Badge
-								variant="destructive" /* 這裡使用 shadcn 的 destructive 通常預設就是紅色，或者用 className 自訂 */
+								variant="destructive"
 								className="relative z-20 cursor-default bg-red-600 font-bold text-white hover:bg-red-700"
 							>
-								<span className="mr-1">🔞</span>{" "}
-								{/* 你可以使用 Emoji 或是你的 Icon 組件 */}
-								NSFW
+								<span className="mr-1">🔞</span> NSFW
 							</Badge>
 						)}
 
-						{/* 原有的 tags 渲染 */}
 						{item.tags.slice(0, 5).map((tag) => (
 							<Badge
 								key={tag}
@@ -84,7 +83,7 @@ function BotCard({ item, priority = false }: BotCardProps) {
 	);
 }
 
-// ─── 子區塊拆分，縮小 JSX 範圍讓 diff 更精準 ─────────────────────────────────
+// ─── 子區塊拆分 ─────────────────────────────────
 
 function BotCardHeader({ item }: { item: PublicBot }) {
 	return (
@@ -186,17 +185,13 @@ function BotCardAction({ item }: { item: PublicBot }) {
 	}
 }
 
-/**
- * 自訂 areEqual：只有 id 以外的欄位確實變動才重繪。
- * 收藏狀態（isFavorite）最常改變，單獨比較成本低。
- */
 function areBotsEqual(prev: BotCardProps, next: BotCardProps) {
 	return (
 		prev.item.id === next.item.id &&
 		prev.item.isFavorite === next.item.isFavorite &&
 		prev.item.upvotes === next.item.upvotes &&
 		prev.item.servers === next.item.servers &&
-		prev.priority === next.priority
+		prev.priority === next.priority // 當 priority 改變時，必須重繪以確保圖片屬性更新
 	);
 }
 

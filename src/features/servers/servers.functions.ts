@@ -10,6 +10,7 @@ import {
 	listServerFilterBundle,
 	listServersPage,
 } from "./servers.server";
+import type { DiscordWidgetData } from "./servers.types";
 
 export const getServersListFn = createServerFn({ method: "GET" })
 	.middleware([authMiddleware])
@@ -44,4 +45,18 @@ export const deleteServerFn = createServerFn({
 			// 直接將 reason 丟給前端處理
 			throw new Error(result.reason);
 		}
+	});
+
+export const getDiscordWidget = createServerFn({ method: "GET" })
+	.inputValidator((input: { guildId: string }) => input)
+	.handler(async ({ data: { guildId } }): Promise<DiscordWidgetData> => {
+		const response = await fetch(
+			`https://discord.com/api/guilds/${guildId}/widget.json`,
+		);
+
+		if (!response.ok) {
+			throw new Error("Failed to fetch widget");
+		}
+
+		return response.json();
 	});
