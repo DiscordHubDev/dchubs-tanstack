@@ -193,14 +193,14 @@ const getDiscordUserEffect = (userId: string, botToken: string) =>
 const buildAvatarUrl = (discordUser: DiscordUser) =>
 	discordUser.avatar
 		? `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.${
-				discordUser.avatar.startsWith("a_") ? "gif" : "png"
+				discordUser.avatar.startsWith("a_") ? "gif" : "webp"
 			}`
 		: "https://cdn.discordapp.com/embed/avatars/0.png";
 
 const buildBannerUrl = (discordUser: DiscordUser) =>
 	discordUser.banner
 		? `https://cdn.discordapp.com/banners/${discordUser.id}/${discordUser.banner}.${
-				discordUser.banner.startsWith("a_") ? "gif" : "png"
+				discordUser.banner.startsWith("a_") ? "gif" : "webp"
 			}`
 		: null;
 
