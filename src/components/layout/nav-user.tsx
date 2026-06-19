@@ -1,4 +1,4 @@
-import { Link, useRouteContext } from "@tanstack/react-router";
+import { Link, useRouteContext, useRouter } from "@tanstack/react-router";
 import { ChevronsUpDown, LogOut, Settings, User } from "lucide-react";
 import { signIn, signOut } from "@/lib/auth-client";
 import { Avatar, AvatarFallback, AvatarImage } from "../ui/avatar";
@@ -23,6 +23,12 @@ interface NavUserProps {
 }
 
 export function NavUser({ user }: NavUserProps) {
+	const router = useRouter();
+
+	const handleSignOut = async () => {
+		await signOut();
+		await router.invalidate(); // 關鍵：強制重新執行 beforeLoad，重抓 session
+	};
 	const { session } = useRouteContext({ from: "__root__" });
 	const { isMobile } = useSidebar();
 
@@ -99,7 +105,7 @@ export function NavUser({ user }: NavUserProps) {
 								</Link>
 							</DropdownMenuGroup>
 							<DropdownMenuSeparator />
-							<DropdownMenuItem onClick={() => signOut()}>
+							<DropdownMenuItem onClick={handleSignOut}>
 								<LogOut />
 								登出
 							</DropdownMenuItem>
