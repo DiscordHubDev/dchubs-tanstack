@@ -3,7 +3,7 @@ import { and, eq } from "drizzle-orm";
 import { Effect } from "effect";
 import { db } from "#/drizzle/db";
 import { authAccount, server } from "#/drizzle/schema";
-import { getSessionUserIdEffect } from "#/lib/edge-context";
+import { type DomainUser, getSessionUserIdEffect } from "#/lib/edge-context";
 import { runEffect, tryEffectPromise } from "#/lib/effect-utils";
 import { formatCustomEmbedData } from "#/utils/embed";
 import { sendDiscordWebhookEffect } from "../webhook/webhook.server";
@@ -204,9 +204,10 @@ function isCloudinaryNotFoundError(error: unknown): boolean {
 
 function getAccessibleGuildEffect(
 	serverId: string,
+	user: DomainUser | null,
 ): Effect.Effect<{ userId: string; guild: DiscordGuild }, Error> {
 	return Effect.gen(function* () {
-		const userId = yield* getSessionUserIdEffect();
+		const userId = yield* getSessionUserIdEffect(user);
 		const userAccessToken = yield* getDiscordAccessTokenEffect(userId);
 		const botToken = yield* getBotTokenEffect();
 
@@ -236,7 +237,6 @@ function getAccessibleGuildEffect(
 		} else {
 			try {
 				const permissions = BigInt(guild.permissions || "0");
-				// 只檢查是否包含管理員權限 (不包含 Manage Guild 了)
 				hasStrictAdmin =
 					(permissions & GUILD_ADMINISTRATOR_PERMISSION) ===
 					GUILD_ADMINISTRATOR_PERMISSION;
@@ -260,7 +260,6 @@ function getAccessibleGuildEffect(
 		return { userId, guild };
 	});
 }
-
 function checkBotInGuildEffect(serverId: string, botToken: string) {
 	return Effect.tryPromise({
 		try: async () => {
@@ -287,12 +286,13 @@ export async function enforceServerOwner(serverId: string, userId: string) {
 
 export function getServerPublishBundleEffect(
 	serverId: string,
+	user: DomainUser | null,
 ): Effect.Effect<ServerPublishBundle, Error> {
 	return Effect.gen(function* () {
 		// 🚀 平行執行：Discord 權限驗證 與 資料庫查詢
 		const [accessResult, rows] = yield* Effect.all(
 			[
-				getAccessibleGuildEffect(serverId),
+				getAccessibleGuildEffect(serverId, user),
 				tryEffectPromise("Failed to fetch published server", () =>
 					db
 						.select({
@@ -365,9 +365,13 @@ export function getServerPublishBundleEffect(
 
 function upsertServerPublishEffect(
 	input: ServerPublishSubmitInput,
+	user: DomainUser | null,
 ): Effect.Effect<ServerPublishResult, Error> {
 	return Effect.gen(function* () {
-		const { userId, guild } = yield* getAccessibleGuildEffect(input.serverId);
+		const { userId, guild } = yield* getAccessibleGuildEffect(
+			input.serverId,
+			user,
+		);
 
 		const shortDescription = input.form.shortDescription.trim();
 		const longDescription = input.form.longDescription.trim();
@@ -474,9 +478,10 @@ function upsertServerPublishEffect(
 
 function uploadServerBannerEffect(
 	input: ServerBannerUploadInput,
+	user: DomainUser | null,
 ): Effect.Effect<ServerBannerUploadResult, Error> {
 	return Effect.gen(function* () {
-		yield* getAccessibleGuildEffect(input.serverId);
+		yield* getAccessibleGuildEffect(input.serverId, user);
 
 		const { cloudName, apiKey, apiSecret, uploadPreset } =
 			yield* getCloudinaryCredentialsEffect();
@@ -607,79 +612,25 @@ const checkIsServerOwnerEffect = (serverId: string, userId: string) =>
 		),
 	);
 
-function _checkIsServerOwnerInDb(
-	serverId: string,
-	userId: string,
-): Effect.Effect<boolean, never> {
-	return Effect.tryPromise({
-		try: () =>
-			db
-				.select({ ownerId: server.ownerId })
-				.from(server)
-				.where(eq(server.id, serverId))
-				.limit(1),
-		catch: (error) => new Error(`資料庫查詢失敗: ${error}`),
-	}).pipe(
-		Effect.map((rows) => rows.length > 0 && rows[0].ownerId === userId),
-		// 遇到任何錯誤（如 DB 斷線）都安全地回傳 false，不中斷主流程
-		Effect.catchAll((error) =>
-			Effect.sync(() => {
-				console.error("DB 權限備援檢查失敗:", error);
-				return false;
-			}),
-		),
-	);
-}
-
-function _enforceServerAdminEffect(serverId: string, _userId: string) {
-	return Effect.gen(function* () {
-		// 1. 抓取 Discord 資料
-		const accessResult = yield* getAccessibleGuildEffect(serverId);
-		const { guild } = accessResult;
-
-		let hasPermission = false;
-
-		if (guild.owner) {
-			hasPermission = true;
-		} else {
-			try {
-				const permissions = BigInt(guild.permissions || "0");
-				// 🚀 改成只有 Admin
-				hasPermission =
-					(permissions & GUILD_ADMINISTRATOR_PERMISSION) ===
-					GUILD_ADMINISTRATOR_PERMISSION;
-			} catch {
-				hasPermission = false;
-			}
-		}
-
-		// 2. 如果 Discord 驗證失敗，報錯阻擋（不在此處悄悄刪除資料庫）
-		if (!hasPermission) {
-			return yield* Effect.fail(
-				new Error("權限不足：您必須是該伺服器的擁有者或管理員"),
-			);
-		}
-
-		return accessResult;
-	});
-}
-
 export function getServerPublishBundleById(
 	serverId: string,
+	user: DomainUser | null,
 ): Promise<ServerPublishBundle> {
-	return runEffect(getServerPublishBundleEffect(serverId));
+	return runEffect(getServerPublishBundleEffect(serverId, user));
 }
 
 export function upsertServerPublish(
 	input: ServerPublishSubmitInput,
+	user: DomainUser | null,
 ): Promise<ServerPublishResult> {
-	return runEffect(upsertServerPublishEffect(input));
+	return runEffect(upsertServerPublishEffect(input, user));
 }
 
 export function uploadServerBanner(
 	input: ServerBannerUploadInput,
+	user: DomainUser | null,
 ): Promise<ServerBannerUploadResult> {
-	return runEffect(uploadServerBannerEffect(input));
+	return runEffect(uploadServerBannerEffect(input, user));
 }
 
 export function checkIsServerOwner(

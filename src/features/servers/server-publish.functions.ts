@@ -15,20 +15,20 @@ import {
 export const getServerPublishBundleFn = createServerFn({ method: "GET" })
 	.middleware([protectedMiddleware])
 	.inputValidator(effectInputValidator(ServerPublishInputSchema))
-	.handler(async ({ data }) => {
-		return getServerPublishBundleById(data.serverId);
+	.handler(async ({ data, context }) => {
+		return getServerPublishBundleById(data.serverId, context.user);
 	});
 
 export const upsertServerPublishFn = createServerFn({ method: "POST" })
 	.middleware([protectedMiddleware])
 	.inputValidator(effectInputValidator(ServerPublishSubmitSchema))
-	.handler(async ({ data }) => {
-		return upsertServerPublish(data);
+	.handler(async ({ data, context }) => {
+		return upsertServerPublish(data, context.user);
 	});
 
 export const uploadServerBannerFn = createServerFn({ method: "POST" })
 	.middleware([protectedMiddleware])
 	.inputValidator(effectInputValidator(ServerBannerUploadSchema))
-	.handler(async ({ data }) => {
-		return uploadServerBanner(data);
+	.handler(async ({ data, context }) => {
+		return uploadServerBanner(data, context.user);
 	});

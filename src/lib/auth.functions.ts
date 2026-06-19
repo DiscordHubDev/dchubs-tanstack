@@ -3,7 +3,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
 import { Effect } from "effect";
 import { auth } from "./auth";
-import { getResolvedEdgeContext, requireDomainUser } from "./edge-context";
+import { edgeContextMiddleware } from "./edge-context";
 import { runEffect } from "./effect-utils";
 import { syncToCloudflareKV } from "./kv-sync";
 
@@ -29,35 +29,31 @@ export type NormalizedSession = {
 	error?: string | null;
 };
 
-export const getSession = createServerFn({ method: "GET" }).handler(
-	async (): Promise<NormalizedSession | null> => {
-		try {
-			// requireDomainUser 保證回傳的 context.user 是有值的 DomainUser
-			const { user } = await requireDomainUser();
-
-			// 如果 requireDomainUser 成功，user 絕對不會是 null
-			const sessionUser: SessionUserLike = {
-				id: user.betterAuthId,
-				discordId: user.discordId,
-				username: user.username || "未知使用者",
-				name: user.name || "未知使用者",
-				avatar: user.avatar || "https://cdn.discordapp.com/embed/avatars/0.png",
-				banner: user.banner,
-				bannerColor: user.bannerColor,
-			};
-
-			return {
-				user: sessionUser,
-				// 如果你的前端還依賴 discordProfile 這個巢狀結構，可以在這裡複製一份給它
-				discordProfile: sessionUser,
-				error: null,
-			};
-		} catch (_error) {
-			// requireDomainUser 如果找不到 trusted context 會拋錯
+export const getSession = createServerFn({ method: "GET" })
+	.middleware([edgeContextMiddleware])
+	.handler(async ({ context }) => {
+		if (!context.trusted || !context.user) {
 			return null;
 		}
-	},
-);
+
+		const user = context.user;
+
+		const sessionUser = {
+			id: user.betterAuthId,
+			discordId: user.discordId,
+			username: user.username || "未知使用者",
+			name: user.name || "未知使用者",
+			avatar: user.avatar || "https://cdn.discordapp.com/embed/avatars/0.png",
+			banner: user.banner,
+			bannerColor: user.bannerColor,
+		};
+
+		return {
+			user: sessionUser,
+			discordProfile: sessionUser,
+			error: null,
+		};
+	});
 
 export const ensureSession = createServerFn({ method: "GET" }).handler(
 	async () => {
@@ -70,12 +66,10 @@ export const ensureSession = createServerFn({ method: "GET" }).handler(
 );
 
 // 修改 checkAuthServerFn
-export const checkAuthServerFn = createServerFn({ method: "GET" }).handler(
-	async () => {
+export const checkAuthServerFn = createServerFn({ method: "GET" })
+	.middleware([edgeContextMiddleware])
+	.handler(async ({ context }) => {
 		try {
-			// ✅ 改用 getResolvedEdgeContext，userId 保證是 Discord ID
-			const context = await getResolvedEdgeContext();
-
 			if (!context.trusted || !context.userId) {
 				return { isAuthenticated: false, userId: null };
 			}
@@ -87,8 +81,7 @@ export const checkAuthServerFn = createServerFn({ method: "GET" }).handler(
 		} catch {
 			return { isAuthenticated: false, userId: null };
 		}
-	},
-);
+	});
 
 export const banUserFn = createServerFn({ method: "POST" })
 	.inputValidator((data: BanUserPayload) => data)

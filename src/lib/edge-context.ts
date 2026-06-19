@@ -1,8 +1,7 @@
-// src/lib/edge-context.ts
+import { createMiddleware } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
 import { and, eq, or } from "drizzle-orm";
 import { Effect } from "effect";
-import { cache } from "react";
 import { db } from "#/drizzle/db";
 import * as schema from "#/drizzle/schema";
 
@@ -19,8 +18,14 @@ export type DomainUser = {
 	nsfw: boolean;
 };
 
-// 保持原樣：只讀 headers，不做任何 DB 查詢，不對外暴露
-function getRawEdgeContext() {
+type RawEdgeContext = {
+	userId: string | null;
+	sessionId: string | null;
+	isAdmin: boolean;
+	trusted: boolean;
+};
+
+function getRawEdgeContext(): RawEdgeContext {
 	const req = getRequest();
 	const gatewaySecret = req.headers.get("x-gateway-secret");
 
@@ -36,127 +41,111 @@ function getRawEdgeContext() {
 	};
 }
 
-export const getDomainUser = cache(
-	async (edgeUserId: string): Promise<DomainUser | null> => {
-		if (!edgeUserId) return null;
+async function fetchDomainUser(edgeUserId: string): Promise<DomainUser | null> {
+	// ... 你的邏輯不變 ...
+	if (!edgeUserId) return null;
 
-		const isDiscordId = /^\d+$/.test(edgeUserId);
-		const result = await db
-			.select({
-				id: schema.user.id,
-				discordId: schema.user.discordId,
-				accountId: schema.authAccount.accountId,
-				username: schema.user.username,
-				name: schema.user.name,
-				avatar: schema.user.avatar,
-				image: schema.user.image,
-				banner: schema.user.banner,
-				bannerColor: schema.user.bannerColor,
-				nsfw: schema.user.nsfw,
-			})
-			.from(schema.user)
-			.leftJoin(
-				schema.authAccount,
-				and(
-					eq(schema.authAccount.userId, schema.user.id),
-					eq(schema.authAccount.providerId, "discord"),
-				),
-			)
-			.where(
-				isDiscordId
-					? or(
-							eq(schema.user.discordId, edgeUserId),
-							eq(schema.authAccount.accountId, edgeUserId), // 👈 補上這行，相容 Better-Auth 預設儲存位置
-						)
-					: eq(schema.user.id, edgeUserId),
-			)
-			.limit(1);
+	const isDiscordId = /^\d+$/.test(edgeUserId);
+	const result = await db
+		.select({
+			id: schema.user.id,
+			discordId: schema.user.discordId,
+			accountId: schema.authAccount.accountId,
+			username: schema.user.username,
+			name: schema.user.name,
+			avatar: schema.user.avatar,
+			image: schema.user.image,
+			banner: schema.user.banner,
+			bannerColor: schema.user.bannerColor,
+			nsfw: schema.user.nsfw,
+		})
+		.from(schema.user)
+		.leftJoin(
+			schema.authAccount,
+			and(
+				eq(schema.authAccount.userId, schema.user.id),
+				eq(schema.authAccount.providerId, "discord"),
+			),
+		)
+		.where(
+			isDiscordId
+				? or(
+						eq(schema.user.discordId, edgeUserId),
+						eq(schema.authAccount.accountId, edgeUserId),
+					)
+				: eq(schema.user.id, edgeUserId),
+		)
+		.limit(1);
 
-		const userRow = result[0] ?? null;
+	const userRow = result[0] ?? null;
+	const actualDiscordId = userRow?.discordId || userRow?.accountId;
 
-		console.log("[Debug] userRow:", userRow);
+	if (!userRow || !actualDiscordId) return null;
 
-		const actualDiscordId = userRow?.discordId || userRow?.accountId;
+	const username = userRow.username ?? userRow.name ?? "Unknown User";
+	const avatar =
+		userRow.avatar ??
+		userRow.image ??
+		"https://cdn.discordapp.com/embed/avatars/0.png";
 
-		if (!userRow || !actualDiscordId) return null;
+	return {
+		betterAuthId: userRow.id,
+		discordId: actualDiscordId,
+		username,
+		avatar,
+		banner: userRow.banner ?? null,
+		bannerColor: userRow.bannerColor ?? null,
+		name: userRow.name ?? username,
+		nsfw: userRow.nsfw,
+	};
+}
 
-		// 處理 Fallback 邏輯
-		const username = userRow.username ?? userRow.name ?? "Unknown User";
-		const avatar =
-			userRow.avatar ??
-			userRow.image ??
-			"https://cdn.discordapp.com/embed/avatars/0.png";
-		const banner = userRow.banner ?? null;
-		const bannerColor = userRow.bannerColor ?? null;
-		const name = userRow.name ?? username;
+// ✅ 將 EdgeContext 匯出，讓 auth-middleware 能夠使用
+export type EdgeContext = {
+	trusted: boolean;
+	isAdmin: boolean;
+	sessionId: string | null;
+	userId: string | null;
+	user: DomainUser | null;
+};
 
-		return {
-			betterAuthId: userRow.id,
-			discordId: actualDiscordId,
-			username,
-			avatar,
-			banner,
-			bannerColor,
-			name,
-			nsfw: userRow.nsfw,
+// 建立 Middleware
+export const edgeContextMiddleware = createMiddleware().server(
+	async ({ next }) => {
+		const raw = getRawEdgeContext();
+
+		if (!raw.trusted || !raw.userId) {
+			const context: EdgeContext = {
+				trusted: false,
+				isAdmin: raw.isAdmin,
+				sessionId: raw.sessionId,
+				userId: null,
+				user: null,
+			};
+			return next({ context });
+		}
+
+		const user = await fetchDomainUser(raw.userId);
+
+		const context: EdgeContext = {
+			trusted: true,
+			isAdmin: raw.isAdmin,
+			sessionId: raw.sessionId,
+			userId: user?.discordId ?? null,
+			user,
 		};
+
+		return next({ context });
 	},
 );
 
-export const getResolvedEdgeContext = cache(async () => {
-	const raw = getRawEdgeContext();
-
-	if (!raw.trusted || !raw.userId) {
-		return {
-			trusted: raw.trusted,
-			isAdmin: raw.isAdmin,
-			sessionId: raw.sessionId,
-			userId: null as string | null,
-			user: null as DomainUser | null,
-		};
-	}
-
-	const user = await getDomainUser(raw.userId);
-
-	console.log("[Debug] Resolved Edge Context - raw:", raw);
-
-	return {
-		trusted: raw.trusted,
-		isAdmin: raw.isAdmin,
-		sessionId: raw.sessionId,
-		userId: user?.discordId ?? null, // 永遠確保對外暴露的是 Discord ID
-		user,
-	};
-});
-
-export function getEdgeContext() {
-	return getRawEdgeContext();
-}
-
-export async function requireDomainUser() {
-	const context = await getResolvedEdgeContext();
-
-	if (!context.trusted) throw new Error("No trusted context");
-	if (!context.userId || !context.user)
-		throw new Error("User profile not found");
-
-	return { context, user: context.user };
-}
-
-export function getSessionUserIdEffect(): Effect.Effect<string, Error> {
+export function getSessionUserIdEffect(
+	user: DomainUser | null,
+): Effect.Effect<string, Error> {
 	return Effect.gen(function* () {
-		const { user } = yield* Effect.tryPromise({
-			try: () => requireDomainUser(),
-			catch: (error) =>
-				new Error(
-					`驗證失敗: ${error instanceof Error ? error.message : String(error)}`,
-				),
-		});
-
 		if (!user?.discordId) {
 			return yield* Effect.fail(new Error("請先登入 Discord 帳號"));
 		}
-
 		return user.discordId;
 	});
 }

@@ -1,29 +1,17 @@
 import { Effect } from "effect";
 import { NotificationFailed } from "#/errors/bot-errors";
-import { getResolvedEdgeContext } from "#/lib/edge-context";
 import { sendNotification } from "../admin/admin.functions";
 import type { SendNotificationInput } from "./notifications.schemas";
 
-function resolveUserIdEffect(
-	userId?: string,
+export function resolveUserIdEffect(
+	userId?: string | null,
 ): Effect.Effect<string, NotificationFailed> {
+	// 1. 如果有明確指定 userId，優先使用
 	if (userId && userId.trim().length > 0) {
 		return Effect.succeed(userId.trim());
 	}
 
-	return Effect.gen(function* () {
-		const ctx = yield* Effect.tryPromise({
-			try: () => getResolvedEdgeContext(),
-			catch: () => new NotificationFailed({}),
-		});
-
-		// getResolvedEdgeContext 已保證 userId 是 Discord ID
-		if (!ctx.userId || !ctx.user) {
-			return yield* Effect.fail(new NotificationFailed({}));
-		}
-
-		return ctx.user.discordId;
-	});
+	return Effect.fail(new NotificationFailed({}));
 }
 
 export function sendNotificationEffect(

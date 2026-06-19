@@ -12,7 +12,6 @@ import {
 	userFavoriteBots,
 	userFavoriteServers,
 } from "#/drizzle/schema";
-import { getDomainUser } from "#/lib/edge-context";
 import { runEffect, tryEffectPromise } from "#/lib/effect-utils";
 import { ApiJwtPayloadSchema } from "./users.schemas";
 import type {
@@ -737,12 +736,9 @@ function getCurrentUserEffect(
 ): Effect.Effect<UserDetail | null, Error> {
 	return Effect.gen(function* () {
 		if (!discordId) return null;
-		const domainUser = yield* dbEffect("Failed to resolve domain user", () =>
-			getDomainUser(discordId),
-		);
 
-		if (!domainUser?.discordId) return null;
-		return yield* getUserByIdEffect(domainUser.discordId);
+		// 💡 直接拿 authMiddleware 傳進來的 discordId 去抓 UserDetail
+		return yield* getUserByIdEffect(discordId);
 	});
 }
 
