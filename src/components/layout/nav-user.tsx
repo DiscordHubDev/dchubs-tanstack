@@ -29,6 +29,7 @@ export function NavUser({ user }: NavUserProps) {
 		await signOut();
 		await router.invalidate(); // 關鍵：強制重新執行 beforeLoad，重抓 session
 	};
+
 	const { session } = useRouteContext({ from: "__root__" });
 	const { isMobile } = useSidebar();
 

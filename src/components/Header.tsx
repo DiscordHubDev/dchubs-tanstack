@@ -1,4 +1,9 @@
-import { Link, useLocation, useRouteContext } from "@tanstack/react-router";
+import {
+	Link,
+	useLocation,
+	useRouteContext,
+	useRouter,
+} from "@tanstack/react-router";
 import { Image } from "@unpic/react";
 import { LogOut, Menu, X } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -25,6 +30,7 @@ export default function Header() {
 	const [isScrolled, setIsScrolled] = useState(false);
 	const { pathname } = useLocation();
 	const { session } = useRouteContext({ from: "__root__" });
+	const router = useRouter();
 
 	useEffect(() => {
 		const handleScroll = () => {
@@ -45,8 +51,14 @@ export default function Header() {
 		void signIn("/");
 	};
 
-	const handleSignOut = () => {
-		void signOut();
+	const handleSignOut = async () => {
+		try {
+			await signOut();
+			await router.invalidate();
+			router.navigate({ to: "/" });
+		} catch (error) {
+			console.error("登出失敗:", error);
+		}
 	};
 
 	// 抽離登入/登出按鈕群，方便在桌面版與行動版重複使用，保持程式碼簡潔
