@@ -134,20 +134,27 @@ const GuildCard = memo(function GuildCard({
 }: GuildCardProps) {
 	const iconUrl = buildGuildIconUrl(guild);
 
+	const [imgError, setImgError] = useState(!iconUrl);
+
 	return (
 		<div className="flex flex-col gap-4 rounded-xl border border-[#4f545c] bg-[#2f3136] p-4">
 			<div className="flex min-w-0 items-center gap-3">
-				<Avatar className="h-12 w-12 shrink-0 items-center justify-center bg-[#40444b] font-semibold text-[#dcddde] text-sm shadow-sm">
-					<OptimizedImage
-						src={iconUrl}
-						alt={guild.name}
-						width={48} // 48px 完美對齊 h-12 尺寸需求
-						height={48}
-						className="h-full w-full object-cover"
-					/>
-					<AvatarFallback className="select-none bg-transparent font-semibold text-sm uppercase">
-						{guild.name?.slice(0, 1).toUpperCase() || "G"}
-					</AvatarFallback>
+				<Avatar className="relative h-12 w-12 shrink-0 items-center justify-center overflow-hidden bg-[#40444b] font-semibold text-[#dcddde] text-sm shadow-sm">
+					{!imgError && (
+						<OptimizedImage
+							src={iconUrl}
+							alt={guild.name}
+							width={48}
+							height={48}
+							className="h-full w-full object-cover"
+							onError={() => setImgError(true)}
+						/>
+					)}
+					{imgError && (
+						<AvatarFallback className="select-none bg-transparent font-semibold text-sm uppercase">
+							{guild.name?.slice(0, 1).toUpperCase() || "G"}
+						</AvatarFallback>
+					)}
 				</Avatar>
 				<div className="min-w-0">
 					<p className="truncate font-medium text-white">{guild.name}</p>
