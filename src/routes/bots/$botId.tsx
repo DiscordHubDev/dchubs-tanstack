@@ -1,4 +1,4 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
 	createFileRoute,
 	getRouteApi,
@@ -358,7 +358,7 @@ function BotDetailPage() {
 	const navigate = routeApi.useNavigate();
 
 	// 3. 這裡的 detail 型別將會被完美推導，不再會是 undefined 囉！
-	const { detail } = Route.useLoaderData();
+	const { detail: initialDetail } = Route.useLoaderData();
 
 	const queryClient = useQueryClient();
 	const { session } = useRouteContext({ from: "__root__" });
@@ -371,6 +371,12 @@ function BotDetailPage() {
 
 	const detailQueryKey = queryKeys.bots.detail(botId);
 
+	const { data } = useQuery({
+		...botDetailQueryOptions(botId),
+		initialData: initialDetail,
+	});
+
+	const detail = data ?? initialDetail;
 	const favoriteMutation = useMutation({
 		meta: { suppressErrorAlert: true },
 		mutationFn: () =>
