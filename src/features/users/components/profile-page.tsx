@@ -1,8 +1,4 @@
-import {
-  useMutation,
-  useQueryClient,
-  useSuspenseQuery,
-} from "@tanstack/react-query";
+import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { formatDistanceToNow } from "date-fns";
 import { zhTW } from "date-fns/locale/zh-TW";
@@ -46,12 +42,7 @@ import {
   CardTitle,
 } from "#/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "#/components/ui/tabs";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "#/components/ui/tooltip";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "#/components/ui/tooltip";
 import { deleteBotFn } from "#/features/bots/bots.functions";
 import { deleteServerFn } from "#/features/servers/servers.functions";
 import {
@@ -67,11 +58,7 @@ import {
   userServersQueryOptions,
   userSettingsQueryOptions,
 } from "#/features/users/users.query";
-import type {
-  UserBaseProfile,
-  UserDetail,
-  UserSettings,
-} from "#/features/users/users.types";
+import type { UserBaseProfile, UserDetail, UserSettings } from "#/features/users/users.types";
 import { runEffect, tryEffectPromise } from "#/lib/effect-utils";
 import { showErrorAlert } from "#/lib/error-alert";
 import { queryKeys } from "#/lib/query-keys";
@@ -113,9 +100,7 @@ function showErrorNotification(message: string) {
 }
 
 // 共用的載入骨架/提示
-const TabLoader = () => (
-  <div className="mt-8 text-center text-gray-400">載入中...</div>
-);
+const TabLoader = () => <div className="mt-8 text-center text-gray-400">載入中...</div>;
 
 export function UserProfilePage({
   viewedUserId,
@@ -126,9 +111,7 @@ export function UserProfilePage({
   const navigate = useNavigate();
 
   // 頂層只載入 Header 必須的基礎資料
-  const { data: viewedUser } = useSuspenseQuery(
-    userBaseProfileQueryOptions(viewedUserId),
-  );
+  const { data: viewedUser } = useSuspenseQuery(userBaseProfileQueryOptions(viewedUserId));
   const queryClient = useQueryClient();
   const isOwner = viewedUserId === currentUserId;
   const navigationRef = useRef(false);
@@ -142,12 +125,7 @@ export function UserProfilePage({
 
       prefetchTimeoutRef.current = window.setTimeout(() => {
         // 🛡️ 內部輔助函式：將重複的檢查與 prefetch 邏輯抽離，並保持泛型安全
-        const ensurePrefetch = <
-          TQueryFnData,
-          TError,
-          TData,
-          TQueryKey extends readonly unknown[],
-        >(
+        const ensurePrefetch = <TQueryFnData, TError, TData, TQueryKey extends readonly unknown[]>(
           options: import("@tanstack/react-query").FetchQueryOptions<
             TQueryFnData,
             TError,
@@ -334,10 +312,7 @@ export function UserProfilePage({
             <TabsContent value="settings" className="mt-6">
               {activeTab === "settings" && (
                 <Suspense fallback={<TabLoader />}>
-                  <SettingsTabContainer
-                    userId={viewedUserId}
-                    isOwner={isOwner}
-                  />
+                  <SettingsTabContainer userId={viewedUserId} isOwner={isOwner} />
                 </Suspense>
               )}
             </TabsContent>
@@ -412,21 +387,10 @@ function BotsTabContainer({
 
 function FavoritesTabContainer({ userId }: { userId: string }) {
   const { data } = useSuspenseQuery(userFavoritesQueryOptions(userId));
-  return (
-    <FavoritesTab
-      favoriteServers={data.favoriteServers}
-      favoriteBots={data.favoriteBots}
-    />
-  );
+  return <FavoritesTab favoriteServers={data.favoriteServers} favoriteBots={data.favoriteBots} />;
 }
 
-function SettingsTabContainer({
-  userId,
-  isOwner,
-}: {
-  userId: string;
-  isOwner: boolean;
-}) {
+function SettingsTabContainer({ userId, isOwner }: { userId: string; isOwner: boolean }) {
   const { data: user } = useSuspenseQuery(userSettingsQueryOptions(userId));
   return (
     <>
@@ -471,12 +435,7 @@ function APIKeyManager() {
 
   const mutation = useMutation({
     mutationFn: () =>
-      runEffect(
-        tryEffectPromise(
-          "Failed to create API key",
-          createOrRegenerateApiTokenFn,
-        ),
-      ),
+      runEffect(tryEffectPromise("Failed to create API key", createOrRegenerateApiTokenFn)),
   });
 
   const handleCreateOrRegen = useCallback(async () => {
@@ -544,13 +503,7 @@ const TokenDisplaySection = memo(
 );
 TokenDisplaySection.displayName = "TokenDisplaySection";
 
-function SecureTokenDisplay({
-  label,
-  token,
-}: {
-  label: string;
-  token: string;
-}) {
+function SecureTokenDisplay({ label, token }: { label: string; token: string }) {
   const [copied, setCopied] = useState(false);
   const copyingRef = useRef(false);
 
@@ -573,9 +526,7 @@ function SecureTokenDisplay({
         copyingRef.current = false;
       }, 2000);
     } catch (error) {
-      showErrorNotification(
-        `複製失敗：${error instanceof Error ? error.message : "未知錯誤"}`,
-      );
+      showErrorNotification(`複製失敗：${error instanceof Error ? error.message : "未知錯誤"}`);
       copyingRef.current = false;
     }
   }, [token, label]);
@@ -586,9 +537,7 @@ function SecureTokenDisplay({
       <button
         type="button"
         className={`cursor-pointer break-all rounded-md p-3 font-mono text-sm transition-colors ${
-          copied
-            ? "bg-green-800 text-green-100"
-            : "bg-gray-800 text-gray-100 hover:bg-gray-700"
+          copied ? "bg-green-800 text-green-100" : "bg-gray-800 text-gray-100 hover:bg-gray-700"
         }`}
         onClick={() => void handleCopy()}
         title={`${label} 複製`}
@@ -751,11 +700,7 @@ const ServerCard = memo(
 
     return (
       <Card className="flex h-full flex-col border-[#1e1f22] bg-[#2b2d31] transition-all duration-200 hover:border-[#5865f2]">
-        <Link
-          to="/servers/$serverId"
-          params={{ serverId: server.id }}
-          className="block"
-        >
+        <Link to="/servers/$serverId" params={{ serverId: server.id }} className="block">
           <CardHeader className="pb-2">
             <div className="flex items-center space-x-3">
               <Avatar className="h-10 w-10 flex-shrink-0 bg-[#36393f] shadow-sm sm:h-12 sm:w-12">
@@ -772,9 +717,7 @@ const ServerCard = memo(
                 </AvatarFallback>
               </Avatar>
               <div>
-                <CardTitle className="w-full truncate text-white">
-                  {server.name}
-                </CardTitle>
+                <CardTitle className="w-full truncate text-white">{server.name}</CardTitle>
                 <CardDescription className="text-gray-400">
                   {server.members.toLocaleString()} 成員
                 </CardDescription>
@@ -782,9 +725,7 @@ const ServerCard = memo(
             </div>
           </CardHeader>
           <CardContent className="pb-2">
-            <p className="line-clamp-2 text-gray-300 text-sm">
-              {server.description}
-            </p>
+            <p className="line-clamp-2 text-gray-300 text-sm">{server.description}</p>
             <div className="mt-2 flex flex-wrap gap-2">
               {server.tags.slice(0, 3).map((tag) => (
                 <Badge
@@ -998,9 +939,7 @@ const BotCard = memo(
                 </AvatarFallback>
               </Avatar>
               <div className="flex items-center gap-2">
-                <CardTitle className="truncate text-white">
-                  {bot.name}
-                </CardTitle>
+                <CardTitle className="truncate text-white">{bot.name}</CardTitle>
                 {bot.verified && (
                   <TooltipProvider>
                     <Tooltip>
@@ -1018,16 +957,10 @@ const BotCard = memo(
             </div>
           </CardHeader>
           <CardContent className="pb-2">
-            <p className="line-clamp-2 text-gray-300 text-sm">
-              {bot.description ?? ""}
-            </p>
+            <p className="line-clamp-2 text-gray-300 text-sm">{bot.description ?? ""}</p>
             <div className="mt-2 flex flex-wrap gap-2">
               {(bot.tags ?? []).slice(0, 3).map((tag) => (
-                <Badge
-                  key={tag}
-                  variant="secondary"
-                  className="bg-[#36393f] text-gray-300 text-xs"
-                >
+                <Badge key={tag} variant="secondary" className="bg-[#36393f] text-gray-300 text-xs">
                   {tag}
                 </Badge>
               ))}
@@ -1152,124 +1085,102 @@ function FavoritesTab({
   );
 }
 
-const FavoriteServerCard = memo(
-  ({ server }: { server: UserDetail["favoriteServers"][0] }) => (
-    <Link
-      to="/servers/$serverId"
-      params={{ serverId: server.id }}
-      className="block"
-    >
-      <Card className="border-[#1e1f22] bg-[#2b2d31] transition-all duration-200 hover:border-[#5865f2]">
-        <CardHeader className="pb-3">
+const FavoriteServerCard = memo(({ server }: { server: UserDetail["favoriteServers"][0] }) => (
+  <Link to="/servers/$serverId" params={{ serverId: server.id }} className="block">
+    <Card className="border-[#1e1f22] bg-[#2b2d31] transition-all duration-200 hover:border-[#5865f2]">
+      <CardHeader className="pb-3">
+        {" "}
+        {/* 稍微調整底部的 padding */}
+        <div className="flex items-start space-x-3">
           {" "}
-          {/* 稍微調整底部的 padding */}
-          <div className="flex items-start space-x-3">
+          {/* 改為 items-start 避免大頭照因描述變長而歪掉 */}
+          {/* 大頭照 */}
+          <Avatar className="h-10 w-10 flex-shrink-0 bg-[#36393f] shadow-sm sm:h-12 sm:w-12">
+            <OptimizedImage
+              src={server.icon}
+              fallbackSrc="/placeholder.png"
+              alt={server.name}
+              width={48} // 48px 足以應付 sm:h-12 (48px)
+              height={48}
+              className="h-full w-full object-cover"
+            />
+            <AvatarFallback className="bg-zinc-800 font-semibold text-sm text-zinc-200 uppercase">
+              {server.name?.charAt(0) || "S"}
+            </AvatarFallback>
+          </Avatar>
+          {/* 文字區塊 */}
+          <div className="min-w-0 flex-1">
             {" "}
-            {/* 改為 items-start 避免大頭照因描述變長而歪掉 */}
-            {/* 大頭照 */}
-            <Avatar className="h-10 w-10 flex-shrink-0 bg-[#36393f] shadow-sm sm:h-12 sm:w-12">
-              <OptimizedImage
-                src={server.icon}
-                fallbackSrc="/placeholder.png"
-                alt={server.name}
-                width={48} // 48px 足以應付 sm:h-12 (48px)
-                height={48}
-                className="h-full w-full object-cover"
-              />
-              <AvatarFallback className="bg-zinc-800 font-semibold text-sm text-zinc-200 uppercase">
-                {server.name?.charAt(0) || "S"}
-              </AvatarFallback>
-            </Avatar>
-            {/* 文字區塊 */}
-            <div className="min-w-0 flex-1">
-              {" "}
-              {/* 確保 truncate 能正常運作 */}
-              <CardTitle className="truncate text-white">
-                {server.name}
-              </CardTitle>
-              <CardDescription className="mt-0.5 text-gray-400 text-xs">
-                {(server.members ?? 0).toLocaleString()} 成員
-              </CardDescription>
-              {/* 移到這裡：與名稱緊緊相依，可用 mt-2 自由控制間距 */}
-              <p className="mt-2 line-clamp-2 text-gray-300 text-sm">
-                {server.description ?? ""}
-              </p>
-            </div>
+            {/* 確保 truncate 能正常運作 */}
+            <CardTitle className="truncate text-white">{server.name}</CardTitle>
+            <CardDescription className="mt-0.5 text-gray-400 text-xs">
+              {(server.members ?? 0).toLocaleString()} 成員
+            </CardDescription>
+            {/* 移到這裡：與名稱緊緊相依，可用 mt-2 自由控制間距 */}
+            <p className="mt-2 line-clamp-2 text-gray-300 text-sm">{server.description ?? ""}</p>
           </div>
-        </CardHeader>
-      </Card>
-    </Link>
-  ),
-);
+        </div>
+      </CardHeader>
+    </Card>
+  </Link>
+));
 FavoriteServerCard.displayName = "FavoriteServerCard";
 
-const FavoriteBotCard = memo(
-  ({ bot }: { bot: UserDetail["favoriteBots"][0] }) => (
-    <Link to="/bots/$botId" params={{ botId: bot.id }} className="block">
-      <Card className="border-[#1e1f22] bg-[#2b2d31] transition-all duration-200 hover:border-[#5865f2]">
-        {/* 調整：把 pb-2 改為 pb-3 確保下方有一點呼吸空間 */}
-        <CardHeader className="pb-3">
-          {/* 調整：items-center 改為 items-start */}
-          <div className="flex items-start space-x-3">
-            {/* 大頭照 */}
-            <Avatar className="h-10 w-10 flex-shrink-0 bg-[#36393f] shadow-sm sm:h-12 sm:w-12">
-              <OptimizedImage
-                src={bot.icon}
-                fallbackSrc="/placeholder.png"
-                alt={bot.name}
-                width={48}
-                height={48}
-                className="h-full w-full object-cover"
-              />
-              <AvatarFallback className="bg-zinc-800 font-semibold text-sm text-zinc-200 uppercase">
-                {bot.name?.charAt(0) || "B"}
-              </AvatarFallback>
-            </Avatar>
+const FavoriteBotCard = memo(({ bot }: { bot: UserDetail["favoriteBots"][0] }) => (
+  <Link to="/bots/$botId" params={{ botId: bot.id }} className="block">
+    <Card className="border-[#1e1f22] bg-[#2b2d31] transition-all duration-200 hover:border-[#5865f2]">
+      {/* 調整：把 pb-2 改為 pb-3 確保下方有一點呼吸空間 */}
+      <CardHeader className="pb-3">
+        {/* 調整：items-center 改為 items-start */}
+        <div className="flex items-start space-x-3">
+          {/* 大頭照 */}
+          <Avatar className="h-10 w-10 flex-shrink-0 bg-[#36393f] shadow-sm sm:h-12 sm:w-12">
+            <OptimizedImage
+              src={bot.icon}
+              fallbackSrc="/placeholder.png"
+              alt={bot.name}
+              width={48}
+              height={48}
+              className="h-full w-full object-cover"
+            />
+            <AvatarFallback className="bg-zinc-800 font-semibold text-sm text-zinc-200 uppercase">
+              {bot.name?.charAt(0) || "B"}
+            </AvatarFallback>
+          </Avatar>
 
-            {/* 右側文字與標籤內容區塊 */}
-            <div className="min-w-0 flex-1">
-              {/* 名字與驗證標籤 */}
-              <div className="flex items-center gap-2">
-                <CardTitle className="truncate text-white">
-                  {bot.name}
-                </CardTitle>
-                {bot.verified && (
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        {/* 稍微調整一下 Badge 的 padding (px-2 py-0.5) 和文字大小，讓它精緻一點 */}
-                        <Badge className="5865F2 inline-flex shrink-0 cursor-default items-center gap-1 rounded-full bg-discord px-2 py-0.5 text-white text-xs hover:bg-discord-hover hover:text-white">
-                          <FaCheck className="h-3 w-3" />
-                          驗證
-                        </Badge>
-                      </TooltipTrigger>
-                      <TooltipContent>已驗證的 Discord 機器人</TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                )}
-              </div>
-
-              {/* 移到這裡：與名字同一個容器，並給予 mt-2 的間距 */}
-              <p className="mt-2 line-clamp-2 text-gray-300 text-sm">
-                {bot.description ?? ""}
-              </p>
+          {/* 右側文字與標籤內容區塊 */}
+          <div className="min-w-0 flex-1">
+            {/* 名字與驗證標籤 */}
+            <div className="flex items-center gap-2">
+              <CardTitle className="truncate text-white">{bot.name}</CardTitle>
+              {bot.verified && (
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      {/* 稍微調整一下 Badge 的 padding (px-2 py-0.5) 和文字大小，讓它精緻一點 */}
+                      <Badge className="5865F2 inline-flex shrink-0 cursor-default items-center gap-1 rounded-full bg-discord px-2 py-0.5 text-white text-xs hover:bg-discord-hover hover:text-white">
+                        <FaCheck className="h-3 w-3" />
+                        驗證
+                      </Badge>
+                    </TooltipTrigger>
+                    <TooltipContent>已驗證的 Discord 機器人</TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              )}
             </div>
+
+            {/* 移到這裡：與名字同一個容器，並給予 mt-2 的間距 */}
+            <p className="mt-2 line-clamp-2 text-gray-300 text-sm">{bot.description ?? ""}</p>
           </div>
-        </CardHeader>
-        {/* 調整：移除原本的 CardContent */}
-      </Card>
-    </Link>
-  ),
-);
+        </div>
+      </CardHeader>
+      {/* 調整：移除原本的 CardContent */}
+    </Card>
+  </Link>
+));
 FavoriteBotCard.displayName = "FavoriteBotCard";
 
-function EmptyState({
-  message,
-  actionButton,
-}: {
-  message: string;
-  actionButton?: ReactNode;
-}) {
+function EmptyState({ message, actionButton }: { message: string; actionButton?: ReactNode }) {
   return (
     <div className="rounded-lg bg-[#2b2d31] p-8 text-center">
       <p className="text-gray-300">{message}</p>
@@ -1292,10 +1203,7 @@ const UserHeader = memo(({ user }: { user: UserBaseProfile }) => {
             ></div>
           </div>
         ) : user.bannerColor ? (
-          <div
-            className="h-full w-full"
-            style={{ backgroundColor: user.bannerColor }}
-          ></div>
+          <div className="h-full w-full" style={{ backgroundColor: user.bannerColor }}></div>
         ) : (
           <div className="h-full w-full bg-linear-to-r from-[#5865f2] to-[#8c54ff]"></div>
         )}
@@ -1310,10 +1218,7 @@ const UserHeader = memo(({ user }: { user: UserBaseProfile }) => {
               alt={user.username}
               className="h-full w-full object-cover"
             />
-            <AvatarFallback
-              className="bg-[#5865f2] text-3xl"
-              suppressHydrationWarning
-            >
+            <AvatarFallback className="bg-[#5865f2] text-3xl" suppressHydrationWarning>
               {user.username}
             </AvatarFallback>
           </Avatar>
@@ -1348,8 +1253,7 @@ const UserHeader = memo(({ user }: { user: UserBaseProfile }) => {
           <div className="mt-6 flex flex-wrap gap-4">
             {Object.entries(user.social).map(([platform, value]) => {
               if (!value) return null;
-              const config =
-                SOCIAL_PLATFORMS[platform as keyof typeof SOCIAL_PLATFORMS];
+              const config = SOCIAL_PLATFORMS[platform as keyof typeof SOCIAL_PLATFORMS];
               if (!config) return null;
 
               const Icon = config.icon;
@@ -1437,11 +1341,7 @@ export function UserSettingsForm({ user }: { user: UserSettings }) {
 
   const mutation = useMutation({
     // 👉 2. 將 nsfw 加入 mutation 接收的型別中
-    mutationFn: (input: {
-      bio: string;
-      social: Record<string, string>;
-      nsfw: boolean;
-    }) =>
+    mutationFn: (input: { bio: string; social: Record<string, string>; nsfw: boolean }) =>
       runEffect(
         tryEffectPromise("Failed to update user settings", () =>
           updateUserSettingsFn({ data: input }),

@@ -61,7 +61,7 @@ async function getDmChannelId(userId: string): Promise<string> {
   } catch (error) {
     // 捕捉 fetchJsonEffect 拋出的錯誤並加上上下文
     const errorMessage = error instanceof Error ? error.message : String(error);
-    throw new Error(`無法為用戶 ${userId} 建立私訊通道: ${errorMessage}`);
+    throw new Error(`無法為用戶 ${userId} 建立私訊通道: ${errorMessage}`, { cause: error });
   }
 }
 
@@ -149,7 +149,7 @@ export async function sendNotification({
       return userId;
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : String(error);
-      throw new Error(`無法發送私訊給用戶 ${userId}: ${errorMessage}`);
+      throw new Error(`無法發送私訊給用戶 ${userId}: ${errorMessage}`, { cause: error });
     }
   });
 
@@ -161,7 +161,9 @@ export async function sendNotification({
     // biome-ignore lint/suspicious/useIterableCallbackReturn: 只需要 log 失敗
     failures.forEach((f) => console.error("Discord DM Error:", f.reason));
     if (failures.length === userIds.length) {
-      throw new Error("All Discord DM notification requests failed.");
+      throw new Error("All Discord DM notification requests failed.", {
+        cause: new Error("Multiple failures occurred"),
+      });
     }
   }
 

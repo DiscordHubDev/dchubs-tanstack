@@ -6,6 +6,8 @@ import { Input } from "#/components/ui/input";
 import { Label } from "#/components/ui/label";
 import type { CategoryType } from "#/lib/types";
 
+const EMPTY_CATEGORIES: CategoryType[] = [];
+
 function readFirstError(errors: unknown[] | undefined): string | null {
   if (!Array.isArray(errors) || errors.length === 0) {
     return null;
@@ -29,7 +31,11 @@ export type ServerTagFieldProps = {
   maxTags?: number;
 };
 
-export function ServerTagField({ field, categories = [], maxTags = 8 }: ServerTagFieldProps) {
+export function ServerTagField({
+  field,
+  categories = EMPTY_CATEGORIES,
+  maxTags = 8,
+}: ServerTagFieldProps) {
   const [nextTag, setNextTag] = useState("");
   const tags = Array.isArray(field.state.value) ? (field.state.value as string[]) : [];
   const errorMessage = readFirstError(field.state.meta.errors);

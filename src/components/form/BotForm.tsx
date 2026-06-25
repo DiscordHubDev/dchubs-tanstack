@@ -3,23 +3,8 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { useSelector } from "@tanstack/react-store";
 import { Effect, Schema } from "effect";
-import {
-  AlertTriangle,
-  Info,
-  Loader2,
-  Plus,
-  Search,
-  Trash2,
-  UserPlus,
-  X,
-} from "lucide-react";
-import React, {
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { AlertTriangle, Info, Loader2, Plus, Search, Trash2, UserPlus, X } from "lucide-react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "react-toastify";
 import Swal from "sweetalert2";
 import MarkdownRenderer from "#/components/MarkdownRenderer";
@@ -45,10 +30,7 @@ import {
   submitBotFn,
   uploadBotImagesFn,
 } from "#/features/bots/bot-submit.functions";
-import type {
-  SubmitBotErrorPayload,
-  SubmitBotResult,
-} from "#/features/bots/bot-submit.types";
+import type { SubmitBotErrorPayload, SubmitBotResult } from "#/features/bots/bot-submit.types";
 import { effectValidator } from "#/features/servers/server-publish.validators";
 import { userGetBaseProfileByNameOrIdQueryOptions } from "#/features/users/users.query";
 import type { DevUser } from "#/features/users/users.types";
@@ -60,6 +42,9 @@ import DiscordEmbedPreview from "../DiscordEmbedPreview";
 import EmbedFieldsListField from "../EmbedFieldsListField";
 import { OptimizedImage } from "../OptimizedImage";
 import { Checkbox } from "../ui/checkbox";
+
+const EMPTY_CATEGORIES: CategoryType[] = [];
+const EMPTY_ARRAY: any[] = [];
 
 // ============================================================================
 // Types
@@ -89,12 +74,7 @@ type MediaState = {
 
 const MAX_IMAGE_SIZE_BYTES = 5 * 1024 * 1024;
 const MAX_GIF_SIZE_BYTES = 10 * 1024 * 1024;
-const ALLOWED_IMAGE_TYPES = [
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-  "image/gif",
-] as const;
+const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp", "image/gif"] as const;
 
 type AllowedImageType = (typeof ALLOWED_IMAGE_TYPES)[number];
 
@@ -110,11 +90,7 @@ type BaseDeveloperItem = BotFormData["developers"][number];
 // Static Validators (Moved outside component to prevent re-creation on render)
 // ============================================================================
 
-const OptionalStringSchema = Schema.Union(
-  Schema.String,
-  Schema.Null,
-  Schema.Undefined,
-);
+const OptionalStringSchema = Schema.Union(Schema.String, Schema.Null, Schema.Undefined);
 
 const validateBotName = effectValidator(BotNameSchema, {
   label: "機器人名稱",
@@ -270,10 +246,7 @@ function hasRequiredPublishFields(values: {
   );
 }
 
-function validateFiles(
-  files: File[],
-  remainingSlots: number,
-): Effect.Effect<File[], never> {
+function validateFiles(files: File[], remainingSlots: number): Effect.Effect<File[], never> {
   return Effect.sync(() => {
     const warnings: string[] = [];
     const validFiles: File[] = [];
@@ -385,7 +358,7 @@ ScreenshotGrid.displayName = "ScreenshotGrid";
 
 function TagField({
   field,
-  categories = [],
+  categories = EMPTY_CATEGORIES,
   maxTags = 8,
 }: {
   field: AnyFieldApi;
@@ -393,17 +366,14 @@ function TagField({
   maxTags?: number;
 }) {
   const [nextTag, setNextTag] = useState("");
-  const tags = Array.isArray(field.state.value)
-    ? (field.state.value as string[])
-    : [];
+  const tags = Array.isArray(field.state.value) ? (field.state.value as string[]) : EMPTY_ARRAY;
   const errorMessage = readFirstError(field.state.meta.errors);
 
   const addTag = useCallback(
     (raw: string) => {
       const value = raw.trim();
       if (!value || tags.length >= maxTags) return;
-      if (tags.some((item) => item.toLowerCase() === value.toLowerCase()))
-        return;
+      if (tags.some((item) => item.toLowerCase() === value.toLowerCase())) return;
 
       field.handleChange([...tags, value]);
       setNextTag("");
@@ -456,9 +426,7 @@ function TagField({
               disabled={tags.length >= maxTags}
               className="inline-flex cursor-pointer items-center gap-2 rounded-full border border-[#202225] bg-[#2f3136] px-3 py-1 font-medium text-[#b9bbbe] text-xs shadow-sm transition-all duration-150 hover:scale-105 hover:bg-[#35383e] hover:text-white active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100"
             >
-              <span
-                className={`h-2 w-2 shrink-0 rounded-full ${category.color}`}
-              />
+              <span className={`h-2 w-2 shrink-0 rounded-full ${category.color}`} />
               <span>{category.name}</span>
             </button>
           ))}
@@ -483,16 +451,12 @@ function TagField({
         ))}
       </div>
 
-      <p
-        className={`text-xs ${tags.length === 0 ? "text-[#f1c40f]" : "text-[#b9bbbe]"}`}
-      >
+      <p className={`text-xs ${tags.length === 0 ? "text-[#f1c40f]" : "text-[#b9bbbe]"}`}>
         目前已有 {tags.length} 個標籤（最少 1 個，最多 {maxTags} 個）
       </p>
 
       {errorMessage && (
-        <p className="animate-pulse font-medium text-[#ed4245] text-sm">
-          {errorMessage}
-        </p>
+        <p className="animate-pulse font-medium text-[#ed4245] text-sm">{errorMessage}</p>
       )}
     </div>
   );
@@ -501,25 +465,20 @@ function TagField({
 function CommandListField({ field }: { field: AnyFieldApi }) {
   const commands = Array.isArray(field.state.value)
     ? (field.state.value as CommandItem[])
-    : [];
+    : EMPTY_ARRAY;
   const errorMessage = readFirstError(field.state.meta.errors);
   const [commandKeys, setCommandKeys] = useState<string[]>(() =>
     commands.map(() => crypto.randomUUID()),
   );
 
   const addCommand = useCallback(() => {
-    field.handleChange([
-      ...commands,
-      { name: "", description: "", usage: "", category: "" },
-    ]);
+    field.handleChange([...commands, { name: "", description: "", usage: "", category: "" }]);
     setCommandKeys((prev) => [...prev, crypto.randomUUID()]);
   }, [field, commands]);
 
   const updateCommand = useCallback(
     (index: number, patch: Partial<CommandItem>) => {
-      field.handleChange(
-        commands.map((cmd, i) => (i === index ? { ...cmd, ...patch } : cmd)),
-      );
+      field.handleChange(commands.map((cmd, i) => (i === index ? { ...cmd, ...patch } : cmd)));
     },
     [field, commands],
   );
@@ -558,9 +517,7 @@ function CommandListField({ field }: { field: AnyFieldApi }) {
               className="space-y-3 rounded-lg border border-white/10 p-4"
             >
               <div className="flex items-center justify-between">
-                <p className="font-semibold text-sm text-white">
-                  指令 {index + 1}
-                </p>
+                <p className="font-semibold text-sm text-white">指令 {index + 1}</p>
                 <Button
                   type="button"
                   onClick={() => removeCommand(index)}
@@ -576,9 +533,7 @@ function CommandListField({ field }: { field: AnyFieldApi }) {
                   <Input
                     value={command.name}
                     onBlur={field.handleBlur}
-                    onChange={(e) =>
-                      updateCommand(index, { name: e.target.value })
-                    }
+                    onChange={(e) => updateCommand(index, { name: e.target.value })}
                     placeholder="例如：help"
                   />
                 </div>
@@ -587,9 +542,7 @@ function CommandListField({ field }: { field: AnyFieldApi }) {
                   <Input
                     value={command.category ?? ""}
                     onBlur={field.handleBlur}
-                    onChange={(e) =>
-                      updateCommand(index, { category: e.target.value })
-                    }
+                    onChange={(e) => updateCommand(index, { category: e.target.value })}
                     placeholder="例如：管理"
                   />
                 </div>
@@ -599,9 +552,7 @@ function CommandListField({ field }: { field: AnyFieldApi }) {
                 <Textarea
                   value={command.description}
                   onBlur={field.handleBlur}
-                  onChange={(e) =>
-                    updateCommand(index, { description: e.target.value })
-                  }
+                  onChange={(e) => updateCommand(index, { description: e.target.value })}
                   placeholder="描述指令用途"
                   rows={2}
                 />
@@ -611,9 +562,7 @@ function CommandListField({ field }: { field: AnyFieldApi }) {
                 <Input
                   value={command.usage}
                   onBlur={field.handleBlur}
-                  onChange={(e) =>
-                    updateCommand(index, { usage: e.target.value })
-                  }
+                  onChange={(e) => updateCommand(index, { usage: e.target.value })}
                   placeholder="例如：/help"
                 />
               </div>
@@ -634,7 +583,7 @@ type DeveloperItem = BaseDeveloperItem & {
 function DeveloperListField({ field }: { field: AnyFieldApi }) {
   const developers = Array.isArray(field.state.value)
     ? (field.state.value as DeveloperItem[])
-    : [];
+    : EMPTY_ARRAY;
   const errorMessage = readFirstError(field.state.meta.errors);
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedTerm, setDebouncedTerm] = useState("");
@@ -653,10 +602,7 @@ function DeveloperListField({ field }: { field: AnyFieldApi }) {
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(event.target as Node)
-      ) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
         setIsDropdownOpen(false);
       }
     };
@@ -755,13 +701,9 @@ function DeveloperListField({ field }: { field: AnyFieldApi }) {
         {isDropdownOpen && searchTerm.length > 0 && (
           <div className="absolute top-full z-50 mt-1 max-h-60 w-full overflow-y-auto overflow-x-hidden rounded-md border border-white/10 bg-[#2b2d31] p-1 shadow-lg">
             {isFetching ? (
-              <div className="p-3 text-center text-[#b9bbbe] text-sm">
-                搜尋中...
-              </div>
+              <div className="p-3 text-center text-[#b9bbbe] text-sm">搜尋中...</div>
             ) : searchResults.length === 0 ? (
-              <div className="p-3 text-center text-[#b9bbbe] text-sm">
-                找不到使用者
-              </div>
+              <div className="p-3 text-center text-[#b9bbbe] text-sm">找不到使用者</div>
             ) : (
               searchResults.map((result: DevUser) => (
                 <button
@@ -787,9 +729,7 @@ function DeveloperListField({ field }: { field: AnyFieldApi }) {
                     <span className="truncate font-medium text-sm">
                       {result.name?.trim() ? result.name : result.username}
                     </span>
-                    <span className="truncate text-[#b9bbbe] text-xs">
-                      {result.id}
-                    </span>
+                    <span className="truncate text-[#b9bbbe] text-xs">{result.id}</span>
                   </div>
                 </button>
               ))
@@ -806,10 +746,7 @@ function DeveloperListField({ field }: { field: AnyFieldApi }) {
 // Main Form Component
 // ============================================================================
 
-export default function BotForm({
-  mode = "create",
-  defaultValues,
-}: BotFormProps) {
+export default function BotForm({ mode = "create", defaultValues }: BotFormProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const objectUrlsRef = useRef<Set<string>>(new Set());
@@ -820,17 +757,18 @@ export default function BotForm({
   const [isUploadingMedia, setIsUploadingMedia] = useState(false);
 
   // Initial state hydration from localStorage (CSR only to avoid SSR mismatch)
-  const [persistedValues, setPersistedValues] = useState<Partial<BotFormData>>(
-    {},
-  );
+  const [persistedValues, setPersistedValues] = useState<Partial<BotFormData>>({});
   useEffect(() => {
     setPersistedValues(readPersistedFormValues());
   }, []);
 
   useEffect(() => {
+    // ✅ 1. 先把當下的 ref 參考抓出來
+    const urlsToRevoke = objectUrlsRef.current;
+
     return () => {
-      // Adding braces stops the implicit return
-      objectUrlsRef.current.forEach((url) => {
+      // ✅ 2. 在 cleanup 裡面使用剛剛抓出來的變數
+      urlsToRevoke.forEach((url) => {
         URL.revokeObjectURL(url);
       });
     };
@@ -925,9 +863,7 @@ export default function BotForm({
         });
 
         if (localScreenshotFiles.length > 0) {
-          yield* Effect.sync(() =>
-            toast.info(`上傳 ${localScreenshotFiles.length} 張截圖中...`),
-          );
+          yield* Effect.sync(() => toast.info(`上傳 ${localScreenshotFiles.length} 張截圖中...`));
           const uploadedScreenshots = yield* Effect.tryPromise({
             try: () => ScreenshotUpload(localScreenshotFiles),
             catch: (err) =>
@@ -1020,14 +956,8 @@ export default function BotForm({
   const bannerFileInputRef = useRef<HTMLInputElement | null>(null);
   const screenshotsFileInputRef = useRef<HTMLInputElement | null>(null);
 
-  const longDescription = useSelector(
-    form.store,
-    (state) => state.values.botLongDescription,
-  );
-  const customEmbedValues = useSelector(
-    form.store,
-    (state) => state.values.customEmbed,
-  );
+  const longDescription = useSelector(form.store, (state) => state.values.botLongDescription);
+  const customEmbedValues = useSelector(form.store, (state) => state.values.customEmbed);
 
   useEffect(() => {
     if (typeof window === "undefined") return;
@@ -1036,10 +966,7 @@ export default function BotForm({
       const currentState = form.store.state;
       if (currentState.isDirty) {
         try {
-          window.localStorage.setItem(
-            "bot_form_backup",
-            JSON.stringify(currentState.values),
-          );
+          window.localStorage.setItem("bot_form_backup", JSON.stringify(currentState.values));
         } catch (error) {
           console.error("緊急備份失敗:", error);
         }
@@ -1072,10 +999,8 @@ export default function BotForm({
     const textarea = textareaRef.current;
     const preview = previewRef.current;
     if (textarea && preview) {
-      const scrollRatio =
-        textarea.scrollTop / (textarea.scrollHeight - textarea.clientHeight);
-      preview.scrollTop =
-        scrollRatio * (preview.scrollHeight - preview.clientHeight);
+      const scrollRatio = textarea.scrollTop / (textarea.scrollHeight - textarea.clientHeight);
+      preview.scrollTop = scrollRatio * (preview.scrollHeight - preview.clientHeight);
     }
   }, []);
 
@@ -1088,11 +1013,7 @@ export default function BotForm({
     if (files.length === 0) return;
 
     const remainingSlots =
-      kind === "banner"
-        ? media.banner
-          ? 0
-          : 1
-        : Math.max(0, 5 - media.screenshots.length);
+      kind === "banner" ? (media.banner ? 0 : 1) : Math.max(0, 5 - media.screenshots.length);
     if (remainingSlots <= 0) return;
 
     setIsUploadingMedia(true);
@@ -1138,9 +1059,7 @@ export default function BotForm({
         objectUrlsRef.current.delete(toDelete.url);
       } else if (toDelete.public_id) {
         void Effect.runPromise(
-          deleteImage(toDelete.public_id).pipe(
-            Effect.catchAll(() => Effect.succeed(undefined)),
-          ),
+          deleteImage(toDelete.public_id).pipe(Effect.catchAll(() => Effect.succeed(undefined))),
         );
       }
       return {
@@ -1160,9 +1079,7 @@ export default function BotForm({
         objectUrlsRef.current.delete(toDelete.url);
       } else if (toDelete.public_id) {
         void Effect.runPromise(
-          deleteImage(toDelete.public_id).pipe(
-            Effect.catchAll(() => Effect.succeed(undefined)),
-          ),
+          deleteImage(toDelete.public_id).pipe(Effect.catchAll(() => Effect.succeed(undefined))),
         );
       }
       return { ...prev, banner: undefined };
@@ -1187,10 +1104,7 @@ export default function BotForm({
 
         <form
           onKeyDown={(event) => {
-            if (
-              event.key === "Enter" &&
-              event.target instanceof HTMLInputElement
-            ) {
+            if (event.key === "Enter" && event.target instanceof HTMLInputElement) {
               event.preventDefault();
             }
           }}
@@ -1202,9 +1116,7 @@ export default function BotForm({
           className="grid gap-6 lg:grid-cols-2"
         >
           <div className="space-y-6 rounded-xl border border-white/10 bg-[#2b2d31] p-5">
-            <h2 className="border-white/10 border-b pb-2 font-bold text-lg">
-              基本資訊
-            </h2>
+            <h2 className="border-white/10 border-b pb-2 font-bold text-lg">基本資訊</h2>
 
             <form.Field
               name="botName"
@@ -1223,9 +1135,7 @@ export default function BotForm({
                       placeholder="輸入您的機器人名稱"
                       aria-invalid={Boolean(errorMessage)}
                     />
-                    {errorMessage && (
-                      <p className="text-[#ed4245] text-sm">{errorMessage}</p>
-                    )}
+                    {errorMessage && <p className="text-[#ed4245] text-sm">{errorMessage}</p>}
                   </div>
                 );
               }}
@@ -1248,9 +1158,7 @@ export default function BotForm({
                       placeholder="例如：! 或 /"
                       aria-invalid={Boolean(errorMessage)}
                     />
-                    {errorMessage && (
-                      <p className="text-[#ed4245] text-sm">{errorMessage}</p>
-                    )}
+                    {errorMessage && <p className="text-[#ed4245] text-sm">{errorMessage}</p>}
                   </div>
                 );
               }}
@@ -1281,9 +1189,7 @@ export default function BotForm({
                       <span>最多 200 字</span>
                       <span>{(field.state.value ?? "").length}/200</span>
                     </div>
-                    {errorMessage && (
-                      <p className="text-[#ed4245] text-sm">{errorMessage}</p>
-                    )}
+                    {errorMessage && <p className="text-[#ed4245] text-sm">{errorMessage}</p>}
                   </div>
                 );
               }}
@@ -1293,8 +1199,7 @@ export default function BotForm({
               name="botLongDescription"
               validators={{
                 onChangeAsyncDebounceMs: 500,
-                onChangeAsync: async ({ value }) =>
-                  validateBotLongDescription(value),
+                onChangeAsync: async ({ value }) => validateBotLongDescription(value),
               }}
             >
               {(field) => {
@@ -1316,18 +1221,13 @@ export default function BotForm({
                       placeholder="請輸入詳細描述 (支援Markdown)"
                       aria-invalid={Boolean(errorMessage)}
                     />
-                    {errorMessage && (
-                      <p className="text-[#ed4245] text-sm">{errorMessage}</p>
-                    )}
+                    {errorMessage && <p className="text-[#ed4245] text-sm">{errorMessage}</p>}
                   </div>
                 );
               }}
             </form.Field>
 
-            <form.Field
-              name="nsfw"
-              validators={{ onChange: ({ value }) => validateIsNsfw(value) }}
-            >
+            <form.Field name="nsfw" validators={{ onChange: ({ value }) => validateIsNsfw(value) }}>
               {(field) => {
                 const errorMessage = readFirstError(field.state.meta.errors);
                 return (
@@ -1335,9 +1235,7 @@ export default function BotForm({
                     <Checkbox
                       id="nsfw"
                       checked={field.state.value ?? false}
-                      onCheckedChange={(checked) =>
-                        field.handleChange(checked === true)
-                      }
+                      onCheckedChange={(checked) => field.handleChange(checked === true)}
                     />
                     <div className="space-y-1 leading-none">
                       <Label htmlFor="nsfw" className="cursor-pointer">
@@ -1351,9 +1249,7 @@ export default function BotForm({
                           <AlertTriangle className="h-5 w-5" />
                         </div>
                         <div className="space-y-0.5">
-                          <p className="font-semibold text-yellow-900">
-                            警告：誠實申報
-                          </p>
+                          <p className="font-semibold text-yellow-900">警告：誠實申報</p>
                           <p className="leading-relaxed">
                             未能如實標註您的機器人內容類型可能會導致嚴重後果。如果我們發現您的機器人未正確標註為
                             NSFW，可能會導致其遭到系統強制移除，並且不另行通知。請確保遵循相關社群準則。
@@ -1361,9 +1257,7 @@ export default function BotForm({
                         </div>
                       </div>
                       {errorMessage && (
-                        <p className="mt-1 text-[#ed4245] text-sm">
-                          {errorMessage}
-                        </p>
+                        <p className="mt-1 text-[#ed4245] text-sm">{errorMessage}</p>
                       )}
                     </div>
                   </div>
@@ -1388,9 +1282,7 @@ export default function BotForm({
                       placeholder="例如：https://discord.com/oauth2/authorize?client_id=..."
                       aria-invalid={Boolean(errorMessage)}
                     />
-                    {errorMessage && (
-                      <p className="text-[#ed4245] text-sm">{errorMessage}</p>
-                    )}
+                    {errorMessage && <p className="text-[#ed4245] text-sm">{errorMessage}</p>}
                   </div>
                 );
               }}
@@ -1416,9 +1308,7 @@ export default function BotForm({
                         placeholder="例如：https://example.com"
                         aria-invalid={Boolean(errorMessage)}
                       />
-                      {errorMessage && (
-                        <p className="text-[#ed4245] text-sm">{errorMessage}</p>
-                      )}
+                      {errorMessage && <p className="text-[#ed4245] text-sm">{errorMessage}</p>}
                     </div>
                   );
                 }}
@@ -1442,9 +1332,7 @@ export default function BotForm({
                         placeholder="例如：https://discord.gg/example"
                         aria-invalid={Boolean(errorMessage)}
                       />
-                      {errorMessage && (
-                        <p className="text-[#ed4245] text-sm">{errorMessage}</p>
-                      )}
+                      {errorMessage && <p className="text-[#ed4245] text-sm">{errorMessage}</p>}
                     </div>
                   );
                 }}
@@ -1463,8 +1351,7 @@ export default function BotForm({
             <form.Field
               name="tags"
               validators={{
-                onChange: ({ value }) =>
-                  validateTags(value as readonly string[]),
+                onChange: ({ value }) => validateTags(value as readonly string[]),
               }}
             >
               {(field) => <TagField field={field} categories={botCategories} />}
@@ -1477,9 +1364,7 @@ export default function BotForm({
               {(field) => <CommandListField field={field} />}
             </form.Field>
 
-            <h2 className="border-white/10 border-b pb-2 font-bold text-lg">
-              投票通知
-            </h2>
+            <h2 className="border-white/10 border-b pb-2 font-bold text-lg">投票通知</h2>
 
             <form.Field
               name="secret"
@@ -1498,9 +1383,7 @@ export default function BotForm({
                       placeholder="可選：Webhook 密鑰 (用於驗證來自自訂端點的 Webhook 請求)"
                       aria-invalid={Boolean(errorMessage)}
                     />
-                    {errorMessage && (
-                      <p className="text-[#ed4245] text-sm">{errorMessage}</p>
-                    )}
+                    {errorMessage && <p className="text-[#ed4245] text-sm">{errorMessage}</p>}
                   </div>
                 );
               }}
@@ -1525,9 +1408,7 @@ export default function BotForm({
                       placeholder="可選：Discord Webhook 網址 或 自訂端點網址"
                       aria-invalid={Boolean(errorMessage)}
                     />
-                    {errorMessage && (
-                      <p className="text-[#ed4245] text-sm">{errorMessage}</p>
-                    )}
+                    {errorMessage && <p className="text-[#ed4245] text-sm">{errorMessage}</p>}
                   </div>
                 );
               }}
@@ -1715,9 +1596,7 @@ export default function BotForm({
               {(field) => <EmbedFieldsListField field={field} />}
             </form.Field>
 
-            <h2 className="border-white/10 border-b pb-2 font-bold text-lg">
-              圖片上傳
-            </h2>
+            <h2 className="border-white/10 border-b pb-2 font-bold text-lg">圖片上傳</h2>
 
             <div className="space-y-2">
               <Label htmlFor="bot-banner">機器人橫幅</Label>
@@ -1848,9 +1727,7 @@ export default function BotForm({
               <div className="min-h-32 rounded-lg border border-white/10 bg-[#36393f] p-4">
                 {media.screenshots.length > 0 ? (
                   <ScreenshotGrid
-                    screenshotPreviews={media.screenshots.map(
-                      (item) => item.url,
-                    )}
+                    screenshotPreviews={media.screenshots.map((item) => item.url)}
                     removeScreenshot={removeScreenshot}
                   />
                 ) : (
@@ -1884,9 +1761,7 @@ export default function BotForm({
               <div className="flex-1 overflow-y-auto rounded-lg border border-white/10 bg-[#1f2124] p-4">
                 <ClientOnly>
                   <DiscordEmbedPreview
-                    data={
-                      (customEmbedValues ?? { fields: [] }) as CustomEmbedData
-                    }
+                    data={(customEmbedValues ?? { fields: [] }) as CustomEmbedData}
                   />
                 </ClientOnly>
               </div>

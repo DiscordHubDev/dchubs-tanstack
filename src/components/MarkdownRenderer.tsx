@@ -23,9 +23,7 @@ const parseSafeUrl = (raw?: string) => {
   try {
     const u = new URL(
       raw,
-      typeof window !== "undefined"
-        ? window.location.origin
-        : "https://example.com",
+      typeof window !== "undefined" ? window.location.origin : "https://example.com",
     );
     if (!["http:", "https:"].includes(u.protocol)) return null;
     return u;
@@ -71,12 +69,7 @@ const SafeIframe = ({ src, title, className, ...rest }: SafeIframeProps) => {
         無法嵌入（只允許 http/https）。
         {src && (
           <div className="mt-2 break-all">
-            <a
-              href={src}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="underline"
-            >
+            <a href={src} target="_blank" rel="noopener noreferrer" className="underline">
               {src}
             </a>
           </div>
@@ -130,9 +123,7 @@ const SafeImage = ({ src, alt, ...props }: SafeImageProps) => {
   return (
     <div className="my-2 text-center">
       {isLoading && (
-        <div className="animate-pulse rounded bg-gray-700 p-4 text-gray-400">
-          載入圖片中...
-        </div>
+        <div className="animate-pulse rounded bg-gray-700 p-4 text-gray-400">載入圖片中...</div>
       )}
       <OptimizedImage
         {...props}
@@ -157,9 +148,7 @@ const extractText = (children: React.ReactNode): string => {
   if (typeof children === "string") return children;
   if (Array.isArray(children)) return children.map(extractText).join("");
   if (React.isValidElement(children))
-    return extractText(
-      (children.props as { children?: React.ReactNode }).children,
-    );
+    return extractText((children.props as { children?: React.ReactNode }).children);
   return "";
 };
 
@@ -194,19 +183,13 @@ class MarkdownErrorBoundary extends React.Component<
     return { hasError: true };
   }
 
-  componentDidUpdate(prevProps: MarkdownErrorBoundaryProps): void {
-    if (this.state.hasError && prevProps.content !== this.props.content) {
-      this.setState({ hasError: false });
-    }
-  }
+  // 🗑️ 直接把整個 componentDidUpdate 刪掉！
 
   render() {
     if (this.state.hasError) {
       return (
         <div className="rounded-lg border border-red-400/30 bg-red-950/20 p-4">
-          <p className="mb-2 text-red-200 text-sm">
-            Markdown 內容無法完整解析，已改為純文字顯示。
-          </p>
+          <p className="mb-2 text-red-200 text-sm">Markdown 內容無法完整解析，已改為純文字顯示。</p>
           <pre className="wrap-break-word whitespace-pre-wrap text-gray-300 text-sm">
             {this.props.content}
           </pre>
@@ -223,9 +206,7 @@ class MarkdownErrorBoundary extends React.Component<
 
 export default function MarkdownRenderer({ content }: Props) {
   const normalizedContent =
-    typeof content.toWellFormed === "function"
-      ? content.toWellFormed()
-      : content;
+    typeof content.toWellFormed === "function" ? content.toWellFormed() : content;
 
   return (
     <div className="whitespace-normal text-gray-300">
@@ -261,13 +242,9 @@ export default function MarkdownRenderer({ content }: Props) {
             ],
           ]}
           components={{
-            img: ({ node: _node, ...props }) => (
-              <SafeImage {...(props as SafeImageProps)} />
-            ),
+            img: ({ node: _node, ...props }) => <SafeImage {...(props as SafeImageProps)} />,
 
-            iframe: ({ node: _node, ...props }) => (
-              <SafeIframe {...(props as SafeIframeProps)} />
-            ),
+            iframe: ({ node: _node, ...props }) => <SafeIframe {...(props as SafeIframeProps)} />,
             h1: ({ children, ...props }) => (
               <h1
                 id={customSlugify(extractText(children))}
@@ -315,9 +292,7 @@ export default function MarkdownRenderer({ content }: Props) {
                 {children}
               </p>
             ),
-            hr: ({ ...props }) => (
-              <hr className="my-3 border-gray-600" {...props} />
-            ),
+            hr: ({ ...props }) => <hr className="my-3 border-gray-600" {...props} />,
             a: ({ children, href, ...props }) => {
               const safeHref =
                 href &&
@@ -335,11 +310,7 @@ export default function MarkdownRenderer({ content }: Props) {
                   href={safeHref}
                   className="text-blue-400 underline transition-colors duration-200 hover:text-blue-600"
                   target={safeHref.startsWith("http") ? "_blank" : undefined}
-                  rel={
-                    safeHref.startsWith("http")
-                      ? "noopener noreferrer"
-                      : undefined
-                  }
+                  rel={safeHref.startsWith("http") ? "noopener noreferrer" : undefined}
                 >
                   {children}
                 </a>
@@ -366,20 +337,14 @@ export default function MarkdownRenderer({ content }: Props) {
                 );
               }
               return (
-                <code
-                  className={`${className} font-mono text-gray-200 text-sm`}
-                  {...props}
-                >
+                <code className={`${className} font-mono text-gray-200 text-sm`} {...props}>
                   {children}
                 </code>
               );
             },
             table: ({ children, ...props }) => (
               <div className="my-2 overflow-hidden">
-                <table
-                  className="min-w-full border border-gray-600 bg-gray-800"
-                  {...props}
-                >
+                <table className="min-w-full border border-gray-600 bg-gray-800" {...props}>
                   {children}
                 </table>
               </div>

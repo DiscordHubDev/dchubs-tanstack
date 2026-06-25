@@ -513,7 +513,8 @@ const VideosTabContent = () => (
                 className="h-full w-full"
                 src="https://www.youtube.com/embed/dQw4w9WgXcQ"
                 title={video.title}
-                frameBorder="0"
+                // oxlint-disable-next-line react/iframe-missing-sandbox
+                sandbox="allow-scripts allow-same-origin allow-popups allow-presentation"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 loading="lazy"
               ></iframe>

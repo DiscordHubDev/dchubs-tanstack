@@ -122,7 +122,9 @@ export async function fetchDiscordGuilds({
         rawGuilds = decodeRawGuildList(payload);
       } catch (error) {
         // 這裡可以繼續利用你寫好的 toErrorMessage 工具
-        throw new Error(`Failed to parse Discord guild payload: ${toErrorMessage(error)}`);
+        throw new Error(`Failed to parse Discord guild payload: ${toErrorMessage(error)}`, {
+          cause: error,
+        });
       }
 
       return rawGuilds.map(mapRawGuildToDiscordGuild);
@@ -141,6 +143,7 @@ export async function fetchDiscordGuilds({
     if (isRateLimited) {
       throw new Error(
         `Discord API request failed (429) after ${MAX_RATE_LIMIT_RETRIES + 1} attempts: ${bodyText || "No response body"}`,
+        { cause: new Error(`Rate limited after ${MAX_RATE_LIMIT_RETRIES + 1} attempts`) },
       );
     }
 

@@ -42,12 +42,7 @@ import type { CategoryType } from "#/lib/types";
 
 const DEFAULT_CATEGORY: ServerCategory = "popular";
 
-const SERVER_CATEGORIES: readonly ServerCategory[] = [
-  "popular",
-  "featured",
-  "new",
-  "voted",
-];
+const SERVER_CATEGORIES: readonly ServerCategory[] = ["popular", "featured", "new", "voted"];
 
 /** Display labels for each tab — defined once, used in both trigger & heading. */
 const TAB_LABELS: Record<ServerCategory, string> = {
@@ -73,12 +68,8 @@ const EMPTY_FILTER_BUNDLE = {
 
 // ─── Lazy-loaded sidebar / UI chunks ─────────────────────────────────────────
 
-const LazyDiscordWidget = lazy(
-  () => import("#/components/feedback/DiscordWidget"),
-);
-const LazyCategorySearch = lazy(
-  () => import("#/features/servers/components/category-search"),
-);
+const LazyDiscordWidget = lazy(() => import("#/components/feedback/DiscordWidget"));
+const LazyCategorySearch = lazy(() => import("#/features/servers/components/category-search"));
 const LazyMobileCategoryFilter = lazy(
   () => import("#/features/servers/components/mobile-category-filter"),
 );
@@ -97,11 +88,7 @@ function parseServerCategory(value: unknown): ServerCategory | undefined {
 
 function parsePositiveIntLike(value: unknown): number | undefined {
   const parsed =
-    typeof value === "number"
-      ? value
-      : typeof value === "string"
-        ? Number(value)
-        : Number.NaN;
+    typeof value === "number" ? value : typeof value === "string" ? Number(value) : Number.NaN;
 
   if (!Number.isInteger(parsed) || parsed < 1) return undefined;
   return parsed;
@@ -115,12 +102,8 @@ function validateSearch(search: Record<string, unknown>): HomeSearch {
     ...(tab ? { tab } : {}),
     ...(page !== undefined ? { page } : {}),
     ...(typeof search.search === "string" ? { search: search.search } : {}),
-    ...(typeof search.categories === "string"
-      ? { categories: search.categories }
-      : {}),
-    ...(typeof search.redirect === "string"
-      ? { redirect: search.redirect }
-      : {}),
+    ...(typeof search.categories === "string" ? { categories: search.categories } : {}),
+    ...(typeof search.redirect === "string" ? { redirect: search.redirect } : {}),
   } satisfies HomeSearch;
 }
 
@@ -204,12 +187,7 @@ interface PrefetchTabTriggerProps {
  * Also eliminates the 4-times-repeated `{activeTab === value && <motion.div …>}`
  * block — single source of truth for the animated indicator.
  */
-function PrefetchTabTrigger({
-  value,
-  activeTab,
-  isPending,
-  onPrefetch,
-}: PrefetchTabTriggerProps) {
+function PrefetchTabTrigger({ value, activeTab, isPending, onPrefetch }: PrefetchTabTriggerProps) {
   const isActive = activeTab === value;
 
   return (
@@ -287,11 +265,7 @@ function HomePage() {
   useEffect(() => {
     if (typeof window === "undefined") return;
     if (!window.location.hash.startsWith("#sym:")) return;
-    window.history.replaceState(
-      null,
-      "",
-      `${window.location.pathname}${window.location.search}`,
-    );
+    window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
     window.scrollTo({ top: 0, behavior: "auto" });
   }, []);
 
@@ -366,9 +340,7 @@ function HomePage() {
     return [...map.values()];
   }, [filterBundle.data?.categories, customCategories]); // 確保 customCategories 在依賴陣列中
 
-  const useClientSideFiltering = Boolean(
-    searchQuery.trim() || selectedCategoryIds.length,
-  );
+  const useClientSideFiltering = Boolean(searchQuery.trim() || selectedCategoryIds.length);
 
   const clientFiltered = useMemo(() => {
     if (!useClientSideFiltering) return [];
@@ -385,10 +357,7 @@ function HomePage() {
       );
     }
 
-    return filterServersBySearch(
-      sortServersByCategory(filtered, activeTab),
-      searchQuery,
-    );
+    return filterServersBySearch(sortServersByCategory(filtered, activeTab), searchQuery);
   }, [
     useClientSideFiltering,
     filterBundleData.allServers,
@@ -456,9 +425,7 @@ function HomePage() {
 
   const handlePageChange = useCallback(
     (page: number) => {
-      const prefersReducedMotion = window.matchMedia(
-        "(prefers-reduced-motion: reduce)",
-      ).matches;
+      const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
       window.requestAnimationFrame(() => {
         window.scrollTo({
@@ -526,11 +493,7 @@ function HomePage() {
   const handleAddCustomCategory = useCallback(
     (categoryName: string) => {
       // 檢查是否已經有同名的標籤 (不分大小寫)
-      if (
-        mergedCategories.some(
-          (item) => item.name.toLowerCase() === categoryName.toLowerCase(),
-        )
-      ) {
+      if (mergedCategories.some((item) => item.name.toLowerCase() === categoryName.toLowerCase())) {
         return;
       }
 
@@ -555,26 +518,11 @@ function HomePage() {
       {/* Hero */}
       <div className="relative overflow-hidden bg-[#5865f2] py-16">
         <div className="absolute inset-0 opacity-10" aria-hidden="true">
-          <svg
-            className="h-full w-full"
-            viewBox="0 0 800 800"
-            role="img"
-            aria-hidden="true"
-          >
+          <svg className="h-full w-full" viewBox="0 0 800 800" role="img" aria-hidden="true">
             <title>背景</title>
             <defs>
-              <pattern
-                id="grid"
-                width="40"
-                height="40"
-                patternUnits="userSpaceOnUse"
-              >
-                <path
-                  d="M 40 0 L 0 0 0 40"
-                  fill="none"
-                  stroke="white"
-                  strokeWidth="1"
-                />
+              <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+                <path d="M 40 0 L 0 0 0 40" fill="none" stroke="white" strokeWidth="1" />
               </pattern>
             </defs>
             <rect width="800" height="800" fill="url(#grid)" />
@@ -601,10 +549,7 @@ function HomePage() {
                 commitSearch(event.currentTarget.value);
               }}
             />
-            <Search
-              className="absolute top-1/2 left-3 -translate-y-1/2 text-white/60"
-              size={20}
-            />
+            <Search className="absolute top-1/2 left-3 -translate-y-1/2 text-white/60" size={20} />
             {(isSearching || isPending) && (
               <div className="absolute top-1/2 right-3 -translate-y-1/2">
                 <div className="h-5 w-5 animate-spin rounded-full border-white border-b-2" />
@@ -618,11 +563,7 @@ function HomePage() {
       <div className="px-4 sm:px-6 lg:px-8">
         <div className="mx-auto max-w-312 space-y-6">
           <div className="relative mt-6 h-32 overflow-hidden rounded-xl border border-white/10 bg-[#1e1f22] sm:h-48 md:h-70">
-            <a
-              href="https://nuorpg.com/"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
+            <a href="https://nuorpg.com/" target="_blank" rel="noopener noreferrer">
               <Image
                 src="https://gallery.dawngs.top/api/v1/buckets/image/objects/download?preview=true&prefix=nuo_dchub_2.png"
                 alt="熱門伺服器活動"
@@ -641,9 +582,7 @@ function HomePage() {
         {/* Mobile category filter */}
         <div className="mb-6 lg:hidden">
           <Suspense
-            fallback={
-              <div className="h-14 rounded-lg border border-white/10 bg-[#2b2d31]" />
-            }
+            fallback={<div className="h-14 rounded-lg border border-white/10 bg-[#2b2d31]" />}
           >
             <LazyMobileCategoryFilter
               categories={mergedCategories}
@@ -662,19 +601,14 @@ function HomePage() {
                 {searchQuery && <span>搜尋「{searchQuery}」</span>}
                 {selectedCategoryIds.length > 0 && (
                   <span>
-                    {searchQuery && " · "}已選擇 {selectedCategoryIds.length}{" "}
-                    個分類
+                    {searchQuery && " · "}已選擇 {selectedCategoryIds.length} 個分類
                   </span>
                 )}
                 <span className="ml-2">找到 {displayData.total} 個結果</span>
               </div>
             )}
 
-            <Tabs
-              className="mb-8"
-              value={activeTab}
-              onValueChange={handleTabChange}
-            >
+            <Tabs className="mb-8" value={activeTab} onValueChange={handleTabChange}>
               <TabsList className="h-full w-full overflow-hidden border-[#1e1f22] border-b bg-[#2b2d31] p-1">
                 {SERVER_CATEGORIES.map((category) => (
                   <PrefetchTabTrigger
@@ -722,9 +656,7 @@ function HomePage() {
           <div className="order-1 hidden lg:order-2 lg:col-span-1 lg:block">
             <div className="mb-6 rounded-lg bg-[#2b2d31] p-5">
               <h3 className="mb-4 font-semibold text-lg">分類</h3>
-              <Suspense
-                fallback={<div className="h-10 rounded-md bg-[#1f2125]" />}
-              >
+              <Suspense fallback={<div className="h-10 rounded-md bg-[#1f2125]" />}>
                 <LazyCategorySearch
                   categories={mergedCategories}
                   selectedCategoryIds={selectedCategoryIds}
@@ -755,15 +687,11 @@ function HomePage() {
               </div>
             </div>
 
-            <Suspense
-              fallback={<div className="mb-6 h-80 rounded-lg bg-[#2b2d31]" />}
-            >
+            <Suspense fallback={<div className="mb-6 h-80 rounded-lg bg-[#2b2d31]" />}>
               <LazyDiscordWidget />
             </Suspense>
 
-            <Suspense
-              fallback={<div className="h-44 rounded-lg bg-[#2b2d31]" />}
-            >
+            <Suspense fallback={<div className="h-44 rounded-lg bg-[#2b2d31]" />}>
               <LazyHomeAddServerCta />
             </Suspense>
           </div>
@@ -786,15 +714,7 @@ function HomePage() {
  * Shows a shimmer placeholder while the filter bundle is loading,
  * then renders the real value once available.
  */
-function StatRow({
-  label,
-  value,
-  loading,
-}: {
-  label: string;
-  value: number;
-  loading: boolean;
-}) {
+function StatRow({ label, value, loading }: { label: string; value: number; loading: boolean }) {
   return (
     <div className="flex items-center justify-between">
       <span className="text-gray-300">{label}</span>

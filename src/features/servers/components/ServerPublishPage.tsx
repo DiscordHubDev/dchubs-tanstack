@@ -5,14 +5,7 @@ import { ClientOnly, useNavigate } from "@tanstack/react-router";
 import { useSelector } from "@tanstack/react-store";
 import { Schema } from "effect";
 import { AlertTriangle } from "lucide-react";
-import {
-  type ChangeEvent,
-  useCallback,
-  useEffect,
-  useMemo,
-  useRef,
-  useState,
-} from "react";
+import { type ChangeEvent, useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Swal from "sweetalert2";
 import DiscordEmbedPreview from "#/components/DiscordEmbedPreview";
 import EmbedFieldsListField from "#/components/EmbedFieldsListField";
@@ -28,10 +21,7 @@ import { runEffect, tryEffectPromise } from "#/lib/effect-utils";
 import { showErrorAlert } from "#/lib/error-alert";
 import { queryKeys } from "#/lib/query-keys";
 import type { CustomEmbedData } from "#/types/custom_embed";
-import {
-  uploadServerBannerFn,
-  upsertServerPublishFn,
-} from "../server-publish.functions";
+import { uploadServerBannerFn, upsertServerPublishFn } from "../server-publish.functions";
 import {
   InviteLinkSchema,
   LongDescriptionSchema,
@@ -68,12 +58,7 @@ function normalizeExternalUrl(value: string): string | null {
   return normalized.length > 0 ? normalized : null;
 }
 
-const SUPPORTED_BANNER_FILE_TYPES = [
-  "image/gif",
-  "image/png",
-  "image/jpeg",
-  "image/webp",
-] as const;
+const SUPPORTED_BANNER_FILE_TYPES = ["image/gif", "image/png", "image/jpeg", "image/webp"] as const;
 const SUPPORTED_BANNER_EXTENSIONS = [".gif", ".png", ".jpg", ".jpeg", ".webp"];
 const SUPPORTED_BANNER_FILE_ACCEPT = [
   ...SUPPORTED_BANNER_FILE_TYPES,
@@ -83,20 +68,15 @@ const MAX_BANNER_IMAGE_BYTES = 10 * 1024 * 1024;
 
 type SupportedBannerMimeType = (typeof SUPPORTED_BANNER_FILE_TYPES)[number];
 
-function resolveSupportedBannerMimeType(
-  file: File,
-): SupportedBannerMimeType | null {
+function resolveSupportedBannerMimeType(file: File): SupportedBannerMimeType | null {
   const mimeType = file.type.toLowerCase();
-  if (
-    SUPPORTED_BANNER_FILE_TYPES.includes(mimeType as SupportedBannerMimeType)
-  ) {
+  if (SUPPORTED_BANNER_FILE_TYPES.includes(mimeType as SupportedBannerMimeType)) {
     return mimeType as SupportedBannerMimeType;
   }
   const fileName = file.name.toLowerCase();
   if (fileName.endsWith(".gif")) return "image/gif";
   if (fileName.endsWith(".png")) return "image/png";
-  if (fileName.endsWith(".jpg") || fileName.endsWith(".jpeg"))
-    return "image/jpeg";
+  if (fileName.endsWith(".jpg") || fileName.endsWith(".jpeg")) return "image/jpeg";
   if (fileName.endsWith(".webp")) return "image/webp";
   return null;
 }
@@ -122,9 +102,9 @@ async function buildFileFingerprint(file: File): Promise<string> {
   if (!subtle) throw new Error("目前瀏覽器不支援檔案雜湊，請更新後重試");
   const buffer = await file.arrayBuffer();
   const digest = await subtle.digest("SHA-256", buffer);
-  return Array.from(new Uint8Array(digest), (value) =>
-    value.toString(16).padStart(2, "0"),
-  ).join("");
+  return Array.from(new Uint8Array(digest), (value) => value.toString(16).padStart(2, "0")).join(
+    "",
+  );
 }
 
 function getErrorMessage(error: unknown): string {
@@ -167,8 +147,7 @@ const validateInviteLink = effectValidator(InviteLinkSchema, {
   label: "Discord 邀請連結",
   required: "請填寫 Discord 邀請連結",
   maxLength: { value: 500, message: "Discord 邀請連結最多 500 字" },
-  fallback:
-    "請輸入有效的 Discord 邀請連結（例如 https://discord.gg/your-server）",
+  fallback: "請輸入有效的 Discord 邀請連結（例如 https://discord.gg/your-server）",
 });
 const validateWebsiteLink = effectValidator(WebsiteLinkSchema, {
   label: "網站連結",
@@ -262,9 +241,7 @@ const MarkdownPreviewSection = ({
         {sanitizedMarkdown.trim() ? (
           <MarkdownRenderer content={sanitizedMarkdown} />
         ) : (
-          <p className="text-[#b9bbbe] text-sm">
-            在左側輸入詳細介紹後，這裡會同步顯示預覽。
-          </p>
+          <p className="text-[#b9bbbe] text-sm">在左側輸入詳細介紹後，這裡會同步顯示預覽。</p>
         )}
       </ClientOnly>
     </div>
@@ -273,16 +250,11 @@ const MarkdownPreviewSection = ({
 
 // 💡 【效能優化】分離 Embed 預覽區塊
 const EmbedPreviewSection = ({ form }: { form: any }) => {
-  const customEmbedValues = useSelector(
-    form.store,
-    (state: any) => state.values.customEmbed,
-  );
+  const customEmbedValues = useSelector(form.store, (state: any) => state.values.customEmbed);
   return (
     <div className="flex-1 overflow-y-auto rounded-lg border border-white/10 bg-[#1f2124] p-4">
       <ClientOnly>
-        <DiscordEmbedPreview
-          data={(customEmbedValues ?? { fields: [] }) as CustomEmbedData}
-        />
+        <DiscordEmbedPreview data={(customEmbedValues ?? { fields: [] }) as CustomEmbedData} />
       </ClientOnly>
     </div>
   );
@@ -294,11 +266,7 @@ export type ServerPublishPageProps = {
   bundle: ServerPublishBundle;
 };
 
-export function ServerPublishPage({
-  serverId,
-  mode: _mode,
-  bundle,
-}: ServerPublishPageProps) {
+export function ServerPublishPage({ serverId, mode: _mode, bundle }: ServerPublishPageProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
 
@@ -396,18 +364,13 @@ export function ServerPublishPage({
   const bannerUploadMutation = useMutation({
     mutationFn: async (file: File) => {
       const mimeType = resolveSupportedBannerMimeType(file);
-      if (!mimeType)
-        throw new Error("請選擇 GIF、PNG、JPG、JPEG 或 WEBP 圖片檔案");
+      if (!mimeType) throw new Error("請選擇 GIF、PNG、JPG、JPEG 或 WEBP 圖片檔案");
       if (file.size <= 0) throw new Error("選擇的檔案內容為空，請重新選擇");
-      if (file.size > MAX_BANNER_IMAGE_BYTES)
-        throw new Error("圖片檔案大小不可超過 10MB");
+      if (file.size > MAX_BANNER_IMAGE_BYTES) throw new Error("圖片檔案大小不可超過 10MB");
 
       const fingerprint = await buildFileFingerprint(file);
 
-      if (
-        bannerState.fingerprint === fingerprint &&
-        bannerState.previewUrl.trim().length > 0
-      ) {
+      if (bannerState.fingerprint === fingerprint && bannerState.previewUrl.trim().length > 0) {
         return {
           bannerUrl: bannerState.previewUrl,
           fingerprint,
@@ -524,9 +487,7 @@ export function ServerPublishPage({
 
       if (bannerState.file) {
         try {
-          const result = await bannerUploadMutation.mutateAsync(
-            bannerState.file,
-          );
+          const result = await bannerUploadMutation.mutateAsync(bannerState.file);
           finalBannerUrl = normalizeExternalUrl(result.bannerUrl);
         } catch (error) {
           console.error("Banner 圖片上傳失敗，已取消發布流程:", error);
@@ -549,9 +510,7 @@ export function ServerPublishPage({
 
   const handleGoBack = () => {
     if (form.state.isDirty) {
-      const confirmLeave = window.confirm(
-        "您有未儲存的內容，確定要放棄草稿並離開嗎？",
-      );
+      const confirmLeave = window.confirm("您有未儲存的內容，確定要放棄草稿並離開嗎？");
       if (!confirmLeave) return;
     }
 
@@ -642,9 +601,7 @@ export function ServerPublishPage({
           className="grid gap-6 lg:grid-cols-2"
         >
           <div className="space-y-6 rounded-xl border border-white/10 bg-[#2b2d31] p-5">
-            <h2 className="border-white/10 border-b pb-2 font-bold text-lg">
-              基本資訊
-            </h2>
+            <h2 className="border-white/10 border-b pb-2 font-bold text-lg">基本資訊</h2>
             <form.Field
               name="serverName"
               validators={{
@@ -661,14 +618,10 @@ export function ServerPublishPage({
                       value={field.state.value}
                       disabled
                       onBlur={field.handleBlur}
-                      onChange={(event) =>
-                        field.handleChange(event.target.value)
-                      }
+                      onChange={(event) => field.handleChange(event.target.value)}
                       aria-invalid={Boolean(errorMessage)}
                     />
-                    {errorMessage ? (
-                      <p className="text-[#ed4245] text-sm">{errorMessage}</p>
-                    ) : null}
+                    {errorMessage ? <p className="text-[#ed4245] text-sm">{errorMessage}</p> : null}
                   </div>
                 );
               }}
@@ -691,9 +644,7 @@ export function ServerPublishPage({
                       maxLength={200}
                       value={field.state.value}
                       onBlur={field.handleBlur}
-                      onChange={(event) =>
-                        field.handleChange(event.target.value)
-                      }
+                      onChange={(event) => field.handleChange(event.target.value)}
                       placeholder="一句話介紹你的社群"
                       aria-invalid={Boolean(errorMessage)}
                     />
@@ -701,9 +652,7 @@ export function ServerPublishPage({
                       <span>最多 200 字</span>
                       <span>{field.state.value.length}/200</span>
                     </div>
-                    {errorMessage ? (
-                      <p className="text-[#ed4245] text-sm">{errorMessage}</p>
-                    ) : null}
+                    {errorMessage ? <p className="text-[#ed4245] text-sm">{errorMessage}</p> : null}
                   </div>
                 );
               }}
@@ -728,24 +677,17 @@ export function ServerPublishPage({
                       value={field.state.value}
                       onBlur={field.handleBlur}
                       onScroll={handleScroll}
-                      onChange={(event) =>
-                        field.handleChange(event.target.value)
-                      }
+                      onChange={(event) => field.handleChange(event.target.value)}
                       placeholder="支援 Markdown，右側可即時預覽"
                       aria-invalid={Boolean(errorMessage)}
                     />
-                    {errorMessage ? (
-                      <p className="text-[#ed4245] text-sm">{errorMessage}</p>
-                    ) : null}
+                    {errorMessage ? <p className="text-[#ed4245] text-sm">{errorMessage}</p> : null}
                   </div>
                 );
               }}
             </form.Field>
 
-            <form.Field
-              name="nsfw"
-              validators={{ onChange: ({ value }) => validateisNsfw(value) }}
-            >
+            <form.Field name="nsfw" validators={{ onChange: ({ value }) => validateisNsfw(value) }}>
               {(field) => {
                 const errorMessage = readFirstError(field.state.meta.errors);
                 return (
@@ -770,9 +712,7 @@ export function ServerPublishPage({
                             <AlertTriangle className="h-5 w-5" />
                           </div>
                           <div className="space-y-0.5">
-                            <p className="font-semibold text-yellow-900">
-                              警告：誠實申報
-                            </p>
+                            <p className="font-semibold text-yellow-900">警告：誠實申報</p>
                             <p className="leading-relaxed">
                               未能如實標註您的伺服器內容類型可能會導致嚴重後果。如果我們發現您的伺服器未正確標註為
                               NSFW，可能會導致其遭到系統強制移除，並且不另行通知。請確保遵循相關社群準則。
@@ -780,15 +720,11 @@ export function ServerPublishPage({
                           </div>
                         </div>
                         {errorMessage ? (
-                          <p className="mt-1 text-[#ed4245] text-sm">
-                            {errorMessage}
-                          </p>
+                          <p className="mt-1 text-[#ed4245] text-sm">{errorMessage}</p>
                         ) : null}
                       </div>
                       {errorMessage ? (
-                        <p className="mt-1 text-[#ed4245] text-sm">
-                          {errorMessage}
-                        </p>
+                        <p className="mt-1 text-[#ed4245] text-sm">{errorMessage}</p>
                       ) : null}
                     </div>
                   </div>
@@ -811,15 +747,11 @@ export function ServerPublishPage({
                       id="inviteLink"
                       value={field.state.value}
                       onBlur={field.handleBlur}
-                      onChange={(event) =>
-                        field.handleChange(event.target.value)
-                      }
+                      onChange={(event) => field.handleChange(event.target.value)}
                       placeholder="https://discord.gg/your-server"
                       aria-invalid={Boolean(errorMessage)}
                     />
-                    {errorMessage ? (
-                      <p className="text-[#ed4245] text-sm">{errorMessage}</p>
-                    ) : null}
+                    {errorMessage ? <p className="text-[#ed4245] text-sm">{errorMessage}</p> : null}
                   </div>
                 );
               }}
@@ -840,15 +772,11 @@ export function ServerPublishPage({
                       id="websiteLink"
                       value={field.state.value}
                       onBlur={field.handleBlur}
-                      onChange={(event) =>
-                        field.handleChange(event.target.value)
-                      }
+                      onChange={(event) => field.handleChange(event.target.value)}
                       placeholder="https://your-website.example"
                       aria-invalid={Boolean(errorMessage)}
                     />
-                    {errorMessage ? (
-                      <p className="text-[#ed4245] text-sm">{errorMessage}</p>
-                    ) : null}
+                    {errorMessage ? <p className="text-[#ed4245] text-sm">{errorMessage}</p> : null}
                   </div>
                 );
               }}
@@ -885,14 +813,10 @@ export function ServerPublishPage({
                 },
               }}
             >
-              {(field) => (
-                <ServerTagField field={field} categories={ServerCategories} />
-              )}
+              {(field) => <ServerTagField field={field} categories={ServerCategories} />}
             </form.Field>
 
-            <h2 className="border-white/10 border-b pb-2 font-bold text-lg">
-              投票通知
-            </h2>
+            <h2 className="border-white/10 border-b pb-2 font-bold text-lg">投票通知</h2>
 
             <form.Field
               name="secret"
@@ -909,15 +833,11 @@ export function ServerPublishPage({
                       id="secret"
                       value={field.state.value}
                       onBlur={field.handleBlur}
-                      onChange={(event) =>
-                        field.handleChange(event.target.value)
-                      }
+                      onChange={(event) => field.handleChange(event.target.value)}
                       placeholder="可選：Webhook 密鑰 (用於驗證來自自訂端點的 Webhook 請求)"
                       aria-invalid={Boolean(errorMessage)}
                     />
-                    {errorMessage ? (
-                      <p className="text-[#ed4245] text-sm">{errorMessage}</p>
-                    ) : null}
+                    {errorMessage ? <p className="text-[#ed4245] text-sm">{errorMessage}</p> : null}
                   </div>
                 );
               }}
@@ -938,28 +858,20 @@ export function ServerPublishPage({
                       id="webhook_url"
                       value={field.state.value}
                       onBlur={field.handleBlur}
-                      onChange={(event) =>
-                        field.handleChange(event.target.value)
-                      }
+                      onChange={(event) => field.handleChange(event.target.value)}
                       placeholder="可選：Discord Webhook 網址 或 自訂端點網址"
                       aria-invalid={Boolean(errorMessage)}
                     />
-                    {errorMessage ? (
-                      <p className="text-[#ed4245] text-sm">{errorMessage}</p>
-                    ) : null}
+                    {errorMessage ? <p className="text-[#ed4245] text-sm">{errorMessage}</p> : null}
                   </div>
                 );
               }}
             </form.Field>
 
-            <h2 className="border-white/10 border-b pb-2 font-bold text-lg">
-              圖片上傳
-            </h2>
+            <h2 className="border-white/10 border-b pb-2 font-bold text-lg">圖片上傳</h2>
 
             <div className="space-y-2">
-              <Label htmlFor="bannerImageFile">
-                自訂 Banner 圖片（GIF/PNG/JPG/WEBP）
-              </Label>
+              <Label htmlFor="bannerImageFile">自訂 Banner 圖片（GIF/PNG/JPG/WEBP）</Label>
               <input
                 ref={bannerFileInputRef}
                 id="bannerImageFile"

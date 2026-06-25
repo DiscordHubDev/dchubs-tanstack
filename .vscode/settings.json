@@ -8,28 +8,47 @@
 	"files.readonlyInclude": {
 		"**/routeTree.gen.ts": true
 	},
-	"[javascript]": {
-		"editor.defaultFormatter": "biomejs.biome"
-	},
-	"[javascriptreact]": {
-		"editor.defaultFormatter": "biomejs.biome"
-	},
 	"[typescript]": {
-		"editor.defaultFormatter": "biomejs.biome"
-	},
-	"[typescriptreact]": {
-		"editor.defaultFormatter": "biomejs.biome"
-	},
-	"[json]": {
-		"editor.defaultFormatter": "biomejs.biome"
-	},
-	"[jsonc]": {
-		"editor.defaultFormatter": "biomejs.biome"
-	},
-	"[css]": {
-		"editor.defaultFormatter": "biomejs.biome"
-	},
-	"editor.codeActionsOnSave": {
-		"source.organizeImports.biome": "explicit"
-	}
+        "editor.defaultFormatter": "oxc.oxc-vscode",
+        "editor.formatOnType": false,
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+            "source.format.oxc": "always",
+            "source.fixAll.oxc": "always"
+        }
+    },
+    "[typescriptreact]": {
+        "editor.defaultFormatter": "oxc.oxc-vscode",
+        "editor.formatOnType": false,
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+            "source.format.oxc": "always",
+            "source.fixAll.oxc": "always"
+        }
+    },
+    "[javascript]": {
+        "editor.defaultFormatter": "oxc.oxc-vscode",
+        "editor.formatOnSave": true, 
+        "editor.codeActionsOnSave": {
+            "source.format.oxc": "always",
+            "source.fixAll.oxc": "always"
+        }
+    },
+
+    "oxc.enable.oxfmt": true, 
+    "editor.formatOnSaveMode": "file",
+    "oxc.enable.oxlint": true, 
+    "oxc.lint.run": "onType",
+    "oxc.fmt.configPath": ".oxfmtrc.json",
+    "oxc.configPath": ".oxlintrc.json",
+    "oxc.tsConfigPath": "tsconfig.json",
+
+    "indentRainbow.indicatorStyle": "light",
+    "indentRainbow.lightIndicatorStyleLineWidth": 1,
+    "indentRainbow.colors": [
+        "rgba(255,255,64,0.3)",
+        "rgba(127,255,127,0.3)",
+        "rgba(255,127,255,0.3)",
+        "rgba(79,236,236,0.3)"
+    ]
 }
