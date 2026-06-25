@@ -1,7 +1,8 @@
 # DiscordHubs (TanStack Start) 🚀
 
 ## 🧭 Description
-DiscordHubs is a full-stack TanStack Start app for listing and discovering Discord servers and bots. Routing, SSR, and data fetching are coordinated through TanStack Router and Query, with global styling and theme tokens defined in [src/styles.css](src/styles.css) and the app shell set in [src/routes/__root.tsx](src/routes/__root.tsx).
+
+DiscordHubs is a full-stack TanStack Start app for listing and discovering Discord servers and bots. Routing, SSR, and data fetching are coordinated through TanStack Router and Query, with global styling and theme tokens defined in [src/styles.css](src/styles.css) and the app shell set in [src/routes/\_\_root.tsx](src/routes/__root.tsx).
 
 ## What the project does
 
@@ -18,14 +19,16 @@ DiscordHubs is a full-stack TanStack Start app for listing and discovering Disco
 - Cloudflare-friendly deployment workflow and static asset publishing
 
 ## ✨ Interesting Techniques
-- 🧩 File-based routing with TanStack Router and route-level head configuration in [src/routes/__root.tsx](src/routes/__root.tsx), aligned with the [HTML `<meta>` element](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/meta) on MDN.
-- ⚡ Dynamic devtools loading using `import()` in [src/routes/__root.tsx](src/routes/__root.tsx) to avoid shipping dev-only code (MDN: [`import()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/import)).
+
+- 🧩 File-based routing with TanStack Router and route-level head configuration in [src/routes/\_\_root.tsx](src/routes/__root.tsx), aligned with the [HTML `<meta>` element](https://developer.mozilla.org/en-US/docs/Web/HTML/Element/meta) on MDN.
+- ⚡ Dynamic devtools loading using `import()` in [src/routes/\_\_root.tsx](src/routes/__root.tsx) to avoid shipping dev-only code (MDN: [`import()`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Operators/import)).
 - 🎛️ Design tokens and theme mapping with CSS custom properties in [src/styles.css](src/styles.css) (MDN: [CSS Custom Properties](https://developer.mozilla.org/en-US/docs/Web/CSS/Using_CSS_custom_properties)).
 - 🎨 OKLCH color tokens in [src/styles.css](src/styles.css) (MDN: [`oklch()`](https://developer.mozilla.org/en-US/docs/Web/CSS/color_value/oklch)).
 - 🧱 Tailwind `@layer` composition for base and component styling in [src/styles.css](src/styles.css) (MDN: [@layer](https://developer.mozilla.org/en-US/docs/Web/CSS/@layer)).
 - 🌀 Motion primitives with CSS keyframes in [src/styles.css](src/styles.css) (MDN: [`@keyframes`](https://developer.mozilla.org/en-US/docs/Web/CSS/@keyframes)).
 
 ## 🧰 Notable Technologies
+
 - 🌐 [TanStack Start](https://tanstack.com/start) for full-stack app scaffolding with SSR support.
 - 🧭 [TanStack Router](https://tanstack.com/router) and 🔎 [TanStack Query](https://tanstack.com/query) for navigation and data orchestration.
 - 🧪 [Effect](https://effect.website/) for typed async workflows.
@@ -37,9 +40,11 @@ DiscordHubs is a full-stack TanStack Start app for listing and discovering Disco
 - 🔔 [React Toastify](https://fkhadra.github.io/react-toastify/) for toasts.
 
 ## 🔤 Fonts
+
 - ✍️ [Noto Sans TC](https://fonts.google.com/specimen/Noto+Sans+TC) is configured as the main font in [src/styles.css](src/styles.css).
 
 ## 🗂️ Project Structure
+
 ```text
 .
 ├── AGENTS.md

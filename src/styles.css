@@ -54,13 +54,21 @@
   --animate-pulse-glow: pulse-glow 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 
   @keyframes accordion-down {
-    from { height: 0; }
-    to { height: var(--radix-accordion-content-height); }
+    from {
+      height: 0;
+    }
+    to {
+      height: var(--radix-accordion-content-height);
+    }
   }
 
   @keyframes accordion-up {
-    from { height: var(--radix-accordion-content-height); }
-    to { height: 0; }
+    from {
+      height: var(--radix-accordion-content-height);
+    }
+    to {
+      height: 0;
+    }
   }
 
   @keyframes fade-in-up {
@@ -75,15 +83,20 @@
   }
 
   @keyframes pulse-glow {
-    0%, 100% { box-shadow: 0 0 0 0 rgba(88, 101, 242, 0.4); }
-    50% { box-shadow: 0 0 0 8px rgba(88, 101, 242, 0); }
+    0%,
+    100% {
+      box-shadow: 0 0 0 0 rgba(88, 101, 242, 0.4);
+    }
+    50% {
+      box-shadow: 0 0 0 8px rgba(88, 101, 242, 0);
+    }
   }
 }
 
 /* --- 全局變數設定 --- */
 :root {
   --radius: 0.625rem;
-  
+
   /* 亮色模式配置 */
   --background: oklch(0.99 0.01 250); /* 稍微帶點冷色調的乾淨白 */
   --foreground: oklch(0.129 0.042 264.695);
@@ -103,10 +116,10 @@
   --border: oklch(0.929 0.013 255.508);
   --input: oklch(0.929 0.013 255.508);
   --ring: oklch(0.704 0.04 256.788);
-  
+
   /* Discord 品牌色 */
-  --discord-color: #5865F2;
-  --discord-hover: #4752C4;
+  --discord-color: #5865f2;
+  --discord-hover: #4752c4;
 
   /* 圖表顏色 */
   --chart-1: oklch(0.646 0.222 41.116);
@@ -128,11 +141,11 @@
 
 .dark {
   /* 深色模式配置：微調背景為深邃的科技藍黑 */
-  --background: oklch(0.15 0.01 260); 
+  --background: oklch(0.15 0.01 260);
   --foreground: oklch(0.984 0.003 247.858);
-  --card: oklch(0.20 0.02 260);
+  --card: oklch(0.2 0.02 260);
   --card-foreground: oklch(0.984 0.003 247.858);
-  --popover: oklch(0.20 0.02 260);
+  --popover: oklch(0.2 0.02 260);
   --popover-foreground: oklch(0.984 0.003 247.858);
   --primary: oklch(0.929 0.013 255.508);
   --primary-foreground: oklch(0.208 0.042 265.755);
@@ -146,13 +159,13 @@
   --border: oklch(1 0 0 / 10%);
   --input: oklch(1 0 0 / 15%);
   --ring: oklch(0.551 0.027 264.364);
-  
+
   --chart-1: oklch(0.488 0.243 264.376);
   --chart-2: oklch(0.696 0.17 162.48);
   --chart-3: oklch(0.769 0.188 70.08);
   --chart-4: oklch(0.627 0.265 303.9);
   --chart-5: oklch(0.645 0.246 16.439);
-  
+
   --sidebar: oklch(0.257 0.005 260.84);
   --sidebar-foreground: oklch(0.984 0.003 247.858);
   --sidebar-primary: oklch(0.488 0.243 264.376);
@@ -169,15 +182,15 @@
     /* 1. 布局與對齊 (核心修復) */
     @apply inline-flex items-center justify-center gap-2;
     @apply px-2 py-1.5 min-w-[70px]; /* 設定最小寬度能防止短文字時按鈕太縮 */
-    
+
     /* 2. 樣式 */
     @apply bg-discord text-white rounded-md cursor-pointer relative z-10 font-medium;
-    
+
     /* 3. 動畫與交互 */
     @apply transition-all duration-300 ease-out;
     @apply hover:scale-105 hover:bg-discord-hover hover:-translate-y-0.5;
     @apply active:scale-95; /* 加入點擊縮小回饋，質感更好 */
-    
+
     /* 4. 焦點輪廓 */
     @apply focus:outline-none focus-visible:ring-2 focus-visible:ring-discord focus-visible:ring-offset-2;
   }
@@ -188,19 +201,19 @@
   * {
     @apply border-border outline-ring/50;
   }
-  
+
   body {
     @apply bg-background text-foreground antialiased min-h-screen selection:bg-primary/20 selection:text-primary;
   }
 
-  button, 
+  button,
   .btn-base {
     /* 1. 基礎轉場設定 (核心) */
     @apply transition-all duration-300 ease-out will-change-transform;
-    
+
     /* 2. 交互動畫：懸停放大、位移 */
     @apply hover:scale-105 hover:-translate-y-0.5;
-    
+
     /* 3. 交互動畫：點擊縮小回饋 */
     @apply active:scale-95;
 
@@ -212,5 +225,4 @@
   button:hover {
     @apply shadow-lg;
   }
-
 }

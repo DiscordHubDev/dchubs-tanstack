@@ -1,0 +1,11 @@
+# .oxlintignore
+# 承襲你原本的排除項目
+src/routeTree.gen.ts
+src/styles.css
+.output/
+src/drizzle/
+.agents/
+
+# 補上常見的忽略項目
+node_modules/
+dist/

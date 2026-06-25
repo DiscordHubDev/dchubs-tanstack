@@ -1,16 +1,16 @@
 import type { BotFormData } from "./bot-form-schema";
 
 export type BotEditDefaults = Partial<BotFormData> & {
-	screenshots?: string[];
-	banner?: string | undefined;
+  screenshots?: string[];
+  banner?: string | undefined;
 };
 
 export type BotEditBundle = {
-	botId: string;
-	defaults: BotEditDefaults;
+  botId: string;
+  defaults: BotEditDefaults;
 };
 
 export type BotEditResult =
-	| { status: "ok"; bundle: BotEditBundle }
-	| { status: "forbidden" }
-	| { status: "not_found" };
+  | { status: "ok"; bundle: BotEditBundle }
+  | { status: "forbidden" }
+  | { status: "not_found" };

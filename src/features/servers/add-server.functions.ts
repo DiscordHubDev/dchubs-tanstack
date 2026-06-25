@@ -5,15 +5,15 @@ import { getGuildMembershipBundle } from "./add-server.server";
 
 const emptySchema = Schema.Struct({});
 const strictValidator = (input: any) => {
-	Schema.decodeUnknownSync(emptySchema)(input || {});
-	return {};
+  Schema.decodeUnknownSync(emptySchema)(input || {});
+  return {};
 };
 
 export const getGuildMembershipBundleFn = createServerFn({
-	method: "GET",
+  method: "GET",
 })
-	.middleware([protectedMiddleware]) // ⬅️ 套用保護，強制要求登入
-	.inputValidator(strictValidator)
-	.handler(async ({ context }) => {
-		return getGuildMembershipBundle(context.user.discordId);
-	});
+  .middleware([protectedMiddleware]) // ⬅️ 套用保護，強制要求登入
+  .inputValidator(strictValidator)
+  .handler(async ({ context }) => {
+    return getGuildMembershipBundle(context.user.discordId);
+  });

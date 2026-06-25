@@ -5,8 +5,8 @@ import { BotEditInputSchema } from "./bot-edit.schemas";
 import { getBotEditBundleById } from "./bot-edit.server";
 
 export const getBotEditBundleFn = createServerFn({ method: "GET" })
-	.middleware([protectedMiddleware])
-	.inputValidator(effectInputValidator(BotEditInputSchema))
-	.handler(async ({ data, context }) => {
-		return getBotEditBundleById(data.botId, context.user.discordId);
-	});
+  .middleware([protectedMiddleware])
+  .inputValidator(effectInputValidator(BotEditInputSchema))
+  .handler(async ({ data, context }) => {
+    return getBotEditBundleById(data.botId, context.user.discordId);
+  });

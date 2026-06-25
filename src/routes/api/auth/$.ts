@@ -6,17 +6,17 @@ import { getAuth } from "#/lib/auth"; // 🚀 改為頂層靜態引入
 const authTopLevelPromise = getAuth();
 
 export const Route = createFileRoute("/api/auth/$")({
-	server: {
-		handlers: {
-			GET: async ({ request }) => {
-				// 直接 await 頂層已經在跑（或跑完）的 Promise
-				const auth = await authTopLevelPromise;
-				return auth.handler(request);
-			},
-			POST: async ({ request }) => {
-				const auth = await authTopLevelPromise;
-				return auth.handler(request);
-			},
-		},
-	},
+  server: {
+    handlers: {
+      GET: async ({ request }) => {
+        // 直接 await 頂層已經在跑（或跑完）的 Promise
+        const auth = await authTopLevelPromise;
+        return auth.handler(request);
+      },
+      POST: async ({ request }) => {
+        const auth = await authTopLevelPromise;
+        return auth.handler(request);
+      },
+    },
+  },
 });

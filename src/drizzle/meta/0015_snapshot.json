@@ -150,12 +150,8 @@
           "name": "ApiKey_userId_fkey",
           "tableFrom": "ApiKey",
           "tableTo": "auth_user",
-          "columnsFrom": [
-            "userId"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["userId"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "cascade"
         }
@@ -341,12 +337,8 @@
           "name": "auth_account_user_id_auth_user_id_fk",
           "tableFrom": "auth_account",
           "tableTo": "auth_user",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -438,12 +430,8 @@
           "name": "auth_session_user_id_auth_user_id_fk",
           "tableFrom": "auth_session",
           "tableTo": "auth_user",
-          "columnsFrom": [
-            "user_id"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["user_id"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "no action"
         }
@@ -453,9 +441,7 @@
         "auth_session_token_unique": {
           "name": "auth_session_token_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "token"
-          ]
+          "columns": ["token"]
         }
       },
       "policies": {},
@@ -995,12 +981,8 @@
           "name": "Bot_handledById_fkey",
           "tableFrom": "Bot",
           "tableTo": "auth_user",
-          "columnsFrom": [
-            "handledById"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["handledById"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "cascade"
         }
@@ -1107,12 +1089,8 @@
           "name": "BotCommand_botId_fkey",
           "tableFrom": "BotCommand",
           "tableTo": "Bot",
-          "columnsFrom": [
-            "botId"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["botId"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "cascade"
         }
@@ -1163,12 +1141,8 @@
           "name": "_BotDevelopers_A_fkey",
           "tableFrom": "_BotDevelopers",
           "tableTo": "Bot",
-          "columnsFrom": [
-            "A"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["A"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "cascade"
         },
@@ -1176,12 +1150,8 @@
           "name": "_BotDevelopers_B_fkey",
           "tableFrom": "_BotDevelopers",
           "tableTo": "auth_user",
-          "columnsFrom": [
-            "B"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["B"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "cascade"
         }
@@ -1189,10 +1159,7 @@
       "compositePrimaryKeys": {
         "_BotDevelopers_AB_pkey": {
           "name": "_BotDevelopers_AB_pkey",
-          "columns": [
-            "A",
-            "B"
-          ]
+          "columns": ["A", "B"]
         }
       },
       "uniqueConstraints": {},
@@ -1740,12 +1707,8 @@
           "name": "Report_handledById_fkey",
           "tableFrom": "Report",
           "tableTo": "auth_user",
-          "columnsFrom": [
-            "handledById"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["handledById"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "cascade"
         },
@@ -1753,12 +1716,8 @@
           "name": "Report_reportedById_fkey",
           "tableFrom": "Report",
           "tableTo": "auth_user",
-          "columnsFrom": [
-            "reportedById"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["reportedById"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "cascade"
         }
@@ -2003,12 +1962,8 @@
           "name": "Review_botId_fkey",
           "tableFrom": "Review",
           "tableTo": "Bot",
-          "columnsFrom": [
-            "botId"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["botId"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "cascade"
         },
@@ -2016,12 +1971,8 @@
           "name": "Review_serverId_fkey",
           "tableFrom": "Review",
           "tableTo": "Server",
-          "columnsFrom": [
-            "serverId"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["serverId"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "cascade"
         }
@@ -2367,12 +2318,8 @@
           "name": "Server_ownerId_fkey",
           "tableFrom": "Server",
           "tableTo": "auth_user",
-          "columnsFrom": [
-            "ownerId"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["ownerId"],
+          "columnsTo": ["id"],
           "onDelete": "set null",
           "onUpdate": "cascade"
         }
@@ -2423,12 +2370,8 @@
           "name": "_ServerAdmins_A_fkey",
           "tableFrom": "_ServerAdmins",
           "tableTo": "Server",
-          "columnsFrom": [
-            "A"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["A"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "cascade"
         },
@@ -2436,12 +2379,8 @@
           "name": "_ServerAdmins_B_fkey",
           "tableFrom": "_ServerAdmins",
           "tableTo": "auth_user",
-          "columnsFrom": [
-            "B"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["B"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "cascade"
         }
@@ -2449,10 +2388,7 @@
       "compositePrimaryKeys": {
         "_ServerAdmins_AB_pkey": {
           "name": "_ServerAdmins_AB_pkey",
-          "columns": [
-            "A",
-            "B"
-          ]
+          "columns": ["A", "B"]
         }
       },
       "uniqueConstraints": {},
@@ -2609,16 +2545,12 @@
         "auth_user_email_unique": {
           "name": "auth_user_email_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "email"
-          ]
+          "columns": ["email"]
         },
         "auth_user_discord_id_unique": {
           "name": "auth_user_discord_id_unique",
           "nullsNotDistinct": false,
-          "columns": [
-            "discord_id"
-          ]
+          "columns": ["discord_id"]
         }
       },
       "policies": {},
@@ -2665,12 +2597,8 @@
           "name": "_UserFavoriteBots_A_fkey",
           "tableFrom": "_UserFavoriteBots",
           "tableTo": "Bot",
-          "columnsFrom": [
-            "A"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["A"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "cascade"
         },
@@ -2678,12 +2606,8 @@
           "name": "_UserFavoriteBots_B_fkey",
           "tableFrom": "_UserFavoriteBots",
           "tableTo": "auth_user",
-          "columnsFrom": [
-            "B"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["B"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "cascade"
         }
@@ -2691,10 +2615,7 @@
       "compositePrimaryKeys": {
         "_UserFavoriteBots_AB_pkey": {
           "name": "_UserFavoriteBots_AB_pkey",
-          "columns": [
-            "A",
-            "B"
-          ]
+          "columns": ["A", "B"]
         }
       },
       "uniqueConstraints": {},
@@ -2742,12 +2663,8 @@
           "name": "_UserFavoriteServers_A_fkey",
           "tableFrom": "_UserFavoriteServers",
           "tableTo": "Server",
-          "columnsFrom": [
-            "A"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["A"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "cascade"
         },
@@ -2755,12 +2672,8 @@
           "name": "_UserFavoriteServers_B_fkey",
           "tableFrom": "_UserFavoriteServers",
           "tableTo": "auth_user",
-          "columnsFrom": [
-            "B"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["B"],
+          "columnsTo": ["id"],
           "onDelete": "cascade",
           "onUpdate": "cascade"
         }
@@ -2768,10 +2681,7 @@
       "compositePrimaryKeys": {
         "_UserFavoriteServers_AB_pkey": {
           "name": "_UserFavoriteServers_AB_pkey",
-          "columns": [
-            "A",
-            "B"
-          ]
+          "columns": ["A", "B"]
         }
       },
       "uniqueConstraints": {},
@@ -2917,12 +2827,8 @@
           "name": "Vote_userId_fkey",
           "tableFrom": "Vote",
           "tableTo": "auth_user",
-          "columnsFrom": [
-            "userId"
-          ],
-          "columnsTo": [
-            "id"
-          ],
+          "columnsFrom": ["userId"],
+          "columnsTo": ["id"],
           "onDelete": "restrict",
           "onUpdate": "cascade"
         }
@@ -2938,56 +2844,32 @@
     "public.EmailPriority": {
       "name": "EmailPriority",
       "schema": "public",
-      "values": [
-        "success",
-        "info",
-        "warning",
-        "danger"
-      ]
+      "values": ["success", "info", "warning", "danger"]
     },
     "public.ReportSeverity": {
       "name": "ReportSeverity",
       "schema": "public",
-      "values": [
-        "severe",
-        "moderate",
-        "low",
-        "untagged"
-      ]
+      "values": ["severe", "moderate", "low", "untagged"]
     },
     "public.ReportStatus": {
       "name": "ReportStatus",
       "schema": "public",
-      "values": [
-        "pending",
-        "resolved",
-        "rejected"
-      ]
+      "values": ["pending", "resolved", "rejected"]
     },
     "public.ReportType": {
       "name": "ReportType",
       "schema": "public",
-      "values": [
-        "bot",
-        "server"
-      ]
+      "values": ["bot", "server"]
     },
     "public.Status": {
       "name": "Status",
       "schema": "public",
-      "values": [
-        "pending",
-        "approved",
-        "rejected"
-      ]
+      "values": ["pending", "approved", "rejected"]
     },
     "public.VoteType": {
       "name": "VoteType",
       "schema": "public",
-      "values": [
-        "server",
-        "bot"
-      ]
+      "values": ["server", "bot"]
     }
   },
   "schemas": {},

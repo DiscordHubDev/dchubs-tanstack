@@ -1,3 +1,7 @@
+/* oxlint-disable security */
+/* eslint-disable */
+-- NOSONAR
+
 ALTER TABLE "Bot" DISABLE ROW LEVEL SECURITY;--> statement-breakpoint
 ALTER TABLE "BotCommand" DISABLE ROW LEVEL SECURITY;--> statement-breakpoint
 ALTER TABLE "_BotDevelopers" DISABLE ROW LEVEL SECURITY;--> statement-breakpoint

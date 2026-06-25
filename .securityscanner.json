@@ -4,12 +4,7 @@
     "disabled": []
   },
   "ignore": {
-    "patterns": [
-      "node_modules/**",
-      "dist/**",
-      "build/**",
-      "*.min.js"
-    ],
+    "patterns": ["node_modules/**", "dist/**", "build/**", "*.min.js"],
     "ignoreFilePath": ".securityignore"
   },
   "output": {

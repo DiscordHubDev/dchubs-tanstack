@@ -6,12 +6,12 @@ import { useSelector } from "@tanstack/react-store";
 import { Schema } from "effect";
 import { AlertTriangle } from "lucide-react";
 import {
-	type ChangeEvent,
-	useCallback,
-	useEffect,
-	useMemo,
-	useRef,
-	useState,
+  type ChangeEvent,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
 } from "react";
 import Swal from "sweetalert2";
 import DiscordEmbedPreview from "#/components/DiscordEmbedPreview";
@@ -29,1232 +29,1232 @@ import { showErrorAlert } from "#/lib/error-alert";
 import { queryKeys } from "#/lib/query-keys";
 import type { CustomEmbedData } from "#/types/custom_embed";
 import {
-	uploadServerBannerFn,
-	upsertServerPublishFn,
+  uploadServerBannerFn,
+  upsertServerPublishFn,
 } from "../server-publish.functions";
 import {
-	InviteLinkSchema,
-	LongDescriptionSchema,
-	RuleSchema,
-	RulesSchema,
-	SecretSchema,
-	ServerFormSchema,
-	ServerNameSchema,
-	ShortDescriptionSchema,
-	TagSchema,
-	TagsSchema,
-	WebhookUrlSchema,
-	WebsiteLinkSchema,
+  InviteLinkSchema,
+  LongDescriptionSchema,
+  RuleSchema,
+  RulesSchema,
+  SecretSchema,
+  ServerFormSchema,
+  ServerNameSchema,
+  ShortDescriptionSchema,
+  TagSchema,
+  TagsSchema,
+  WebhookUrlSchema,
+  WebsiteLinkSchema,
 } from "../server-publish.schemas";
 import type {
-	ServerPublishBundle,
-	ServerPublishFormValues,
-	ServerPublishSubmitInput,
+  ServerPublishBundle,
+  ServerPublishFormValues,
+  ServerPublishSubmitInput,
 } from "../server-publish.types";
 import { effectValidator } from "../server-publish.validators";
 import { RulesField } from "./RulesField";
 import { ServerTagField } from "./ServerTagField";
 
 function readFirstError(errors: unknown[] | undefined): string | null {
-	if (!Array.isArray(errors) || errors.length === 0) return null;
-	const first = errors[0];
-	if (typeof first === "string") return first;
-	if (first instanceof Error) return first.message;
-	return String(first);
+  if (!Array.isArray(errors) || errors.length === 0) return null;
+  const first = errors[0];
+  if (typeof first === "string") return first;
+  if (first instanceof Error) return first.message;
+  return String(first);
 }
 
 function normalizeExternalUrl(value: string): string | null {
-	const normalized = value.trim();
-	return normalized.length > 0 ? normalized : null;
+  const normalized = value.trim();
+  return normalized.length > 0 ? normalized : null;
 }
 
 const SUPPORTED_BANNER_FILE_TYPES = [
-	"image/gif",
-	"image/png",
-	"image/jpeg",
-	"image/webp",
+  "image/gif",
+  "image/png",
+  "image/jpeg",
+  "image/webp",
 ] as const;
 const SUPPORTED_BANNER_EXTENSIONS = [".gif", ".png", ".jpg", ".jpeg", ".webp"];
 const SUPPORTED_BANNER_FILE_ACCEPT = [
-	...SUPPORTED_BANNER_FILE_TYPES,
-	...SUPPORTED_BANNER_EXTENSIONS,
+  ...SUPPORTED_BANNER_FILE_TYPES,
+  ...SUPPORTED_BANNER_EXTENSIONS,
 ].join(",");
 const MAX_BANNER_IMAGE_BYTES = 10 * 1024 * 1024;
 
 type SupportedBannerMimeType = (typeof SUPPORTED_BANNER_FILE_TYPES)[number];
 
 function resolveSupportedBannerMimeType(
-	file: File,
+  file: File,
 ): SupportedBannerMimeType | null {
-	const mimeType = file.type.toLowerCase();
-	if (
-		SUPPORTED_BANNER_FILE_TYPES.includes(mimeType as SupportedBannerMimeType)
-	) {
-		return mimeType as SupportedBannerMimeType;
-	}
-	const fileName = file.name.toLowerCase();
-	if (fileName.endsWith(".gif")) return "image/gif";
-	if (fileName.endsWith(".png")) return "image/png";
-	if (fileName.endsWith(".jpg") || fileName.endsWith(".jpeg"))
-		return "image/jpeg";
-	if (fileName.endsWith(".webp")) return "image/webp";
-	return null;
+  const mimeType = file.type.toLowerCase();
+  if (
+    SUPPORTED_BANNER_FILE_TYPES.includes(mimeType as SupportedBannerMimeType)
+  ) {
+    return mimeType as SupportedBannerMimeType;
+  }
+  const fileName = file.name.toLowerCase();
+  if (fileName.endsWith(".gif")) return "image/gif";
+  if (fileName.endsWith(".png")) return "image/png";
+  if (fileName.endsWith(".jpg") || fileName.endsWith(".jpeg"))
+    return "image/jpeg";
+  if (fileName.endsWith(".webp")) return "image/webp";
+  return null;
 }
 
 function readFileAsDataUrl(file: File): Promise<string> {
-	return new Promise((resolve, reject) => {
-		const reader = new FileReader();
-		reader.onerror = () => reject(new Error("無法讀取選取的圖片檔案"));
-		reader.onload = () => {
-			const result = reader.result;
-			if (typeof result !== "string") {
-				reject(new Error("無法解析選取的圖片檔案"));
-				return;
-			}
-			resolve(result);
-		};
-		reader.readAsDataURL(file);
-	});
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = () => reject(new Error("無法讀取選取的圖片檔案"));
+    reader.onload = () => {
+      const result = reader.result;
+      if (typeof result !== "string") {
+        reject(new Error("無法解析選取的圖片檔案"));
+        return;
+      }
+      resolve(result);
+    };
+    reader.readAsDataURL(file);
+  });
 }
 
 async function buildFileFingerprint(file: File): Promise<string> {
-	const subtle = globalThis.crypto?.subtle;
-	if (!subtle) throw new Error("目前瀏覽器不支援檔案雜湊，請更新後重試");
-	const buffer = await file.arrayBuffer();
-	const digest = await subtle.digest("SHA-256", buffer);
-	return Array.from(new Uint8Array(digest), (value) =>
-		value.toString(16).padStart(2, "0"),
-	).join("");
+  const subtle = globalThis.crypto?.subtle;
+  if (!subtle) throw new Error("目前瀏覽器不支援檔案雜湊，請更新後重試");
+  const buffer = await file.arrayBuffer();
+  const digest = await subtle.digest("SHA-256", buffer);
+  return Array.from(new Uint8Array(digest), (value) =>
+    value.toString(16).padStart(2, "0"),
+  ).join("");
 }
 
 function getErrorMessage(error: unknown): string {
-	if (error instanceof Error) return error.message;
-	return "儲存時發生未預期錯誤";
+  if (error instanceof Error) return error.message;
+  return "儲存時發生未預期錯誤";
 }
 
 function hasRequiredPublishFields(values: {
-	shortDescription: string;
-	longDescription: string;
-	inviteLink: string;
-	tags: readonly string[];
+  shortDescription: string;
+  longDescription: string;
+  inviteLink: string;
+  tags: readonly string[];
 }): boolean {
-	return (
-		values.shortDescription.trim().length > 0 &&
-		values.longDescription.trim().length > 0 &&
-		values.inviteLink.trim().length > 0 &&
-		Array.isArray(values.tags) &&
-		values.tags.length > 0
-	);
+  return (
+    values.shortDescription.trim().length > 0 &&
+    values.longDescription.trim().length > 0 &&
+    values.inviteLink.trim().length > 0 &&
+    Array.isArray(values.tags) &&
+    values.tags.length > 0
+  );
 }
 
 // 💡 【效能優化】將靜態 Validators 提至組件外，避免在渲染時重複建立與觸發 Hook 依賴比對
 const validateServerName = effectValidator(ServerNameSchema, {
-	label: "伺服器名稱",
-	required: "伺服器名稱不可為空",
-	maxLength: { value: 120, message: "伺服器名稱最多 120 字" },
+  label: "伺服器名稱",
+  required: "伺服器名稱不可為空",
+  maxLength: { value: 120, message: "伺服器名稱最多 120 字" },
 });
 const validateShortDescription = effectValidator(ShortDescriptionSchema, {
-	label: "簡短描述",
-	required: "請填寫簡短描述",
-	maxLength: { value: 200, message: "簡短描述最多 200 字" },
+  label: "簡短描述",
+  required: "請填寫簡短描述",
+  maxLength: { value: 200, message: "簡短描述最多 200 字" },
 });
 const validateLongDescription = effectValidator(LongDescriptionSchema, {
-	label: "詳細介紹",
-	required: "請填寫詳細介紹",
-	maxLength: { value: 8000, message: "詳細介紹最多 8000 字" },
+  label: "詳細介紹",
+  required: "請填寫詳細介紹",
+  maxLength: { value: 8000, message: "詳細介紹最多 8000 字" },
 });
 const validateInviteLink = effectValidator(InviteLinkSchema, {
-	label: "Discord 邀請連結",
-	required: "請填寫 Discord 邀請連結",
-	maxLength: { value: 500, message: "Discord 邀請連結最多 500 字" },
-	fallback:
-		"請輸入有效的 Discord 邀請連結（例如 https://discord.gg/your-server）",
+  label: "Discord 邀請連結",
+  required: "請填寫 Discord 邀請連結",
+  maxLength: { value: 500, message: "Discord 邀請連結最多 500 字" },
+  fallback:
+    "請輸入有效的 Discord 邀請連結（例如 https://discord.gg/your-server）",
 });
 const validateWebsiteLink = effectValidator(WebsiteLinkSchema, {
-	label: "網站連結",
-	maxLength: { value: 500, message: "網站連結最多 500 字" },
-	fallback: "網站連結格式不正確，請使用 http:// 或 https:// 開頭",
+  label: "網站連結",
+  maxLength: { value: 500, message: "網站連結最多 500 字" },
+  fallback: "網站連結格式不正確，請使用 http:// 或 https:// 開頭",
 });
 const validateRules = effectValidator(RulesSchema, {
-	fallback: "規則內容格式不正確",
+  fallback: "規則內容格式不正確",
 });
 const validateRule = effectValidator(RuleSchema, {
-	label: "規則",
-	required: "規則不可為空",
-	maxLength: { value: 300, message: "單條規則最多 300 字" },
+  label: "規則",
+  required: "規則不可為空",
+  maxLength: { value: 300, message: "單條規則最多 300 字" },
 });
 const validateisNsfw = effectValidator(Schema.Boolean, {
-	label: "NSFW",
-	required: "請選擇是否為 NSFW 伺服器",
+  label: "NSFW",
+  required: "請選擇是否為 NSFW 伺服器",
 });
 const validateTags = effectValidator(TagsSchema, {
-	fallback: "標籤格式不正確",
+  fallback: "標籤格式不正確",
 });
 const validateTag = effectValidator(TagSchema, {
-	label: "標籤",
-	required: "標籤不可為空",
-	maxLength: { value: 24, message: "單一標籤最多 24 字" },
+  label: "標籤",
+  required: "標籤不可為空",
+  maxLength: { value: 24, message: "單一標籤最多 24 字" },
 });
 const validateSecret = effectValidator(SecretSchema, {
-	label: "secret",
-	maxLength: { value: 500, message: "secret 最多 500 字" },
+  label: "secret",
+  maxLength: { value: 500, message: "secret 最多 500 字" },
 });
 const validateWebhookUrl = effectValidator(WebhookUrlSchema, {
-	label: "webhook_url",
-	maxLength: { value: 500, message: "webhook_url 最多 500 字" },
-	fallback: "Webhook 網址格式不正確，請使用 http:// 或 https:// 開頭",
+  label: "webhook_url",
+  maxLength: { value: 500, message: "webhook_url 最多 500 字" },
+  fallback: "Webhook 網址格式不正確，請使用 http:// 或 https:// 開頭",
 });
 const validateForm = effectValidator(ServerFormSchema, {
-	fallback: "表單內容有誤，請檢查欄位後再送出",
+  fallback: "表單內容有誤，請檢查欄位後再送出",
 });
 
 // 💡 【效能優化】分離草稿儲存與警告邏輯，避免整個頁面因為 values 改變而導致每個字元的輸入都造成 Re-render
 const DraftManager = ({ form, draftKey }: { form: any; draftKey: string }) => {
-	const values = useSelector(form.store, (state: any) => state.values);
-	const isDirty = useSelector(form.store, (state: any) => state.isDirty);
+  const values = useSelector(form.store, (state: any) => state.values);
+  const isDirty = useSelector(form.store, (state: any) => state.isDirty);
 
-	useEffect(() => {
-		if (!isDirty || typeof window === "undefined") return;
-		// 使用 debounce 優化儲存效能
-		const handler = setTimeout(() => {
-			localStorage.setItem(draftKey, JSON.stringify(values));
-		}, 1000);
-		return () => clearTimeout(handler);
-	}, [values, isDirty, draftKey]);
+  useEffect(() => {
+    if (!isDirty || typeof window === "undefined") return;
+    // 使用 debounce 優化儲存效能
+    const handler = setTimeout(() => {
+      localStorage.setItem(draftKey, JSON.stringify(values));
+    }, 1000);
+    return () => clearTimeout(handler);
+  }, [values, isDirty, draftKey]);
 
-	useEffect(() => {
-		const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-			if (isDirty) {
-				e.preventDefault();
-				e.returnValue = "您有未儲存的變更，確定要離開嗎？";
-			}
-		};
-		window.addEventListener("beforeunload", handleBeforeUnload);
-		return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-	}, [isDirty]);
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (isDirty) {
+        e.preventDefault();
+        e.returnValue = "您有未儲存的變更，確定要離開嗎？";
+      }
+    };
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+  }, [isDirty]);
 
-	return null;
+  return null;
 };
 
 // 💡 【效能優化】分離 Markdown 預覽區塊，避免主表單隨打字而整體重繪
 const MarkdownPreviewSection = ({
-	form,
-	previewRef,
+  form,
+  previewRef,
 }: {
-	form: any;
-	previewRef: React.RefObject<HTMLDivElement | null>;
+  form: any;
+  previewRef: React.RefObject<HTMLDivElement | null>;
 }) => {
-	const longDescriptionValue = useSelector(
-		form.store,
-		(state: any) => state.values.longDescription,
-	);
-	const sanitizedMarkdown = useMemo(
-		() => longDescriptionValue || "詳細描述預覽 (支援Markdown)",
-		[longDescriptionValue],
-	);
+  const longDescriptionValue = useSelector(
+    form.store,
+    (state: any) => state.values.longDescription,
+  );
+  const sanitizedMarkdown = useMemo(
+    () => longDescriptionValue || "詳細描述預覽 (支援Markdown)",
+    [longDescriptionValue],
+  );
 
-	return (
-		<div
-			ref={previewRef}
-			className="h-0 flex-1 overflow-y-auto rounded-lg border border-white/10 bg-[#1f2124] p-4"
-		>
-			<ClientOnly>
-				{sanitizedMarkdown.trim() ? (
-					<MarkdownRenderer content={sanitizedMarkdown} />
-				) : (
-					<p className="text-[#b9bbbe] text-sm">
-						在左側輸入詳細介紹後，這裡會同步顯示預覽。
-					</p>
-				)}
-			</ClientOnly>
-		</div>
-	);
+  return (
+    <div
+      ref={previewRef}
+      className="h-0 flex-1 overflow-y-auto rounded-lg border border-white/10 bg-[#1f2124] p-4"
+    >
+      <ClientOnly>
+        {sanitizedMarkdown.trim() ? (
+          <MarkdownRenderer content={sanitizedMarkdown} />
+        ) : (
+          <p className="text-[#b9bbbe] text-sm">
+            在左側輸入詳細介紹後，這裡會同步顯示預覽。
+          </p>
+        )}
+      </ClientOnly>
+    </div>
+  );
 };
 
 // 💡 【效能優化】分離 Embed 預覽區塊
 const EmbedPreviewSection = ({ form }: { form: any }) => {
-	const customEmbedValues = useSelector(
-		form.store,
-		(state: any) => state.values.customEmbed,
-	);
-	return (
-		<div className="flex-1 overflow-y-auto rounded-lg border border-white/10 bg-[#1f2124] p-4">
-			<ClientOnly>
-				<DiscordEmbedPreview
-					data={(customEmbedValues ?? { fields: [] }) as CustomEmbedData}
-				/>
-			</ClientOnly>
-		</div>
-	);
+  const customEmbedValues = useSelector(
+    form.store,
+    (state: any) => state.values.customEmbed,
+  );
+  return (
+    <div className="flex-1 overflow-y-auto rounded-lg border border-white/10 bg-[#1f2124] p-4">
+      <ClientOnly>
+        <DiscordEmbedPreview
+          data={(customEmbedValues ?? { fields: [] }) as CustomEmbedData}
+        />
+      </ClientOnly>
+    </div>
+  );
 };
 
 export type ServerPublishPageProps = {
-	serverId: string;
-	mode: "edit" | "create";
-	bundle: ServerPublishBundle;
+  serverId: string;
+  mode: "edit" | "create";
+  bundle: ServerPublishBundle;
 };
 
 export function ServerPublishPage({
-	serverId,
-	mode,
-	bundle,
+  serverId,
+  mode: _mode,
+  bundle,
 }: ServerPublishPageProps) {
-	const navigate = useNavigate();
-	const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
 
-	const [iconPreviewUrl, setIconPreviewUrl] = useState(bundle.iconUrl ?? "");
-	// 💡 【效能優化】將多個相關的 banner state 合併為一個物件，減少重複的 re-renders
-	const [bannerState, setBannerState] = useState<{
-		file: File | null;
-		previewUrl: string;
-		fingerprint: string | null;
-		status: string | null;
-		error: string | null;
-	}>({
-		file: null,
-		previewUrl: bundle.bannerUrl ?? "",
-		fingerprint: null,
-		status: null,
-		error: null,
-	});
-	const [isIconUploading] = useState(false);
+  const [iconPreviewUrl, setIconPreviewUrl] = useState(bundle.iconUrl ?? "");
+  // 💡 【效能優化】將多個相關的 banner state 合併為一個物件，減少重複的 re-renders
+  const [bannerState, setBannerState] = useState<{
+    file: File | null;
+    previewUrl: string;
+    fingerprint: string | null;
+    status: string | null;
+    error: string | null;
+  }>({
+    file: null,
+    previewUrl: bundle.bannerUrl ?? "",
+    fingerprint: null,
+    status: null,
+    error: null,
+  });
+  const [isIconUploading] = useState(false);
 
-	const DRAFT_KEY = `server-publish-draft-${serverId}`;
+  const DRAFT_KEY = `server-publish-draft-${serverId}`;
 
-	const textareaRef = useRef<HTMLTextAreaElement | null>(null);
-	const previewRef = useRef<HTMLDivElement | null>(null);
-	const bannerFileInputRef = useRef<HTMLInputElement | null>(null);
+  const textareaRef = useRef<HTMLTextAreaElement | null>(null);
+  const previewRef = useRef<HTMLDivElement | null>(null);
+  const bannerFileInputRef = useRef<HTMLInputElement | null>(null);
 
-	useEffect(() => {
-		setIconPreviewUrl(bundle.iconUrl ?? "");
-		setBannerState({
-			file: null,
-			previewUrl: bundle.bannerUrl ?? "",
-			fingerprint: null,
-			status: null,
-			error: null,
-		});
-	}, [bundle.iconUrl, bundle.bannerUrl]);
+  useEffect(() => {
+    setIconPreviewUrl(bundle.iconUrl ?? "");
+    setBannerState({
+      file: null,
+      previewUrl: bundle.bannerUrl ?? "",
+      fingerprint: null,
+      status: null,
+      error: null,
+    });
+  }, [bundle.iconUrl, bundle.bannerUrl]);
 
-	// 💡 【最佳實踐】使用 useCallback 避免每次渲染都重新生成滾動同步函式
-	const handleScroll = useCallback(() => {
-		if (!textareaRef.current || !previewRef.current) return;
-		previewRef.current.scrollTop = textareaRef.current.scrollTop;
-	}, []);
+  // 💡 【最佳實踐】使用 useCallback 避免每次渲染都重新生成滾動同步函式
+  const handleScroll = useCallback(() => {
+    if (!textareaRef.current || !previewRef.current) return;
+    previewRef.current.scrollTop = textareaRef.current.scrollTop;
+  }, []);
 
-	const saveMutation = useMutation({
-		mutationFn: (payload: ServerPublishSubmitInput) =>
-			runEffect(
-				tryEffectPromise("Failed to save server publish data", () =>
-					upsertServerPublishFn({ data: payload }),
-				),
-			),
-		onSuccess: async (result, payload) => {
-			queryClient.setQueryData(
-				queryKeys.servers.detail(serverId),
-				(oldData: Record<string, unknown> | undefined) => {
-					if (!oldData) return oldData;
-					return {
-						...oldData,
-						name: payload.form.serverName,
-						description: payload.form.shortDescription,
-						longDescription: payload.form.longDescription,
-						inviteUrl: payload.form.inviteLink,
-						website: payload.form.websiteLink,
-						rules: payload.form.rules,
-						tags: payload.form.tags,
-						secret: payload.form.secret,
-						voteNotificationUrl: payload.form.webhook_url,
-						nsfw: payload.form.nsfw,
-						customEmbed: payload.form.customEmbed,
-					};
-				},
-			);
-			Promise.all([
-				queryClient.invalidateQueries({
-					queryKey: queryKeys.servers.publish(serverId),
-				}),
-				queryClient.invalidateQueries({
-					queryKey: queryKeys.servers.detail(serverId),
-				}),
-			]);
+  const saveMutation = useMutation({
+    mutationFn: (payload: ServerPublishSubmitInput) =>
+      runEffect(
+        tryEffectPromise("Failed to save server publish data", () =>
+          upsertServerPublishFn({ data: payload }),
+        ),
+      ),
+    onSuccess: async (result, payload) => {
+      queryClient.setQueryData(
+        queryKeys.servers.detail(serverId),
+        (oldData: Record<string, unknown> | undefined) => {
+          if (!oldData) return oldData;
+          return {
+            ...oldData,
+            name: payload.form.serverName,
+            description: payload.form.shortDescription,
+            longDescription: payload.form.longDescription,
+            inviteUrl: payload.form.inviteLink,
+            website: payload.form.websiteLink,
+            rules: payload.form.rules,
+            tags: payload.form.tags,
+            secret: payload.form.secret,
+            voteNotificationUrl: payload.form.webhook_url,
+            nsfw: payload.form.nsfw,
+            customEmbed: payload.form.customEmbed,
+          };
+        },
+      );
+      Promise.all([
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.servers.publish(serverId),
+        }),
+        queryClient.invalidateQueries({
+          queryKey: queryKeys.servers.detail(serverId),
+        }),
+      ]);
 
-			await Swal.fire({
-				icon: "success",
-				title: "儲存成功",
-				text: result.message,
-				confirmButtonText: "前往伺服器頁面",
-			});
+      await Swal.fire({
+        icon: "success",
+        title: "儲存成功",
+        text: result.message,
+        confirmButtonText: "前往伺服器頁面",
+      });
 
-			void navigate({ to: "/servers/$serverId", params: { serverId } });
-		},
-		onError: (error) => {
-			showErrorAlert(getErrorMessage(error), "儲存失敗");
-		},
-	});
+      void navigate({ to: "/servers/$serverId", params: { serverId } });
+    },
+    onError: (error) => {
+      showErrorAlert(getErrorMessage(error), "儲存失敗");
+    },
+  });
 
-	const bannerUploadMutation = useMutation({
-		mutationFn: async (file: File) => {
-			const mimeType = resolveSupportedBannerMimeType(file);
-			if (!mimeType)
-				throw new Error("請選擇 GIF、PNG、JPG、JPEG 或 WEBP 圖片檔案");
-			if (file.size <= 0) throw new Error("選擇的檔案內容為空，請重新選擇");
-			if (file.size > MAX_BANNER_IMAGE_BYTES)
-				throw new Error("圖片檔案大小不可超過 10MB");
+  const bannerUploadMutation = useMutation({
+    mutationFn: async (file: File) => {
+      const mimeType = resolveSupportedBannerMimeType(file);
+      if (!mimeType)
+        throw new Error("請選擇 GIF、PNG、JPG、JPEG 或 WEBP 圖片檔案");
+      if (file.size <= 0) throw new Error("選擇的檔案內容為空，請重新選擇");
+      if (file.size > MAX_BANNER_IMAGE_BYTES)
+        throw new Error("圖片檔案大小不可超過 10MB");
 
-			const fingerprint = await buildFileFingerprint(file);
+      const fingerprint = await buildFileFingerprint(file);
 
-			if (
-				bannerState.fingerprint === fingerprint &&
-				bannerState.previewUrl.trim().length > 0
-			) {
-				return {
-					bannerUrl: bannerState.previewUrl,
-					fingerprint,
-					skipped: true,
-					message: "選擇的圖片與目前 Banner 相同，已略過上傳",
-				};
-			}
+      if (
+        bannerState.fingerprint === fingerprint &&
+        bannerState.previewUrl.trim().length > 0
+      ) {
+        return {
+          bannerUrl: bannerState.previewUrl,
+          fingerprint,
+          skipped: true,
+          message: "選擇的圖片與目前 Banner 相同，已略過上傳",
+        };
+      }
 
-			const dataUrl = await readFileAsDataUrl(file);
+      const dataUrl = await readFileAsDataUrl(file);
 
-			return runEffect(
-				tryEffectPromise("Failed to upload server banner", () =>
-					uploadServerBannerFn({
-						data: {
-							serverId,
-							fileName: file.name,
-							mimeType,
-							dataUrl,
-							fingerprint,
-						},
-					}),
-				),
-			);
-		},
-		onMutate: () => {
-			setBannerState((prev) => ({
-				...prev,
-				error: null,
-				status: "Banner 圖片上傳中...",
-			}));
-		},
-		onSuccess: (result) => {
-			setBannerState((prev) => ({
-				...prev,
-				previewUrl: result.bannerUrl,
-				fingerprint: result.fingerprint,
-				status: result.message,
-				error: null,
-			}));
-		},
-		onError: (error) => {
-			const message = getErrorMessage(error);
-			setBannerState((prev) => ({
-				...prev,
-				status: null,
-				error: message,
-			}));
-			showErrorAlert(message, "Banner 上傳失敗");
-		},
-	});
+      return runEffect(
+        tryEffectPromise("Failed to upload server banner", () =>
+          uploadServerBannerFn({
+            data: {
+              serverId,
+              fileName: file.name,
+              mimeType,
+              dataUrl,
+              fingerprint,
+            },
+          }),
+        ),
+      );
+    },
+    onMutate: () => {
+      setBannerState((prev) => ({
+        ...prev,
+        error: null,
+        status: "Banner 圖片上傳中...",
+      }));
+    },
+    onSuccess: (result) => {
+      setBannerState((prev) => ({
+        ...prev,
+        previewUrl: result.bannerUrl,
+        fingerprint: result.fingerprint,
+        status: result.message,
+        error: null,
+      }));
+    },
+    onError: (error) => {
+      const message = getErrorMessage(error);
+      setBannerState((prev) => ({
+        ...prev,
+        status: null,
+        error: message,
+      }));
+      showErrorAlert(message, "Banner 上傳失敗");
+    },
+  });
 
-	const defaultFormValues = useMemo<ServerPublishFormValues>(() => {
-		let rawData: Record<string, any> = {
-			...bundle.formValues,
-			nsfw: bundle.formValues?.nsfw ?? false,
-		};
+  const defaultFormValues = useMemo<ServerPublishFormValues>(() => {
+    let rawData: Record<string, any> = {
+      ...bundle.formValues,
+      nsfw: bundle.formValues?.nsfw ?? false,
+    };
 
-		if (typeof window !== "undefined") {
-			try {
-				const draftStr = localStorage.getItem(DRAFT_KEY);
-				if (draftStr) {
-					const draftParsed = JSON.parse(draftStr);
-					rawData = { ...rawData, ...draftParsed };
-				}
-			} catch (err) {
-				console.error("無法載入本地草稿:", err);
-			}
-		}
+    if (typeof window !== "undefined") {
+      try {
+        const draftStr = localStorage.getItem(DRAFT_KEY);
+        if (draftStr) {
+          const draftParsed = JSON.parse(draftStr);
+          rawData = { ...rawData, ...draftParsed };
+        }
+      } catch (err) {
+        console.error("無法載入本地草稿:", err);
+      }
+    }
 
-		let rawcustomEmbed = rawData.customEmbed;
-		if (typeof rawcustomEmbed === "string") {
-			try {
-				rawcustomEmbed = JSON.parse(rawcustomEmbed);
-			} catch {
-				rawcustomEmbed = undefined;
-			}
-		}
+    let rawcustomEmbed = rawData.customEmbed;
+    if (typeof rawcustomEmbed === "string") {
+      try {
+        rawcustomEmbed = JSON.parse(rawcustomEmbed);
+      } catch {
+        rawcustomEmbed = undefined;
+      }
+    }
 
-		const formattedcustomEmbed = {
-			...(rawcustomEmbed || {}),
-			content: rawcustomEmbed?.content ?? undefined,
-			color: rawcustomEmbed?.color ?? "#5865F2",
-			fields: rawcustomEmbed?.fields
-				? rawcustomEmbed.fields.map((f: Record<string, unknown>) => ({
-						name: (f.name as string) ?? "",
-						value: (f.value as string) ?? "",
-						inline: (f.inline as boolean) ?? false,
-					}))
-				: undefined,
-		};
+    const formattedcustomEmbed = {
+      ...rawcustomEmbed,
+      content: rawcustomEmbed?.content ?? undefined,
+      color: rawcustomEmbed?.color ?? "#5865F2",
+      fields: rawcustomEmbed?.fields
+        ? rawcustomEmbed.fields.map((f: Record<string, unknown>) => ({
+            name: (f.name as string) ?? "",
+            value: (f.value as string) ?? "",
+            inline: (f.inline as boolean) ?? false,
+          }))
+        : undefined,
+    };
 
-		return {
-			serverName: rawData.serverName ?? "",
-			shortDescription: rawData.shortDescription ?? "",
-			longDescription: rawData.longDescription ?? "",
-			inviteLink: rawData.inviteLink ?? "",
-			websiteLink: rawData.websiteLink ?? "",
-			rules: rawData.rules ?? [],
-			tags: rawData.tags ?? [],
-			secret: rawData.secret ?? "",
-			webhook_url: rawData.webhook_url ?? "",
-			nsfw: rawData.nsfw,
-			customEmbed: formattedcustomEmbed,
-		};
-	}, [bundle.formValues, DRAFT_KEY]);
+    return {
+      serverName: rawData.serverName ?? "",
+      shortDescription: rawData.shortDescription ?? "",
+      longDescription: rawData.longDescription ?? "",
+      inviteLink: rawData.inviteLink ?? "",
+      websiteLink: rawData.websiteLink ?? "",
+      rules: rawData.rules ?? [],
+      tags: rawData.tags ?? [],
+      secret: rawData.secret ?? "",
+      webhook_url: rawData.webhook_url ?? "",
+      nsfw: rawData.nsfw,
+      customEmbed: formattedcustomEmbed,
+    };
+  }, [bundle.formValues, DRAFT_KEY]);
 
-	const form = useForm({
-		defaultValues: defaultFormValues,
-		validators: {
-			onSubmit: ({ value }) => validateForm(value),
-		},
-		onSubmit: async ({ value }) => {
-			let finalBannerUrl = normalizeExternalUrl(bannerState.previewUrl);
+  const form = useForm({
+    defaultValues: defaultFormValues,
+    validators: {
+      onSubmit: ({ value }) => validateForm(value),
+    },
+    onSubmit: async ({ value }) => {
+      let finalBannerUrl = normalizeExternalUrl(bannerState.previewUrl);
 
-			if (bannerState.file) {
-				try {
-					const result = await bannerUploadMutation.mutateAsync(
-						bannerState.file,
-					);
-					finalBannerUrl = normalizeExternalUrl(result.bannerUrl);
-				} catch (error) {
-					console.error("Banner 圖片上傳失敗，已取消發布流程:", error);
-					return;
-				}
-			}
+      if (bannerState.file) {
+        try {
+          const result = await bannerUploadMutation.mutateAsync(
+            bannerState.file,
+          );
+          finalBannerUrl = normalizeExternalUrl(result.bannerUrl);
+        } catch (error) {
+          console.error("Banner 圖片上傳失敗，已取消發布流程:", error);
+          return;
+        }
+      }
 
-			await saveMutation.mutateAsync({
-				serverId,
-				iconUrl: normalizeExternalUrl(iconPreviewUrl),
-				bannerUrl: finalBannerUrl,
-				form: value,
-			});
+      await saveMutation.mutateAsync({
+        serverId,
+        iconUrl: normalizeExternalUrl(iconPreviewUrl),
+        bannerUrl: finalBannerUrl,
+        form: value,
+      });
 
-			if (typeof window !== "undefined") {
-				localStorage.removeItem(DRAFT_KEY);
-			}
-		},
-	});
+      if (typeof window !== "undefined") {
+        localStorage.removeItem(DRAFT_KEY);
+      }
+    },
+  });
 
-	const handleGoBack = () => {
-		if (form.state.isDirty) {
-			const confirmLeave = window.confirm(
-				"您有未儲存的內容，確定要放棄草稿並離開嗎？",
-			);
-			if (!confirmLeave) return;
-		}
+  const handleGoBack = () => {
+    if (form.state.isDirty) {
+      const confirmLeave = window.confirm(
+        "您有未儲存的內容，確定要放棄草稿並離開嗎？",
+      );
+      if (!confirmLeave) return;
+    }
 
-		void navigate({
-			to: "/servers/$serverId",
-			params: { serverId },
-		});
-	};
+    void navigate({
+      to: "/servers/$serverId",
+      params: { serverId },
+    });
+  };
 
-	useEffect(() => {
-		return () => {
-			if (bannerState.previewUrl?.startsWith("blob:")) {
-				URL.revokeObjectURL(bannerState.previewUrl);
-			}
-		};
-	}, [bannerState.previewUrl]);
+  useEffect(() => {
+    return () => {
+      if (bannerState.previewUrl?.startsWith("blob:")) {
+        URL.revokeObjectURL(bannerState.previewUrl);
+      }
+    };
+  }, [bannerState.previewUrl]);
 
-	const handleBannerFileChange = (event: ChangeEvent<HTMLInputElement>) => {
-		const file = event.target.files?.[0];
-		if (!file) return;
+  const handleBannerFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
 
-		const mimeType = resolveSupportedBannerMimeType(file);
-		if (!mimeType) {
-			showErrorAlert("請選擇 GIF、PNG、JPG、JPEG 或 WEBP 圖片檔案", "格式錯誤");
-			event.target.value = "";
-			return;
-		}
+    const mimeType = resolveSupportedBannerMimeType(file);
+    if (!mimeType) {
+      showErrorAlert("請選擇 GIF、PNG、JPG、JPEG 或 WEBP 圖片檔案", "格式錯誤");
+      event.target.value = "";
+      return;
+    }
 
-		if (file.size <= 0) {
-			showErrorAlert("選擇的檔案內容為空，請重新選擇", "檔案無效");
-			event.target.value = "";
-			return;
-		}
+    if (file.size <= 0) {
+      showErrorAlert("選擇的檔案內容為空，請重新選擇", "檔案無效");
+      event.target.value = "";
+      return;
+    }
 
-		if (file.size > MAX_BANNER_IMAGE_BYTES) {
-			showErrorAlert("圖片檔案大小不可超過 10MB", "檔案過大");
-			event.target.value = "";
-			return;
-		}
+    if (file.size > MAX_BANNER_IMAGE_BYTES) {
+      showErrorAlert("圖片檔案大小不可超過 10MB", "檔案過大");
+      event.target.value = "";
+      return;
+    }
 
-		if (bannerState.previewUrl?.startsWith("blob:")) {
-			URL.revokeObjectURL(bannerState.previewUrl);
-		}
+    if (bannerState.previewUrl?.startsWith("blob:")) {
+      URL.revokeObjectURL(bannerState.previewUrl);
+    }
 
-		const newPreviewUrl = URL.createObjectURL(file);
+    const newPreviewUrl = URL.createObjectURL(file);
 
-		setBannerState({
-			file,
-			previewUrl: newPreviewUrl,
-			fingerprint: null,
-			status: "已選擇新圖片，將於儲存時上傳",
-			error: null,
-		});
+    setBannerState({
+      file,
+      previewUrl: newPreviewUrl,
+      fingerprint: null,
+      status: "已選擇新圖片，將於儲存時上傳",
+      error: null,
+    });
 
-		event.target.value = "";
-	};
+    event.target.value = "";
+  };
 
-	const isBannerUploading = bannerUploadMutation.isPending;
-	const isUploading = isIconUploading || isBannerUploading;
+  const isBannerUploading = bannerUploadMutation.isPending;
+  const isUploading = isIconUploading || isBannerUploading;
 
-	return (
-		<div className="min-h-screen bg-[#1e1f22] px-4 py-8 text-white">
-			{/* 💡 注入草稿管理器，分離渲染負擔 */}
-			<DraftManager form={form} draftKey={DRAFT_KEY} />
+  return (
+    <div className="min-h-screen bg-[#1e1f22] px-4 py-8 text-white">
+      {/* 💡 注入草稿管理器，分離渲染負擔 */}
+      <DraftManager form={form} draftKey={DRAFT_KEY} />
 
-			<div className="mx-auto max-w-7xl space-y-6">
-				<div className="flex flex-wrap items-center justify-between gap-3">
-					<div>
-						<h1 className="font-bold text-2xl">
-							{bundle.isPublished ? "編輯您的伺服器" : "發布您的伺服器"}
-						</h1>
-					</div>
-					<Button
-						type="button"
-						onClick={handleGoBack}
-						className="bg-discord text-white hover:bg-discord-hover"
-					>
-						返回伺服器頁
-					</Button>
-				</div>
+      <div className="mx-auto max-w-7xl space-y-6">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div>
+            <h1 className="font-bold text-2xl">
+              {bundle.isPublished ? "編輯您的伺服器" : "發布您的伺服器"}
+            </h1>
+          </div>
+          <Button
+            type="button"
+            onClick={handleGoBack}
+            className="bg-discord text-white hover:bg-discord-hover"
+          >
+            返回伺服器頁
+          </Button>
+        </div>
 
-				<form
-					onSubmit={(event) => {
-						event.preventDefault();
-						event.stopPropagation();
-						void form.handleSubmit();
-					}}
-					className="grid gap-6 lg:grid-cols-2"
-				>
-					<div className="space-y-6 rounded-xl border border-white/10 bg-[#2b2d31] p-5">
-						<h2 className="border-white/10 border-b pb-2 font-bold text-lg">
-							基本資訊
-						</h2>
-						<form.Field
-							name="serverName"
-							validators={{
-								onChange: ({ value }) => validateServerName(value),
-							}}
-						>
-							{(field) => {
-								const errorMessage = readFirstError(field.state.meta.errors);
-								return (
-									<div className="space-y-2">
-										<Label htmlFor="serverName">伺服器名稱</Label>
-										<Input
-											id="serverName"
-											value={field.state.value}
-											disabled
-											onBlur={field.handleBlur}
-											onChange={(event) =>
-												field.handleChange(event.target.value)
-											}
-											aria-invalid={Boolean(errorMessage)}
-										/>
-										{errorMessage ? (
-											<p className="text-[#ed4245] text-sm">{errorMessage}</p>
-										) : null}
-									</div>
-								);
-							}}
-						</form.Field>
+        <form
+          onSubmit={(event) => {
+            event.preventDefault();
+            event.stopPropagation();
+            void form.handleSubmit();
+          }}
+          className="grid gap-6 lg:grid-cols-2"
+        >
+          <div className="space-y-6 rounded-xl border border-white/10 bg-[#2b2d31] p-5">
+            <h2 className="border-white/10 border-b pb-2 font-bold text-lg">
+              基本資訊
+            </h2>
+            <form.Field
+              name="serverName"
+              validators={{
+                onChange: ({ value }) => validateServerName(value),
+              }}
+            >
+              {(field) => {
+                const errorMessage = readFirstError(field.state.meta.errors);
+                return (
+                  <div className="space-y-2">
+                    <Label htmlFor="serverName">伺服器名稱</Label>
+                    <Input
+                      id="serverName"
+                      value={field.state.value}
+                      disabled
+                      onBlur={field.handleBlur}
+                      onChange={(event) =>
+                        field.handleChange(event.target.value)
+                      }
+                      aria-invalid={Boolean(errorMessage)}
+                    />
+                    {errorMessage ? (
+                      <p className="text-[#ed4245] text-sm">{errorMessage}</p>
+                    ) : null}
+                  </div>
+                );
+              }}
+            </form.Field>
 
-						<form.Field
-							name="shortDescription"
-							validators={{
-								onChange: ({ value }) => validateShortDescription(value),
-							}}
-						>
-							{(field) => {
-								const errorMessage = readFirstError(field.state.meta.errors);
-								return (
-									<div className="space-y-2">
-										<Label htmlFor="shortDescription">簡短描述 *</Label>
-										<Textarea
-											id="shortDescription"
-											rows={3}
-											maxLength={200}
-											value={field.state.value}
-											onBlur={field.handleBlur}
-											onChange={(event) =>
-												field.handleChange(event.target.value)
-											}
-											placeholder="一句話介紹你的社群"
-											aria-invalid={Boolean(errorMessage)}
-										/>
-										<div className="flex items-center justify-between text-[#b9bbbe] text-xs">
-											<span>最多 200 字</span>
-											<span>{field.state.value.length}/200</span>
-										</div>
-										{errorMessage ? (
-											<p className="text-[#ed4245] text-sm">{errorMessage}</p>
-										) : null}
-									</div>
-								);
-							}}
-						</form.Field>
+            <form.Field
+              name="shortDescription"
+              validators={{
+                onChange: ({ value }) => validateShortDescription(value),
+              }}
+            >
+              {(field) => {
+                const errorMessage = readFirstError(field.state.meta.errors);
+                return (
+                  <div className="space-y-2">
+                    <Label htmlFor="shortDescription">簡短描述 *</Label>
+                    <Textarea
+                      id="shortDescription"
+                      rows={3}
+                      maxLength={200}
+                      value={field.state.value}
+                      onBlur={field.handleBlur}
+                      onChange={(event) =>
+                        field.handleChange(event.target.value)
+                      }
+                      placeholder="一句話介紹你的社群"
+                      aria-invalid={Boolean(errorMessage)}
+                    />
+                    <div className="flex items-center justify-between text-[#b9bbbe] text-xs">
+                      <span>最多 200 字</span>
+                      <span>{field.state.value.length}/200</span>
+                    </div>
+                    {errorMessage ? (
+                      <p className="text-[#ed4245] text-sm">{errorMessage}</p>
+                    ) : null}
+                  </div>
+                );
+              }}
+            </form.Field>
 
-						<form.Field
-							name="longDescription"
-							validators={{
-								onChange: ({ value }) => validateLongDescription(value),
-							}}
-						>
-							{(field) => {
-								const errorMessage = readFirstError(field.state.meta.errors);
-								return (
-									<div className="space-y-2">
-										<Label htmlFor="longDescription">詳細介紹 *</Label>
-										<textarea
-											id="longDescription"
-											ref={textareaRef}
-											rows={14}
-											className="flex min-h-16 w-full rounded-md border border-input bg-transparent px-3 py-2 text-base shadow-xs outline-none transition-[color,box-shadow] placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:aria-invalid:ring-destructive/40"
-											value={field.state.value}
-											onBlur={field.handleBlur}
-											onScroll={handleScroll}
-											onChange={(event) =>
-												field.handleChange(event.target.value)
-											}
-											placeholder="支援 Markdown，右側可即時預覽"
-											aria-invalid={Boolean(errorMessage)}
-										/>
-										{errorMessage ? (
-											<p className="text-[#ed4245] text-sm">{errorMessage}</p>
-										) : null}
-									</div>
-								);
-							}}
-						</form.Field>
+            <form.Field
+              name="longDescription"
+              validators={{
+                onChange: ({ value }) => validateLongDescription(value),
+              }}
+            >
+              {(field) => {
+                const errorMessage = readFirstError(field.state.meta.errors);
+                return (
+                  <div className="space-y-2">
+                    <Label htmlFor="longDescription">詳細介紹 *</Label>
+                    <textarea
+                      id="longDescription"
+                      ref={textareaRef}
+                      rows={14}
+                      className="flex min-h-16 w-full rounded-md border border-input bg-transparent px-3 py-2 text-base shadow-xs outline-none transition-[color,box-shadow] placeholder:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:cursor-not-allowed disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 md:text-sm dark:bg-input/30 dark:aria-invalid:ring-destructive/40"
+                      value={field.state.value}
+                      onBlur={field.handleBlur}
+                      onScroll={handleScroll}
+                      onChange={(event) =>
+                        field.handleChange(event.target.value)
+                      }
+                      placeholder="支援 Markdown，右側可即時預覽"
+                      aria-invalid={Boolean(errorMessage)}
+                    />
+                    {errorMessage ? (
+                      <p className="text-[#ed4245] text-sm">{errorMessage}</p>
+                    ) : null}
+                  </div>
+                );
+              }}
+            </form.Field>
 
-						<form.Field
-							name="nsfw"
-							validators={{ onChange: ({ value }) => validateisNsfw(value) }}
-						>
-							{(field) => {
-								const errorMessage = readFirstError(field.state.meta.errors);
-								return (
-									<div className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 shadow-sm">
-										<Checkbox
-											id="NFW"
-											checked={field.state.value ?? false}
-											onCheckedChange={(checked) => {
-												field.handleChange(checked === true);
-											}}
-										/>
-										<div className="space-y-1 leading-none">
-											<div className="space-y-1 leading-none">
-												<Label htmlFor="nsfw" className="cursor-pointer">
-													NSFW 伺服器
-												</Label>
-												<p className="text-muted-foreground text-sm">
-													如果你的伺服器包含成人或敏感內容，請勾選此項。
-												</p>
-												<div className="mt-2 flex max-w-sm items-start gap-2 rounded-md border border-yellow-400 bg-yellow-100 px-3 py-2 text-xs text-yellow-700">
-													<div className="relative z-20 cursor-pointer text-yellow-600 hover:text-yellow-500">
-														<AlertTriangle className="h-5 w-5" />
-													</div>
-													<div className="space-y-0.5">
-														<p className="font-semibold text-yellow-900">
-															警告：誠實申報
-														</p>
-														<p className="leading-relaxed">
-															未能如實標註您的伺服器內容類型可能會導致嚴重後果。如果我們發現您的伺服器未正確標註為
-															NSFW，可能會導致其遭到系統強制移除，並且不另行通知。請確保遵循相關社群準則。
-														</p>
-													</div>
-												</div>
-												{errorMessage ? (
-													<p className="mt-1 text-[#ed4245] text-sm">
-														{errorMessage}
-													</p>
-												) : null}
-											</div>
-											{errorMessage ? (
-												<p className="mt-1 text-[#ed4245] text-sm">
-													{errorMessage}
-												</p>
-											) : null}
-										</div>
-									</div>
-								);
-							}}
-						</form.Field>
+            <form.Field
+              name="nsfw"
+              validators={{ onChange: ({ value }) => validateisNsfw(value) }}
+            >
+              {(field) => {
+                const errorMessage = readFirstError(field.state.meta.errors);
+                return (
+                  <div className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-4 shadow-sm">
+                    <Checkbox
+                      id="NFW"
+                      checked={field.state.value ?? false}
+                      onCheckedChange={(checked) => {
+                        field.handleChange(checked === true);
+                      }}
+                    />
+                    <div className="space-y-1 leading-none">
+                      <div className="space-y-1 leading-none">
+                        <Label htmlFor="nsfw" className="cursor-pointer">
+                          NSFW 伺服器
+                        </Label>
+                        <p className="text-muted-foreground text-sm">
+                          如果你的伺服器包含成人或敏感內容，請勾選此項。
+                        </p>
+                        <div className="mt-2 flex max-w-sm items-start gap-2 rounded-md border border-yellow-400 bg-yellow-100 px-3 py-2 text-xs text-yellow-700">
+                          <div className="relative z-20 cursor-pointer text-yellow-600 hover:text-yellow-500">
+                            <AlertTriangle className="h-5 w-5" />
+                          </div>
+                          <div className="space-y-0.5">
+                            <p className="font-semibold text-yellow-900">
+                              警告：誠實申報
+                            </p>
+                            <p className="leading-relaxed">
+                              未能如實標註您的伺服器內容類型可能會導致嚴重後果。如果我們發現您的伺服器未正確標註為
+                              NSFW，可能會導致其遭到系統強制移除，並且不另行通知。請確保遵循相關社群準則。
+                            </p>
+                          </div>
+                        </div>
+                        {errorMessage ? (
+                          <p className="mt-1 text-[#ed4245] text-sm">
+                            {errorMessage}
+                          </p>
+                        ) : null}
+                      </div>
+                      {errorMessage ? (
+                        <p className="mt-1 text-[#ed4245] text-sm">
+                          {errorMessage}
+                        </p>
+                      ) : null}
+                    </div>
+                  </div>
+                );
+              }}
+            </form.Field>
 
-						<form.Field
-							name="inviteLink"
-							validators={{
-								onChange: ({ value }) => validateInviteLink(value),
-							}}
-						>
-							{(field) => {
-								const errorMessage = readFirstError(field.state.meta.errors);
-								return (
-									<div className="space-y-2">
-										<Label htmlFor="inviteLink">Discord 邀請連結 *</Label>
-										<Input
-											id="inviteLink"
-											value={field.state.value}
-											onBlur={field.handleBlur}
-											onChange={(event) =>
-												field.handleChange(event.target.value)
-											}
-											placeholder="https://discord.gg/your-server"
-											aria-invalid={Boolean(errorMessage)}
-										/>
-										{errorMessage ? (
-											<p className="text-[#ed4245] text-sm">{errorMessage}</p>
-										) : null}
-									</div>
-								);
-							}}
-						</form.Field>
+            <form.Field
+              name="inviteLink"
+              validators={{
+                onChange: ({ value }) => validateInviteLink(value),
+              }}
+            >
+              {(field) => {
+                const errorMessage = readFirstError(field.state.meta.errors);
+                return (
+                  <div className="space-y-2">
+                    <Label htmlFor="inviteLink">Discord 邀請連結 *</Label>
+                    <Input
+                      id="inviteLink"
+                      value={field.state.value}
+                      onBlur={field.handleBlur}
+                      onChange={(event) =>
+                        field.handleChange(event.target.value)
+                      }
+                      placeholder="https://discord.gg/your-server"
+                      aria-invalid={Boolean(errorMessage)}
+                    />
+                    {errorMessage ? (
+                      <p className="text-[#ed4245] text-sm">{errorMessage}</p>
+                    ) : null}
+                  </div>
+                );
+              }}
+            </form.Field>
 
-						<form.Field
-							name="websiteLink"
-							validators={{
-								onChange: ({ value }) => validateWebsiteLink(value),
-							}}
-						>
-							{(field) => {
-								const errorMessage = readFirstError(field.state.meta.errors);
-								return (
-									<div className="space-y-2">
-										<Label htmlFor="websiteLink">網站連結</Label>
-										<Input
-											id="websiteLink"
-											value={field.state.value}
-											onBlur={field.handleBlur}
-											onChange={(event) =>
-												field.handleChange(event.target.value)
-											}
-											placeholder="https://your-website.example"
-											aria-invalid={Boolean(errorMessage)}
-										/>
-										{errorMessage ? (
-											<p className="text-[#ed4245] text-sm">{errorMessage}</p>
-										) : null}
-									</div>
-								);
-							}}
-						</form.Field>
+            <form.Field
+              name="websiteLink"
+              validators={{
+                onChange: ({ value }) => validateWebsiteLink(value),
+              }}
+            >
+              {(field) => {
+                const errorMessage = readFirstError(field.state.meta.errors);
+                return (
+                  <div className="space-y-2">
+                    <Label htmlFor="websiteLink">網站連結</Label>
+                    <Input
+                      id="websiteLink"
+                      value={field.state.value}
+                      onBlur={field.handleBlur}
+                      onChange={(event) =>
+                        field.handleChange(event.target.value)
+                      }
+                      placeholder="https://your-website.example"
+                      aria-invalid={Boolean(errorMessage)}
+                    />
+                    {errorMessage ? (
+                      <p className="text-[#ed4245] text-sm">{errorMessage}</p>
+                    ) : null}
+                  </div>
+                );
+              }}
+            </form.Field>
 
-						<form.Field
-							name="rules"
-							validators={{
-								onChange: ({ value }) => {
-									const listError = validateRules(value);
-									if (listError) return listError;
-									for (const rule of value) {
-										const ruleError = validateRule(rule);
-										if (ruleError) return ruleError;
-									}
-									return undefined;
-								},
-							}}
-						>
-							{(field) => <RulesField field={field} />}
-						</form.Field>
+            <form.Field
+              name="rules"
+              validators={{
+                onChange: ({ value }) => {
+                  const listError = validateRules(value);
+                  if (listError) return listError;
+                  for (const rule of value) {
+                    const ruleError = validateRule(rule);
+                    if (ruleError) return ruleError;
+                  }
+                  return undefined;
+                },
+              }}
+            >
+              {(field) => <RulesField field={field} />}
+            </form.Field>
 
-						<form.Field
-							name="tags"
-							validators={{
-								onChange: ({ value }) => {
-									const listError = validateTags(value);
-									if (listError) return listError;
-									for (const tag of value) {
-										const tagError = validateTag(tag);
-										if (tagError) return tagError;
-									}
-									return undefined;
-								},
-							}}
-						>
-							{(field) => (
-								<ServerTagField field={field} categories={ServerCategories} />
-							)}
-						</form.Field>
+            <form.Field
+              name="tags"
+              validators={{
+                onChange: ({ value }) => {
+                  const listError = validateTags(value);
+                  if (listError) return listError;
+                  for (const tag of value) {
+                    const tagError = validateTag(tag);
+                    if (tagError) return tagError;
+                  }
+                  return undefined;
+                },
+              }}
+            >
+              {(field) => (
+                <ServerTagField field={field} categories={ServerCategories} />
+              )}
+            </form.Field>
 
-						<h2 className="border-white/10 border-b pb-2 font-bold text-lg">
-							投票通知
-						</h2>
+            <h2 className="border-white/10 border-b pb-2 font-bold text-lg">
+              投票通知
+            </h2>
 
-						<form.Field
-							name="secret"
-							validators={{
-								onChange: ({ value }) => validateSecret(value),
-							}}
-						>
-							{(field) => {
-								const errorMessage = readFirstError(field.state.meta.errors);
-								return (
-									<div className="space-y-2">
-										<Label htmlFor="secret">密鑰</Label>
-										<Input
-											id="secret"
-											value={field.state.value}
-											onBlur={field.handleBlur}
-											onChange={(event) =>
-												field.handleChange(event.target.value)
-											}
-											placeholder="可選：Webhook 密鑰 (用於驗證來自自訂端點的 Webhook 請求)"
-											aria-invalid={Boolean(errorMessage)}
-										/>
-										{errorMessage ? (
-											<p className="text-[#ed4245] text-sm">{errorMessage}</p>
-										) : null}
-									</div>
-								);
-							}}
-						</form.Field>
+            <form.Field
+              name="secret"
+              validators={{
+                onChange: ({ value }) => validateSecret(value),
+              }}
+            >
+              {(field) => {
+                const errorMessage = readFirstError(field.state.meta.errors);
+                return (
+                  <div className="space-y-2">
+                    <Label htmlFor="secret">密鑰</Label>
+                    <Input
+                      id="secret"
+                      value={field.state.value}
+                      onBlur={field.handleBlur}
+                      onChange={(event) =>
+                        field.handleChange(event.target.value)
+                      }
+                      placeholder="可選：Webhook 密鑰 (用於驗證來自自訂端點的 Webhook 請求)"
+                      aria-invalid={Boolean(errorMessage)}
+                    />
+                    {errorMessage ? (
+                      <p className="text-[#ed4245] text-sm">{errorMessage}</p>
+                    ) : null}
+                  </div>
+                );
+              }}
+            </form.Field>
 
-						<form.Field
-							name="webhook_url"
-							validators={{
-								onChange: ({ value }) => validateWebhookUrl(value),
-							}}
-						>
-							{(field) => {
-								const errorMessage = readFirstError(field.state.meta.errors);
-								return (
-									<div className="space-y-2">
-										<Label htmlFor="webhook_url">Webhook 網址</Label>
-										<Input
-											id="webhook_url"
-											value={field.state.value}
-											onBlur={field.handleBlur}
-											onChange={(event) =>
-												field.handleChange(event.target.value)
-											}
-											placeholder="可選：Discord Webhook 網址 或 自訂端點網址"
-											aria-invalid={Boolean(errorMessage)}
-										/>
-										{errorMessage ? (
-											<p className="text-[#ed4245] text-sm">{errorMessage}</p>
-										) : null}
-									</div>
-								);
-							}}
-						</form.Field>
+            <form.Field
+              name="webhook_url"
+              validators={{
+                onChange: ({ value }) => validateWebhookUrl(value),
+              }}
+            >
+              {(field) => {
+                const errorMessage = readFirstError(field.state.meta.errors);
+                return (
+                  <div className="space-y-2">
+                    <Label htmlFor="webhook_url">Webhook 網址</Label>
+                    <Input
+                      id="webhook_url"
+                      value={field.state.value}
+                      onBlur={field.handleBlur}
+                      onChange={(event) =>
+                        field.handleChange(event.target.value)
+                      }
+                      placeholder="可選：Discord Webhook 網址 或 自訂端點網址"
+                      aria-invalid={Boolean(errorMessage)}
+                    />
+                    {errorMessage ? (
+                      <p className="text-[#ed4245] text-sm">{errorMessage}</p>
+                    ) : null}
+                  </div>
+                );
+              }}
+            </form.Field>
 
-						<h2 className="border-white/10 border-b pb-2 font-bold text-lg">
-							圖片上傳
-						</h2>
+            <h2 className="border-white/10 border-b pb-2 font-bold text-lg">
+              圖片上傳
+            </h2>
 
-						<div className="space-y-2">
-							<Label htmlFor="bannerImageFile">
-								自訂 Banner 圖片（GIF/PNG/JPG/WEBP）
-							</Label>
-							<input
-								ref={bannerFileInputRef}
-								id="bannerImageFile"
-								type="file"
-								accept={SUPPORTED_BANNER_FILE_ACCEPT}
-								disabled={isBannerUploading}
-								className="sr-only"
-								onChange={(event) => {
-									void handleBannerFileChange(event);
-								}}
-							/>
-							<Button
-								type="button"
-								className="bg-discord text-white hover:bg-discord-hover disabled:cursor-not-allowed disabled:bg-discord/70"
-								disabled={isBannerUploading}
-								onClick={() => bannerFileInputRef.current?.click()}
-							>
-								{isBannerUploading ? "圖片上傳中..." : "選擇 Banner 圖片"}
-							</Button>
-							{bannerState.status ? (
-								<p className="text-[#57f287] text-sm">{bannerState.status}</p>
-							) : null}
-							{bannerState.error ? (
-								<p className="text-[#ed4245] text-sm">{bannerState.error}</p>
-							) : null}
-						</div>
+            <div className="space-y-2">
+              <Label htmlFor="bannerImageFile">
+                自訂 Banner 圖片（GIF/PNG/JPG/WEBP）
+              </Label>
+              <input
+                ref={bannerFileInputRef}
+                id="bannerImageFile"
+                type="file"
+                accept={SUPPORTED_BANNER_FILE_ACCEPT}
+                disabled={isBannerUploading}
+                className="sr-only"
+                onChange={(event) => {
+                  void handleBannerFileChange(event);
+                }}
+              />
+              <Button
+                type="button"
+                className="bg-discord text-white hover:bg-discord-hover disabled:cursor-not-allowed disabled:bg-discord/70"
+                disabled={isBannerUploading}
+                onClick={() => bannerFileInputRef.current?.click()}
+              >
+                {isBannerUploading ? "圖片上傳中..." : "選擇 Banner 圖片"}
+              </Button>
+              {bannerState.status ? (
+                <p className="text-[#57f287] text-sm">{bannerState.status}</p>
+              ) : null}
+              {bannerState.error ? (
+                <p className="text-[#ed4245] text-sm">{bannerState.error}</p>
+              ) : null}
+            </div>
 
-						<h2 className="mt-8 border-white/10 border-b pb-2 font-bold text-lg">
-							自訂投票 Embed 格式 (選填)
-						</h2>
+            <h2 className="mt-8 border-white/10 border-b pb-2 font-bold text-lg">
+              自訂投票 Embed 格式 (選填)
+            </h2>
 
-						<div className="grid gap-4 md:grid-cols-2">
-							<form.Field name="customEmbed.username">
-								{(field) => (
-									<div className="space-y-2">
-										<Label>通知名稱</Label>
-										<Input
-											value={field.state.value}
-											onChange={(e) => field.handleChange(e.target.value)}
-										/>
-									</div>
-								)}
-							</form.Field>
-							<form.Field name="customEmbed.avatar_url">
-								{(field) => (
-									<div className="space-y-2">
-										<Label>通知頭像</Label>
-										<Input
-											value={field.state.value}
-											onChange={(e) => field.handleChange(e.target.value)}
-										/>
-									</div>
-								)}
-							</form.Field>
-						</div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <form.Field name="customEmbed.username">
+                {(field) => (
+                  <div className="space-y-2">
+                    <Label>通知名稱</Label>
+                    <Input
+                      value={field.state.value}
+                      onChange={(e) => field.handleChange(e.target.value)}
+                    />
+                  </div>
+                )}
+              </form.Field>
+              <form.Field name="customEmbed.avatar_url">
+                {(field) => (
+                  <div className="space-y-2">
+                    <Label>通知頭像</Label>
+                    <Input
+                      value={field.state.value}
+                      onChange={(e) => field.handleChange(e.target.value)}
+                    />
+                  </div>
+                )}
+              </form.Field>
+            </div>
 
-						<form.Field name="customEmbed.content">
-							{(field) => (
-								<div className="space-y-2">
-									<Label>一般文字內容 (Content)</Label>
-									<Textarea
-										value={field.state.value}
-										onChange={(e) => field.handleChange(e.target.value)}
-										placeholder="顯示在 Embed 上方的純文字內容，可標記 User 或 Role"
-										rows={2}
-									/>
-								</div>
-							)}
-						</form.Field>
+            <form.Field name="customEmbed.content">
+              {(field) => (
+                <div className="space-y-2">
+                  <Label>一般文字內容 (Content)</Label>
+                  <Textarea
+                    value={field.state.value}
+                    onChange={(e) => field.handleChange(e.target.value)}
+                    placeholder="顯示在 Embed 上方的純文字內容，可標記 User 或 Role"
+                    rows={2}
+                  />
+                </div>
+              )}
+            </form.Field>
 
-						<form.Field name="customEmbed.color">
-							{(field) => (
-								<div className="space-y-2">
-									<Label>邊框顏色 (Color Hex)</Label>
-									<div className="flex items-center gap-2">
-										<input
-											type="color"
-											value={field.state.value}
-											onChange={(e) => field.handleChange(e.target.value)}
-											className="h-9 w-12 cursor-pointer rounded border-0 bg-transparent p-0"
-										/>
-										<Input
-											value={field.state.value}
-											onChange={(e) => field.handleChange(e.target.value)}
-											placeholder="#5865F2"
-											className="w-32 uppercase"
-										/>
-									</div>
-								</div>
-							)}
-						</form.Field>
+            <form.Field name="customEmbed.color">
+              {(field) => (
+                <div className="space-y-2">
+                  <Label>邊框顏色 (Color Hex)</Label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      type="color"
+                      value={field.state.value}
+                      onChange={(e) => field.handleChange(e.target.value)}
+                      className="h-9 w-12 cursor-pointer rounded border-0 bg-transparent p-0"
+                    />
+                    <Input
+                      value={field.state.value}
+                      onChange={(e) => field.handleChange(e.target.value)}
+                      placeholder="#5865F2"
+                      className="w-32 uppercase"
+                    />
+                  </div>
+                </div>
+              )}
+            </form.Field>
 
-						<div className="grid gap-4 md:grid-cols-2">
-							<form.Field name="customEmbed.authorName">
-								{(field) => (
-									<div className="space-y-2">
-										<Label>作者名稱</Label>
-										<Input
-											value={field.state.value}
-											onChange={(e) => field.handleChange(e.target.value)}
-										/>
-									</div>
-								)}
-							</form.Field>
-							<form.Field name="customEmbed.authorIconUrl">
-								{(field) => (
-									<div className="space-y-2">
-										<Label>作者圖標 URL</Label>
-										<Input
-											value={field.state.value}
-											onChange={(e) => field.handleChange(e.target.value)}
-										/>
-									</div>
-								)}
-							</form.Field>
-						</div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <form.Field name="customEmbed.authorName">
+                {(field) => (
+                  <div className="space-y-2">
+                    <Label>作者名稱</Label>
+                    <Input
+                      value={field.state.value}
+                      onChange={(e) => field.handleChange(e.target.value)}
+                    />
+                  </div>
+                )}
+              </form.Field>
+              <form.Field name="customEmbed.authorIconUrl">
+                {(field) => (
+                  <div className="space-y-2">
+                    <Label>作者圖標 URL</Label>
+                    <Input
+                      value={field.state.value}
+                      onChange={(e) => field.handleChange(e.target.value)}
+                    />
+                  </div>
+                )}
+              </form.Field>
+            </div>
 
-						<div className="grid gap-4 md:grid-cols-2">
-							<form.Field name="customEmbed.title">
-								{(field) => (
-									<div className="space-y-2">
-										<Label>標題 (Title)</Label>
-										<Input
-											value={field.state.value}
-											onChange={(e) => field.handleChange(e.target.value)}
-										/>
-									</div>
-								)}
-							</form.Field>
-							<form.Field name="customEmbed.url">
-								{(field) => (
-									<div className="space-y-2">
-										<Label>標題連結 (URL)</Label>
-										<Input
-											value={field.state.value}
-											onChange={(e) => field.handleChange(e.target.value)}
-										/>
-									</div>
-								)}
-							</form.Field>
-						</div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <form.Field name="customEmbed.title">
+                {(field) => (
+                  <div className="space-y-2">
+                    <Label>標題 (Title)</Label>
+                    <Input
+                      value={field.state.value}
+                      onChange={(e) => field.handleChange(e.target.value)}
+                    />
+                  </div>
+                )}
+              </form.Field>
+              <form.Field name="customEmbed.url">
+                {(field) => (
+                  <div className="space-y-2">
+                    <Label>標題連結 (URL)</Label>
+                    <Input
+                      value={field.state.value}
+                      onChange={(e) => field.handleChange(e.target.value)}
+                    />
+                  </div>
+                )}
+              </form.Field>
+            </div>
 
-						<form.Field name="customEmbed.description">
-							{(field) => (
-								<div className="space-y-2">
-									<Label>描述 (Description)</Label>
-									<Textarea
-										value={field.state.value}
-										onChange={(e) => field.handleChange(e.target.value)}
-										rows={3}
-									/>
-								</div>
-							)}
-						</form.Field>
+            <form.Field name="customEmbed.description">
+              {(field) => (
+                <div className="space-y-2">
+                  <Label>描述 (Description)</Label>
+                  <Textarea
+                    value={field.state.value}
+                    onChange={(e) => field.handleChange(e.target.value)}
+                    rows={3}
+                  />
+                </div>
+              )}
+            </form.Field>
 
-						<div className="grid gap-4 md:grid-cols-2">
-							<form.Field name="customEmbed.imageUrl">
-								{(field) => (
-									<div className="space-y-2">
-										<Label>大圖 URL (Image)</Label>
-										<Input
-											value={field.state.value}
-											onChange={(e) => field.handleChange(e.target.value)}
-										/>
-									</div>
-								)}
-							</form.Field>
-							<form.Field name="customEmbed.thumbnailUrl">
-								{(field) => (
-									<div className="space-y-2">
-										<Label>右上角縮圖 URL (Thumbnail)</Label>
-										<Input
-											value={field.state.value}
-											onChange={(e) => field.handleChange(e.target.value)}
-										/>
-									</div>
-								)}
-							</form.Field>
-						</div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <form.Field name="customEmbed.imageUrl">
+                {(field) => (
+                  <div className="space-y-2">
+                    <Label>大圖 URL (Image)</Label>
+                    <Input
+                      value={field.state.value}
+                      onChange={(e) => field.handleChange(e.target.value)}
+                    />
+                  </div>
+                )}
+              </form.Field>
+              <form.Field name="customEmbed.thumbnailUrl">
+                {(field) => (
+                  <div className="space-y-2">
+                    <Label>右上角縮圖 URL (Thumbnail)</Label>
+                    <Input
+                      value={field.state.value}
+                      onChange={(e) => field.handleChange(e.target.value)}
+                    />
+                  </div>
+                )}
+              </form.Field>
+            </div>
 
-						<div className="grid gap-4 md:grid-cols-2">
-							<form.Field name="customEmbed.footerText">
-								{(field) => (
-									<div className="space-y-2">
-										<Label>頁尾文字 (Footer)</Label>
-										<Input
-											value={field.state.value}
-											onChange={(e) => field.handleChange(e.target.value)}
-										/>
-									</div>
-								)}
-							</form.Field>
-							<form.Field name="customEmbed.footerIconUrl">
-								{(field) => (
-									<div className="space-y-2">
-										<Label>頁尾圖標 URL</Label>
-										<Input
-											value={field.state.value}
-											onChange={(e) => field.handleChange(e.target.value)}
-										/>
-									</div>
-								)}
-							</form.Field>
-						</div>
+            <div className="grid gap-4 md:grid-cols-2">
+              <form.Field name="customEmbed.footerText">
+                {(field) => (
+                  <div className="space-y-2">
+                    <Label>頁尾文字 (Footer)</Label>
+                    <Input
+                      value={field.state.value}
+                      onChange={(e) => field.handleChange(e.target.value)}
+                    />
+                  </div>
+                )}
+              </form.Field>
+              <form.Field name="customEmbed.footerIconUrl">
+                {(field) => (
+                  <div className="space-y-2">
+                    <Label>頁尾圖標 URL</Label>
+                    <Input
+                      value={field.state.value}
+                      onChange={(e) => field.handleChange(e.target.value)}
+                    />
+                  </div>
+                )}
+              </form.Field>
+            </div>
 
-						<form.Field name="customEmbed.fields">
-							{(field) => <EmbedFieldsListField field={field} />}
-						</form.Field>
+            <form.Field name="customEmbed.fields">
+              {(field) => <EmbedFieldsListField field={field} />}
+            </form.Field>
 
-						<form.Subscribe
-							selector={(state) => ({
-								canSubmit: state.canSubmit,
-								isSubmitting: state.isSubmitting,
-								hasRequiredFields: hasRequiredPublishFields({
-									shortDescription: state.values.shortDescription,
-									longDescription: state.values.longDescription,
-									inviteLink: state.values.inviteLink,
-									tags: state.values.tags,
-								}),
-							})}
-						>
-							{({ canSubmit, isSubmitting, hasRequiredFields }) => (
-								<div className="w-full space-y-4">
-									<Button
-										type="submit"
-										disabled={
-											!hasRequiredFields ||
-											!canSubmit ||
-											isSubmitting ||
-											saveMutation.isPending ||
-											isUploading
-										}
-										className="w-full bg-[#5865f2] text-white hover:bg-[#4752c4] disabled:cursor-not-allowed disabled:bg-[#5865f2]/70"
-									>
-										{bannerUploadMutation.isPending
-											? "圖片上傳中..."
-											: saveMutation.isPending || isSubmitting
-												? "儲存中..."
-												: bundle.isPublished
-													? "更新伺服器"
-													: "發布伺服器"}
-									</Button>
-								</div>
-							)}
-						</form.Subscribe>
-					</div>
+            <form.Subscribe
+              selector={(state) => ({
+                canSubmit: state.canSubmit,
+                isSubmitting: state.isSubmitting,
+                hasRequiredFields: hasRequiredPublishFields({
+                  shortDescription: state.values.shortDescription,
+                  longDescription: state.values.longDescription,
+                  inviteLink: state.values.inviteLink,
+                  tags: state.values.tags,
+                }),
+              })}
+            >
+              {({ canSubmit, isSubmitting, hasRequiredFields }) => (
+                <div className="w-full space-y-4">
+                  <Button
+                    type="submit"
+                    disabled={
+                      !hasRequiredFields ||
+                      !canSubmit ||
+                      isSubmitting ||
+                      saveMutation.isPending ||
+                      isUploading
+                    }
+                    className="w-full bg-[#5865f2] text-white hover:bg-[#4752c4] disabled:cursor-not-allowed disabled:bg-[#5865f2]/70"
+                  >
+                    {bannerUploadMutation.isPending
+                      ? "圖片上傳中..."
+                      : saveMutation.isPending || isSubmitting
+                        ? "儲存中..."
+                        : bundle.isPublished
+                          ? "更新伺服器"
+                          : "發布伺服器"}
+                  </Button>
+                </div>
+              )}
+            </form.Subscribe>
+          </div>
 
-					<div className="flex h-full flex-col space-y-4 rounded-xl border border-white/10 bg-[#2b2d31] p-5">
-						<div className="space-y-2">
-							<Label>Icon 預覽</Label>
-							<div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-full border border-white/10 bg-[#36393f]">
-								{iconPreviewUrl ? (
-									<OptimizedImage
-										src={iconPreviewUrl}
-										alt="Server icon preview"
-										width={64}
-										height={64}
-										className="h-full w-full object-cover"
-									/>
-								) : (
-									<span className="text-[#b9bbbe] text-xs">沒有伺服器</span>
-								)}
-							</div>
-						</div>
+          <div className="flex h-full flex-col space-y-4 rounded-xl border border-white/10 bg-[#2b2d31] p-5">
+            <div className="space-y-2">
+              <Label>Icon 預覽</Label>
+              <div className="flex h-24 w-24 items-center justify-center overflow-hidden rounded-full border border-white/10 bg-[#36393f]">
+                {iconPreviewUrl ? (
+                  <OptimizedImage
+                    src={iconPreviewUrl}
+                    alt="Server icon preview"
+                    width={64}
+                    height={64}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <span className="text-[#b9bbbe] text-xs">沒有伺服器</span>
+                )}
+              </div>
+            </div>
 
-						<div className="space-y-2">
-							<Label>Banner 預覽</Label>
-							<div className="h-40 overflow-hidden rounded-lg border border-white/10 bg-[#36393f]">
-								{bannerState.previewUrl ? (
-									<OptimizedImage
-										src={bannerState.previewUrl}
-										alt="Server banner preview"
-										width={960}
-										height={320}
-										className="h-full w-full object-cover"
-									/>
-								) : (
-									<div className="flex h-full items-center justify-center text-[#b9bbbe] text-sm">
-										沒有伺服器旗幟
-									</div>
-								)}
-							</div>
-						</div>
+            <div className="space-y-2">
+              <Label>Banner 預覽</Label>
+              <div className="h-40 overflow-hidden rounded-lg border border-white/10 bg-[#36393f]">
+                {bannerState.previewUrl ? (
+                  <OptimizedImage
+                    src={bannerState.previewUrl}
+                    alt="Server banner preview"
+                    width={960}
+                    height={320}
+                    className="h-full w-full object-cover"
+                  />
+                ) : (
+                  <div className="flex h-full items-center justify-center text-[#b9bbbe] text-sm">
+                    沒有伺服器旗幟
+                  </div>
+                )}
+              </div>
+            </div>
 
-						<div className="flex h-0 flex-1 flex-col space-y-2">
-							<Label>Markdown 預覽</Label>
-							<MarkdownPreviewSection form={form} previewRef={previewRef} />
-						</div>
-						<div className="flex h-0 flex-1 flex-col space-y-2">
-							<Label>Embed 預覽</Label>
-							<EmbedPreviewSection form={form} />
-						</div>
-					</div>
-				</form>
-			</div>
-		</div>
-	);
+            <div className="flex h-0 flex-1 flex-col space-y-2">
+              <Label>Markdown 預覽</Label>
+              <MarkdownPreviewSection form={form} previewRef={previewRef} />
+            </div>
+            <div className="flex h-0 flex-1 flex-col space-y-2">
+              <Label>Embed 預覽</Label>
+              <EmbedPreviewSection form={form} />
+            </div>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
 }

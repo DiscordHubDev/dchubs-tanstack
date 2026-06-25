@@ -6,39 +6,39 @@ import { checkBotDeveloperServerFn } from "#/features/bots/bots.functions";
 import { signIn } from "#/lib/auth-client";
 
 export const Route = createFileRoute("/protected/bots/$botId/edit")({
-	preload: false,
-	beforeLoad: async ({ params }) => {
-		const { isDeveloper, isLoggedIn } = await checkBotDeveloperServerFn({
-			data: {
-				botId: params.botId,
-			},
-		});
+  preload: false,
+  beforeLoad: async ({ params }) => {
+    const { isDeveloper, isLoggedIn } = await checkBotDeveloperServerFn({
+      data: {
+        botId: params.botId,
+      },
+    });
 
-		if (!isLoggedIn) {
-			await signIn(`/protected/bots/${params.botId}/edit`);
-			throw redirect({ to: "/" });
-		}
+    if (!isLoggedIn) {
+      await signIn(`/protected/bots/${params.botId}/edit`);
+      throw redirect({ to: "/" });
+    }
 
-		// 3. 檢查是不是該機器人的開發者
-		if (!isDeveloper) {
-			throw redirect({
-				to: "/bots/$botId",
-				params: { botId: params.botId },
-			});
-		}
+    // 3. 檢查是不是該機器人的開發者
+    if (!isDeveloper) {
+      throw redirect({
+        to: "/bots/$botId",
+        params: { botId: params.botId },
+      });
+    }
 
-		return null;
-	},
-	component: RouteComponent,
+    return null;
+  },
+  component: RouteComponent,
 });
 
 function RouteComponent() {
-	const { botId } = Route.useParams();
-	const { data } = useSuspenseQuery(botEditQueryOptions(botId));
+  const { botId } = Route.useParams();
+  const { data } = useSuspenseQuery(botEditQueryOptions(botId));
 
-	if (data.status !== "ok") {
-		return null;
-	}
+  if (data.status !== "ok") {
+    return null;
+  }
 
-	return <BotForm mode="edit" defaultValues={data.bundle.defaults} />;
+  return <BotForm mode="edit" defaultValues={data.bundle.defaults} />;
 }

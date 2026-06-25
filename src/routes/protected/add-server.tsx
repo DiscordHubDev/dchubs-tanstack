@@ -10,72 +10,66 @@ import { useGuilds } from "#/hooks/use-guilds";
 import { checkAuthServerFn } from "#/lib/auth.functions";
 
 const siteUrl =
-	(typeof process !== "undefined" ? process.env.BETTER_AUTH_URL : undefined) ||
-	"https://dchubs.org";
+  (typeof process !== "undefined" ? process.env.BETTER_AUTH_URL : undefined) ||
+  "https://dchubs.org";
 
 export const Route = createFileRoute("/protected/add-server")({
-	beforeLoad: async ({ location }) => {
-		const authStatus = await checkAuthServerFn();
+  beforeLoad: async ({ location }) => {
+    const authStatus = await checkAuthServerFn();
 
-		if (!authStatus.isAuthenticated || !authStatus.userId) {
-			throw redirect({
-				to: "/",
-				search: { redirect: location.href },
-			});
-		}
+    if (!authStatus.isAuthenticated || !authStatus.userId) {
+      throw redirect({
+        to: "/",
+        search: { redirect: location.href },
+      });
+    }
 
-		return {
-			userId: authStatus.userId,
-		};
-	},
+    return {
+      userId: authStatus.userId,
+    };
+  },
 
-	head: ({ match }) => {
-		const publishTitle = "新增伺服器 | DiscordHubs";
-		const publishCanonical = new URL(match.pathname, siteUrl).toString();
+  head: ({ match }) => {
+    const publishTitle = "新增伺服器 | DiscordHubs";
+    const publishCanonical = new URL(match.pathname, siteUrl).toString();
 
-		return {
-			meta: [{ title: publishTitle }],
-			links: [{ rel: "canonical", href: publishCanonical }],
-		};
-	},
+    return {
+      meta: [{ title: publishTitle }],
+      links: [{ rel: "canonical", href: publishCanonical }],
+    };
+  },
 
-	loader: async ({ context }) => {
-		const { queryClient } = context;
-		await queryClient.ensureQueryData(guildMembershipQueryOptions());
-	},
+  loader: async ({ context }) => {
+    const { queryClient } = context;
+    await queryClient.ensureQueryData(guildMembershipQueryOptions());
+  },
 
-	component: RouteComponent,
-	pendingComponent: () => (
-		<LoadingPage
-			loadingText="正在加載您的 Discord 群組..."
-			subText="請稍候"
-			loaderType="dots"
-		/>
-	),
-	errorComponent: ({ error, reset }) => (
-		<div className="min-h-dvh bg-[#36393f] p-8 text-white">
-			<div className="mx-auto mt-20 max-w-2xl rounded-xl border border-[#ed4245] bg-[#2f3136] p-6 text-center">
-				<div className="mb-3 inline-flex items-center gap-2 text-[#ed4245]">
-					<AlertTriangle className="h-5 w-5" />
-					<span className="font-semibold">讀取伺服器失敗</span>
-				</div>
-				<p className="mb-4 text-[#b9bbbe] text-sm">
-					{error instanceof Error
-						? error.message
-						: "一個未預期的錯誤發生了。請稍後再試。"}
-				</p>
-				<button
-					type="button"
-					onClick={() => {
-						reset(); // Router 提供的 reset 方法，會重試 loader
-					}}
-					className="cursor-pointer rounded-lg bg-[#5865f2] px-4 py-2 font-medium text-sm transition-colors hover:bg-[#4752c4]"
-				>
-					重試
-				</button>
-			</div>
-		</div>
-	),
+  component: RouteComponent,
+  pendingComponent: () => (
+    <LoadingPage loadingText="正在加載您的 Discord 群組..." subText="請稍候" loaderType="dots" />
+  ),
+  errorComponent: ({ error, reset }) => (
+    <div className="min-h-dvh bg-[#36393f] p-8 text-white">
+      <div className="mx-auto mt-20 max-w-2xl rounded-xl border border-[#ed4245] bg-[#2f3136] p-6 text-center">
+        <div className="mb-3 inline-flex items-center gap-2 text-[#ed4245]">
+          <AlertTriangle className="h-5 w-5" />
+          <span className="font-semibold">讀取伺服器失敗</span>
+        </div>
+        <p className="mb-4 text-[#b9bbbe] text-sm">
+          {error instanceof Error ? error.message : "一個未預期的錯誤發生了。請稍後再試。"}
+        </p>
+        <button
+          type="button"
+          onClick={() => {
+            reset(); // Router 提供的 reset 方法，會重試 loader
+          }}
+          className="cursor-pointer rounded-lg bg-[#5865f2] px-4 py-2 font-medium text-sm transition-colors hover:bg-[#4752c4]"
+        >
+          重試
+        </button>
+      </div>
+    </div>
+  ),
 });
 
 const INITIAL_SERVERS_LOAD = 12;
@@ -83,301 +77,275 @@ const LOAD_MORE_AMOUNT = 8;
 const DEFAULT_BOT_PERMISSIONS = "3221228577";
 
 function buildGuildIconUrl(guild: DiscordGuild): string | null {
-	if (!guild.icon) {
-		return null;
-	}
+  if (!guild.icon) {
+    return null;
+  }
 
-	return `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png?size=128`;
+  return `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png?size=128`;
 }
 
 // 💡 優化：將 origin 作為參數傳入，避免 SSR 環境下找不到 window 導致報錯
 function buildBotInviteUrl(input: {
-	clientId: string;
-	guildId: string;
-	permissions: string;
-	origin: string;
+  clientId: string;
+  guildId: string;
+  permissions: string;
+  origin: string;
 }) {
-	const inviteUrl = new URL("https://discord.com/oauth2/authorize");
-	inviteUrl.searchParams.set("client_id", input.clientId);
-	inviteUrl.searchParams.set("permissions", input.permissions);
-	inviteUrl.searchParams.set("integration_type", "0");
+  const inviteUrl = new URL("https://discord.com/oauth2/authorize");
+  inviteUrl.searchParams.set("client_id", input.clientId);
+  inviteUrl.searchParams.set("permissions", input.permissions);
+  inviteUrl.searchParams.set("integration_type", "0");
 
-	// 💡 關鍵改動 1：有跳轉網址時，scope 必須包含 Oauth2 範疇，單寫 "bot" 會報錯
-	inviteUrl.searchParams.set("scope", "bot identify");
+  // 💡 關鍵改動 1：有跳轉網址時，scope 必須包含 Oauth2 範疇，單寫 "bot" 會報錯
+  inviteUrl.searchParams.set("scope", "bot identify");
 
-	inviteUrl.searchParams.set("guild_id", input.guildId);
-	inviteUrl.searchParams.set("disable_guild_select", "true");
+  inviteUrl.searchParams.set("guild_id", input.guildId);
+  inviteUrl.searchParams.set("disable_guild_select", "true");
 
-	// 💡 關鍵改動 2：加入成功後要跳轉回來的目標網址
-	const redirectUri = `${input.origin}/protected/add-server`;
-	inviteUrl.searchParams.set("redirect_uri", redirectUri);
+  // 💡 關鍵改動 2：加入成功後要跳轉回來的目標網址
+  const redirectUri = `${input.origin}/protected/add-server`;
+  inviteUrl.searchParams.set("redirect_uri", redirectUri);
 
-	// 💡 關鍵改動 3：Discord 規定有 redirect_uri 就必須帶上 response_type
-	inviteUrl.searchParams.set("response_type", "code");
+  // 💡 關鍵改動 3：Discord 規定有 redirect_uri 就必須帶上 response_type
+  inviteUrl.searchParams.set("response_type", "code");
 
-	return inviteUrl.toString();
+  return inviteUrl.toString();
 }
 
 type GuildCardProps = {
-	guild: DiscordGuild;
-	actionLabel: string;
-	onAction: (guildId: string) => void;
-	actionClassName: string;
+  guild: DiscordGuild;
+  actionLabel: string;
+  onAction: (guildId: string) => void;
+  actionClassName: string;
 };
 
 // 💡 優化：使用 React.memo 避免父層載入更多資料時，不必要的子元件全面重繪
 const GuildCard = memo(function GuildCard({
-	guild,
-	actionLabel,
-	onAction,
-	actionClassName,
+  guild,
+  actionLabel,
+  onAction,
+  actionClassName,
 }: GuildCardProps) {
-	const iconUrl = buildGuildIconUrl(guild);
+  const iconUrl = buildGuildIconUrl(guild);
 
-	const [imgError, setImgError] = useState(!iconUrl);
+  const [imgError, setImgError] = useState(!iconUrl);
 
-	return (
-		<div className="flex flex-col gap-4 rounded-xl border border-[#4f545c] bg-[#2f3136] p-4">
-			<div className="flex min-w-0 items-center gap-3">
-				<Avatar className="relative h-12 w-12 shrink-0 items-center justify-center overflow-hidden bg-[#40444b] font-semibold text-[#dcddde] text-sm shadow-sm">
-					{!imgError && (
-						<OptimizedImage
-							src={iconUrl}
-							alt={guild.name}
-							width={48}
-							height={48}
-							className="h-full w-full object-cover"
-							onError={() => setImgError(true)}
-						/>
-					)}
-					{imgError && (
-						<AvatarFallback className="select-none bg-transparent font-semibold text-sm uppercase">
-							{guild.name?.slice(0, 1).toUpperCase() || "G"}
-						</AvatarFallback>
-					)}
-				</Avatar>
-				<div className="min-w-0">
-					<p className="truncate font-medium text-white">{guild.name}</p>
-					<p className="text-[#b9bbbe] text-xs">
-						{guild.owner ? "你是擁有者" : "你是管理員"}
-					</p>
-				</div>
-			</div>
+  return (
+    <div className="flex flex-col gap-4 rounded-xl border border-[#4f545c] bg-[#2f3136] p-4">
+      <div className="flex min-w-0 items-center gap-3">
+        <Avatar className="relative h-12 w-12 shrink-0 items-center justify-center overflow-hidden bg-[#40444b] font-semibold text-[#dcddde] text-sm shadow-sm">
+          {!imgError && (
+            <OptimizedImage
+              src={iconUrl}
+              alt={guild.name}
+              width={48}
+              height={48}
+              className="h-full w-full object-cover"
+              onError={() => setImgError(true)}
+            />
+          )}
+          {imgError && (
+            <AvatarFallback className="select-none bg-transparent font-semibold text-sm uppercase">
+              {guild.name?.slice(0, 1).toUpperCase() || "G"}
+            </AvatarFallback>
+          )}
+        </Avatar>
+        <div className="min-w-0">
+          <p className="truncate font-medium text-white">{guild.name}</p>
+          <p className="text-[#b9bbbe] text-xs">{guild.owner ? "你是擁有者" : "你是管理員"}</p>
+        </div>
+      </div>
 
-			<button
-				type="button"
-				onClick={() => onAction(guild.id)}
-				className={actionClassName}
-			>
-				{actionLabel}
-			</button>
-		</div>
-	);
+      <button type="button" onClick={() => onAction(guild.id)} className={actionClassName}>
+        {actionLabel}
+      </button>
+    </div>
+  );
 });
 
 function RouteComponent() {
-	const navigate = useNavigate();
-	// 透過 Suspense Query，這裡拿到的資料絕對存在
-	// 注意：isFetching 還是要留著，因為它代表「背景重新整理中」(例如點擊 Refresh 按鈕)
-	const { activeGuilds, inactiveGuilds, hasGuilds, data, isFetching, refetch } =
-		useGuilds();
+  const navigate = useNavigate();
+  // 透過 Suspense Query，這裡拿到的資料絕對存在
+  // 注意：isFetching 還是要留著，因為它代表「背景重新整理中」(例如點擊 Refresh 按鈕)
+  const { activeGuilds, inactiveGuilds, hasGuilds, data, isFetching, refetch } = useGuilds();
 
-	const [activeLimit, setActiveLimit] = useState(INITIAL_SERVERS_LOAD);
-	const [inactiveLimit, setInactiveLimit] = useState(INITIAL_SERVERS_LOAD);
+  const [activeLimit, setActiveLimit] = useState(INITIAL_SERVERS_LOAD);
+  const [inactiveLimit, setInactiveLimit] = useState(INITIAL_SERVERS_LOAD);
 
-	// 💡 優化：加入 useRef 搭配 IntersectionObserver 實作效能更好的無限滾動
-	const loadMoreObserverRef = useRef<HTMLDivElement>(null);
+  // 💡 優化：加入 useRef 搭配 IntersectionObserver 實作效能更好的無限滾動
+  const loadMoreObserverRef = useRef<HTMLDivElement>(null);
 
-	const visibleActive = useMemo(
-		() => activeGuilds.slice(0, activeLimit),
-		[activeGuilds, activeLimit],
-	);
+  const visibleActive = useMemo(
+    () => activeGuilds.slice(0, activeLimit),
+    [activeGuilds, activeLimit],
+  );
 
-	const visibleInactive = useMemo(
-		() => inactiveGuilds.slice(0, inactiveLimit),
-		[inactiveGuilds, inactiveLimit],
-	);
+  const visibleInactive = useMemo(
+    () => inactiveGuilds.slice(0, inactiveLimit),
+    [inactiveGuilds, inactiveLimit],
+  );
 
-	const canLoadMoreActive = activeLimit < activeGuilds.length;
-	const canLoadMoreInactive = inactiveLimit < inactiveGuilds.length;
+  const canLoadMoreActive = activeLimit < activeGuilds.length;
+  const canLoadMoreInactive = inactiveLimit < inactiveGuilds.length;
 
-	const handleRefresh = useCallback(() => {
-		void refetch();
-	}, [refetch]);
+  const handleRefresh = useCallback(() => {
+    void refetch();
+  }, [refetch]);
 
-	const handlePublishServer = useCallback(
-		(guildId: string) => {
-			void navigate({
-				to: "/servers/$serverId/publish",
-				params: { serverId: guildId },
-			});
-		},
-		[navigate],
-	);
+  const handlePublishServer = useCallback(
+    (guildId: string) => {
+      void navigate({
+        to: "/servers/$serverId/publish",
+        params: { serverId: guildId },
+      });
+    },
+    [navigate],
+  );
 
-	const handleAddBot = useCallback(
-		(guildId: string) => {
-			const clientId = data?.botInviteClientId;
-			if (!clientId) {
-				return;
-			}
+  const handleAddBot = useCallback(
+    (guildId: string) => {
+      const clientId = data?.botInviteClientId;
+      if (!clientId) {
+        return;
+      }
 
-			const inviteUrl = buildBotInviteUrl({
-				clientId,
-				guildId,
-				permissions: DEFAULT_BOT_PERMISSIONS,
-				origin: window.location.origin, // 在 Event Handler 中讀取 window 是安全的
-			});
+      const inviteUrl = buildBotInviteUrl({
+        clientId,
+        guildId,
+        permissions: DEFAULT_BOT_PERMISSIONS,
+        origin: window.location.origin, // 在 Event Handler 中讀取 window 是安全的
+      });
 
-			window.location.assign(inviteUrl);
-		},
-		[data?.botInviteClientId],
-	);
+      window.location.assign(inviteUrl);
+    },
+    [data?.botInviteClientId],
+  );
 
-	// 💡 優化：使用 IntersectionObserver 取代昂貴的 window scroll 事件
-	useEffect(() => {
-		const observerTarget = loadMoreObserverRef.current;
-		if (!observerTarget) return;
+  // 💡 優化：使用 IntersectionObserver 取代昂貴的 window scroll 事件
+  useEffect(() => {
+    const observerTarget = loadMoreObserverRef.current;
+    if (!observerTarget) return;
 
-		const observer = new IntersectionObserver(
-			(entries) => {
-				const target = entries[0];
-				if (target.isIntersecting) {
-					if (canLoadMoreActive) {
-						setActiveLimit((previous) =>
-							Math.min(previous + LOAD_MORE_AMOUNT, activeGuilds.length),
-						);
-					} else if (canLoadMoreInactive) {
-						setInactiveLimit((previous) =>
-							Math.min(previous + LOAD_MORE_AMOUNT, inactiveGuilds.length),
-						);
-					}
-				}
-			},
-			{
-				root: null,
-				rootMargin: "400px", // 提前 400px 觸發，讓使用者有無縫滾動體驗
-				threshold: 0.1,
-			},
-		);
+    const observer = new IntersectionObserver(
+      (entries) => {
+        const target = entries[0];
+        if (target.isIntersecting) {
+          if (canLoadMoreActive) {
+            setActiveLimit((previous) =>
+              Math.min(previous + LOAD_MORE_AMOUNT, activeGuilds.length),
+            );
+          } else if (canLoadMoreInactive) {
+            setInactiveLimit((previous) =>
+              Math.min(previous + LOAD_MORE_AMOUNT, inactiveGuilds.length),
+            );
+          }
+        }
+      },
+      {
+        root: null,
+        rootMargin: "400px", // 提前 400px 觸發，讓使用者有無縫滾動體驗
+        threshold: 0.1,
+      },
+    );
 
-		observer.observe(observerTarget);
+    observer.observe(observerTarget);
 
-		return () => {
-			observer.unobserve(observerTarget);
-			observer.disconnect();
-		};
-	}, [
-		canLoadMoreActive,
-		canLoadMoreInactive,
-		activeGuilds.length,
-		inactiveGuilds.length,
-	]);
+    return () => {
+      observer.unobserve(observerTarget);
+      observer.disconnect();
+    };
+  }, [canLoadMoreActive, canLoadMoreInactive, activeGuilds.length, inactiveGuilds.length]);
 
-	return (
-		<div className="min-h-dvh bg-[#36393f] text-white">
-			<div className="container mx-auto px-4 py-8">
-				<header className="mb-8">
-					<div className="mb-2 flex items-center justify-between">
-						<h1 className="font-bold text-3xl">擁有的伺服器</h1>
-						<button
-							type="button"
-							onClick={handleRefresh}
-							disabled={isFetching}
-							className="flex cursor-pointer items-center gap-2 rounded-lg bg-[#5865f2] px-4 py-2 transition-colors hover:bg-[#4752c4] disabled:cursor-not-allowed disabled:bg-[#4752c4] disabled:opacity-50"
-							title="Refresh server list"
-						>
-							<RefreshCw
-								className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`}
-							/>
-							<span className="font-medium text-sm">
-								{isFetching ? "重新獲取中..." : "重新獲取"}
-							</span>
-						</button>
-					</div>
-					<p className="text-[#b9bbbe]">
-						請選擇一個你與機器人同時存在的伺服器，以繼續進行伺服器發布
-						{isFetching && (
-							<span className="ml-3 text-[#5865f2]">
-								• 取得最新的群組清單中...
-							</span>
-						)}
-					</p>
-				</header>
+  return (
+    <div className="min-h-dvh bg-[#36393f] text-white">
+      <div className="container mx-auto px-4 py-8">
+        <header className="mb-8">
+          <div className="mb-2 flex items-center justify-between">
+            <h1 className="font-bold text-3xl">擁有的伺服器</h1>
+            <button
+              type="button"
+              onClick={handleRefresh}
+              disabled={isFetching}
+              className="flex cursor-pointer items-center gap-2 rounded-lg bg-[#5865f2] px-4 py-2 transition-colors hover:bg-[#4752c4] disabled:cursor-not-allowed disabled:bg-[#4752c4] disabled:opacity-50"
+              title="Refresh server list"
+            >
+              <RefreshCw className={`h-4 w-4 ${isFetching ? "animate-spin" : ""}`} />
+              <span className="font-medium text-sm">
+                {isFetching ? "重新獲取中..." : "重新獲取"}
+              </span>
+            </button>
+          </div>
+          <p className="text-[#b9bbbe]">
+            請選擇一個你與機器人同時存在的伺服器，以繼續進行伺服器發布
+            {isFetching && <span className="ml-3 text-[#5865f2]">• 取得最新的群組清單中...</span>}
+          </p>
+        </header>
 
-				{!hasGuilds && (
-					<div className="rounded-xl border border-[#4f545c] bg-[#2f3136] p-6 text-center text-[#b9bbbe]">
-						No Discord guilds were found for your account.
-					</div>
-				)}
+        {!hasGuilds && (
+          <div className="rounded-xl border border-[#4f545c] bg-[#2f3136] p-6 text-center text-[#b9bbbe]">
+            No Discord guilds were found for your account.
+          </div>
+        )}
 
-				{hasGuilds && (
-					<>
-						{activeGuilds.length > 0 && (
-							<div className="mb-10">
-								<div className="mb-4 flex items-center gap-2">
-									<div className="h-3 w-3 rounded-full bg-[#3ba55c]" />
-									<h3 className="font-medium">
-										機器人所在的伺服器 ({activeGuilds.length})
-									</h3>
-								</div>
+        {hasGuilds && (
+          <>
+            {activeGuilds.length > 0 && (
+              <div className="mb-10">
+                <div className="mb-4 flex items-center gap-2">
+                  <div className="h-3 w-3 rounded-full bg-[#3ba55c]" />
+                  <h3 className="font-medium">機器人所在的伺服器 ({activeGuilds.length})</h3>
+                </div>
 
-								<div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-									{visibleActive.map((guild) => (
-										<GuildCard
-											key={guild.id}
-											guild={guild}
-											actionLabel={
-												guild.isPublished ? "編輯伺服器" : "發布伺服器"
-											}
-											onAction={handlePublishServer}
-											actionClassName="w-full rounded-lg px-3 py-2 text-sm font-medium transition-colors bg-[#3ba55c] hover:bg-[#2d7d46] text-white cursor-pointer"
-										/>
-									))}
-								</div>
-							</div>
-						)}
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                  {visibleActive.map((guild) => (
+                    <GuildCard
+                      key={guild.id}
+                      guild={guild}
+                      actionLabel={guild.isPublished ? "編輯伺服器" : "發布伺服器"}
+                      onAction={handlePublishServer}
+                      actionClassName="w-full rounded-lg px-3 py-2 text-sm font-medium transition-colors bg-[#3ba55c] hover:bg-[#2d7d46] text-white cursor-pointer"
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
 
-						{inactiveGuilds.length > 0 && (
-							<div className="mb-6">
-								<div className="mb-4 flex items-center gap-2">
-									<div className="h-3 w-3 rounded-full bg-[#ed4245]" />
-									<h3 className="font-medium">
-										機器人未加入的伺服器 ({inactiveGuilds.length})
-									</h3>
-								</div>
+            {inactiveGuilds.length > 0 && (
+              <div className="mb-6">
+                <div className="mb-4 flex items-center gap-2">
+                  <div className="h-3 w-3 rounded-full bg-[#ed4245]" />
+                  <h3 className="font-medium">機器人未加入的伺服器 ({inactiveGuilds.length})</h3>
+                </div>
 
-								<div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-									{visibleInactive.map((guild) => (
-										<GuildCard
-											key={guild.id}
-											guild={guild}
-											actionLabel="邀請機器人"
-											onAction={handleAddBot}
-											actionClassName="w-full rounded-lg px-3 py-2 text-sm font-medium transition-colors bg-[#5865f2] hover:bg-[#4752c4] text-white cursor-pointer"
-										/>
-									))}
-								</div>
-							</div>
-						)}
+                <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+                  {visibleInactive.map((guild) => (
+                    <GuildCard
+                      key={guild.id}
+                      guild={guild}
+                      actionLabel="邀請機器人"
+                      onAction={handleAddBot}
+                      actionClassName="w-full rounded-lg px-3 py-2 text-sm font-medium transition-colors bg-[#5865f2] hover:bg-[#4752c4] text-white cursor-pointer"
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
 
-						{/* 💡 底部觀測標記：IntersectionObserver 會監聽這個 div 來決定是否加載更多 */}
-						<div ref={loadMoreObserverRef} className="h-10 w-full" />
+            {/* 💡 底部觀測標記：IntersectionObserver 會監聽這個 div 來決定是否加載更多 */}
+            <div ref={loadMoreObserverRef} className="h-10 w-full" />
 
-						{(canLoadMoreActive || canLoadMoreInactive) && (
-							<div className="mt-2 text-center">
-								<div className="text-[#b9bbbe] text-sm">往下滑以加載更多</div>
-							</div>
-						)}
+            {(canLoadMoreActive || canLoadMoreInactive) && (
+              <div className="mt-2 text-center">
+                <div className="text-[#b9bbbe] text-sm">往下滑以加載更多</div>
+              </div>
+            )}
 
-						{!canLoadMoreActive && !canLoadMoreInactive && (
-							<div className="mt-8 text-center text-[#b9bbbe]">
-								✓ 已載入所有伺服器
-							</div>
-						)}
-					</>
-				)}
-			</div>
-		</div>
-	);
+            {!canLoadMoreActive && !canLoadMoreInactive && (
+              <div className="mt-8 text-center text-[#b9bbbe]">✓ 已載入所有伺服器</div>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
 }
