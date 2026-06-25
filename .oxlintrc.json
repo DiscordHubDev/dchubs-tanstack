@@ -12,11 +12,9 @@
     "eslint/no-unused-vars": "error",
     "react/react-in-jsx-scope": "off",
     "react/no-unstable-nested-components": "off",
-    "eslint/no-underscore-dangle": "off", // 讓 Effect 的 _tag 或內部變數正常通過
-    "eslint/no-shadow": "off", // 允許局部變數與全域 Drizzle schema (如 user, bot) 同名
-    "eslint/no-await-in-loop": "off", // 允許腳本為了 Rate Limit 刻意在迴圈中 await
-
-    // 針對你原本寫的 biome-ignore 進行轉換 (因為 oxlint 看不懂 biome 的註解)
+    "eslint/no-underscore-dangle": "off",
+    "eslint/no-shadow": "off",
+    "eslint/no-await-in-loop": "off",
     "react/no-array-index-key": "off"
   },
   "overrides": [

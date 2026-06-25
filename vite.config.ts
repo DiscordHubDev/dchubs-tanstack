@@ -97,46 +97,55 @@ export default defineConfig(({ mode }) => {
     // Guard against an undefined CDN origin in non-prod environments
     base: isProd && cdnOrigin ? `${cdnOrigin}/` : "/",
 
+    experimental: {
+      bundledDev: false,
+      chunkImportMap: true,
+    },
+
+    css: {
+      transformer: "lightningcss", // 取代預設的 PostCSS
+    },
+
     resolve: {
       tsconfigPaths: true,
     },
 
     // ─── Dev: pre-bundle heavy deps so HMR stays fast ─────────────────────
     optimizeDeps: {
-      include: [
-        "react",
-        "react-dom",
-        "@tanstack/react-router",
-        // Force-prebundle Radix UI primitives to avoid hundreds of
-        // individual file requests in dev mode.
-        "@radix-ui/react-accordion",
-        "@radix-ui/react-alert-dialog",
-        "@radix-ui/react-aspect-ratio",
-        "@radix-ui/react-avatar",
-        "@radix-ui/react-checkbox",
-        "@radix-ui/react-collapsible",
-        "@radix-ui/react-dialog",
-        "@radix-ui/react-dropdown-menu",
-        "@radix-ui/react-hover-card",
-        "@radix-ui/react-label",
-        "@radix-ui/react-popover",
-        "@radix-ui/react-progress",
-        "@radix-ui/react-radio-group",
-        "@radix-ui/react-scroll-area",
-        "@radix-ui/react-select",
-        "@radix-ui/react-separator",
-        "@radix-ui/react-slider",
-        "@radix-ui/react-slot",
-        "@radix-ui/react-switch",
-        "@radix-ui/react-tabs",
-        "@radix-ui/react-toast",
-        "@radix-ui/react-toggle",
-        "@radix-ui/react-toggle-group",
-        "@radix-ui/react-tooltip",
-        "lucide-react",
-        "clsx",
-        "tailwind-merge",
-      ],
+      // include: [
+      //   "react",
+      //   "react-dom",
+      //   "@tanstack/react-router",
+      //   // Force-prebundle Radix UI primitives to avoid hundreds of
+      //   // individual file requests in dev mode.
+      //   "@radix-ui/react-accordion",
+      //   "@radix-ui/react-alert-dialog",
+      //   "@radix-ui/react-aspect-ratio",
+      //   "@radix-ui/react-avatar",
+      //   "@radix-ui/react-checkbox",
+      //   "@radix-ui/react-collapsible",
+      //   "@radix-ui/react-dialog",
+      //   "@radix-ui/react-dropdown-menu",
+      //   "@radix-ui/react-hover-card",
+      //   "@radix-ui/react-label",
+      //   "@radix-ui/react-popover",
+      //   "@radix-ui/react-progress",
+      //   "@radix-ui/react-radio-group",
+      //   "@radix-ui/react-scroll-area",
+      //   "@radix-ui/react-select",
+      //   "@radix-ui/react-separator",
+      //   "@radix-ui/react-slider",
+      //   "@radix-ui/react-slot",
+      //   "@radix-ui/react-switch",
+      //   "@radix-ui/react-tabs",
+      //   "@radix-ui/react-toast",
+      //   "@radix-ui/react-toggle",
+      //   "@radix-ui/react-toggle-group",
+      //   "@radix-ui/react-tooltip",
+      //   "lucide-react",
+      //   "clsx",
+      //   "tailwind-merge",
+      // ],
       exclude: [
         "bun",
         "drizzle-orm",
@@ -145,10 +154,7 @@ export default defineConfig(({ mode }) => {
         "better-auth",
         "@aws-sdk/client-s3",
       ],
-      // ✅ Vite 8: use rolldownOptions for dep optimiser config,
-      // esbuildOptions is now deprecated.
       rolldownOptions: {
-        // treeshake during dep pre-bundling for smaller cached chunks
         treeshake: true,
       },
     },
@@ -201,6 +207,25 @@ export default defineConfig(({ mode }) => {
 
       // TanStack Start (file-based routing, prerender, server functions)
       tanstackStart({
+        importProtection: {
+          client: {
+            specifiers: [
+              "drizzle-orm",
+              "drizzle-kit",
+              "pg",
+              "@better-auth/drizzle-adapter",
+
+              "better-auth",
+
+              "@aws-sdk/client-s3",
+              "@aws-sdk/lib-storage",
+              "cloudinary",
+
+              "@t3-oss/env-core",
+              "dotenv",
+            ],
+          },
+        },
         prerender: {
           enabled: true,
           crawlLinks: false,

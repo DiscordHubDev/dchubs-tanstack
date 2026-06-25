@@ -18,6 +18,7 @@ import {
 } from "#/features/bots/bots.utils";
 import { botCategories } from "#/lib/categories";
 import type { CategoryType } from "#/lib/types";
+import { cn } from "#/lib/utils";
 
 const Pagination = lazy(() => import("#/components/feedback/Pagination"));
 const BotList = lazy(() => import("#/features/bots/components/bot-list"));
@@ -179,11 +180,16 @@ function BotTabTrigger({ category, label, activeTab, isPending, onHover }: BotTa
       value={category}
       disabled={isPending}
       onMouseEnter={() => onHover(category)}
-      className="relative z-10 bg-transparent transition-none data-[state=active]:bg-transparent data-[state=active]:text-white"
+      className={cn(
+        "relative z-10 bg-transparent transition-none",
+        "data-[state=active]:bg-transparent data-[state=active]:text-white",
+        "whitespace-nowrap",
+        "px-2 py-1.5 text-sm",
+        "sm:px-4 sm:py-2 sm:text-base",
+      )}
     >
       <span className="relative z-20">{label}</span>
       {activeTab === category && (
-        // 改用 m.div，配合外層 LazyMotion
         <m.div
           layoutId="robot-tabs-indicator"
           className="absolute inset-0 z-10 rounded-md bg-[#36393f]"
@@ -497,7 +503,14 @@ function BotsPage() {
               )}
 
               <Tabs className="mb-8" value={activeTab} onValueChange={handleTabChange}>
-                <TabsList className="relative h-full w-full border-[#1e1f22] border-b bg-[#2b2d31] p-1">
+                <TabsList
+                  className={cn(
+                    "relative h-full w-full p-1",
+                    "border-b border-[#1e1f22] bg-[#2b2d31]",
+                    "overflow-x-auto",
+                    "[&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]",
+                  )}
+                >
                   {BOT_CATEGORY_CONFIG.map(({ id, label }) => (
                     <BotTabTrigger
                       key={id}
@@ -511,8 +524,8 @@ function BotsPage() {
                 </TabsList>
 
                 <TabsContent value={activeTab} className="mt-6">
-                  <div className="mb-4 flex items-center justify-between">
-                    <h2 className="font-bold text-2xl">{activeCategoryLabel}</h2>
+                  <div className="mb-4 flex flex-wrap items-center justify-between gap-y-1">
+                    <h2 className="font-bold text-xl sm:text-2xl">{activeCategoryLabel}</h2>
                     {displayData.total > 0 && (
                       <div className="text-gray-400 text-sm">
                         第 {displayData.page} 頁，共 {displayData.totalPages} 頁

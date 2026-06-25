@@ -37,6 +37,7 @@ import {
 import { signIn } from "#/lib/auth-client";
 import { ServerCategories } from "#/lib/categories";
 import type { CategoryType } from "#/lib/types";
+import { cn } from "#/lib/utils";
 
 // ─── Constants ────────────────────────────────────────────────────────────────
 
@@ -196,13 +197,20 @@ function PrefetchTabTrigger({ value, activeTab, isPending, onPrefetch }: Prefetc
       disabled={isPending}
       onMouseEnter={() => onPrefetch(value)}
       onFocus={() => onPrefetch(value)}
-      className="relative z-10 bg-transparent px-4 py-2 transition-colors data-[state=active]:bg-transparent"
+      className={cn(
+        "relative z-10 bg-transparent transition-colors",
+        "data-[state=active]:bg-transparent",
+        "whitespace-nowrap",
+        "px-2 py-1.5 text-sm",
+        "sm:px-4 sm:py-2 sm:text-base",
+      )}
     >
       <span className="relative z-20">{TAB_LABELS[value]}</span>
       <div
-        className={`absolute inset-0 z-10 rounded-sm bg-[#36393f] transition-opacity duration-200 ease-in-out ${
-          isActive ? "opacity-100" : "opacity-0"
-        }`}
+        className={cn(
+          "absolute inset-0 z-10 rounded-sm bg-[#36393f] transition-opacity duration-200 ease-in-out",
+          isActive ? "opacity-100" : "opacity-0",
+        )}
       />
     </TabsTrigger>
   );
@@ -609,7 +617,14 @@ function HomePage() {
             )}
 
             <Tabs className="mb-8" value={activeTab} onValueChange={handleTabChange}>
-              <TabsList className="h-full w-full overflow-hidden border-[#1e1f22] border-b bg-[#2b2d31] p-1">
+              <TabsList
+                className={cn(
+                  "h-full w-full p-1",
+                  "border-b border-[#1e1f22] bg-[#2b2d31]",
+                  "overflow-x-auto",
+                  "[&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]",
+                )}
+              >
                 {SERVER_CATEGORIES.map((category) => (
                   <PrefetchTabTrigger
                     key={category}
@@ -623,8 +638,9 @@ function HomePage() {
 
               {(SERVER_CATEGORIES as readonly ServerCategory[]).map((tab) => (
                 <TabsContent key={tab} value={tab} className="mt-6">
-                  <div className="mb-4 flex items-center justify-between">
-                    <h2 className="font-bold text-2xl">{TAB_LABELS[tab]}</h2>
+                  {/* flex-wrap 讓頁碼在窄螢幕上換行到下一行 */}
+                  <div className="mb-4 flex flex-wrap items-center justify-between gap-y-1">
+                    <h2 className="font-bold text-xl sm:text-2xl">{TAB_LABELS[tab]}</h2>
                     {!shouldShowSkeleton && displayData.total > 0 && (
                       <div className="text-gray-400 text-sm">
                         第 {displayData.page} 頁，共 {displayData.totalPages} 頁
