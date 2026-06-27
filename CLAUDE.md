@@ -69,33 +69,65 @@ Strong success criteria let you loop independently. Weak criteria ("make it work
 
 # Package Manager Preferences
 
-- STRICT RULE: NEVER use `npm`, `npx`, `yarn`, or `pnpm`.
+- STRICT RULE: NEVER use `npm`, `yarn`, or `pnpm`.
 - Always use `bun` as the exclusive package manager.
 - Instead of `npm install <package>`, use `bun add <package>`.
-- Instead of `npx <command>`, use `bunx <command>`.
+- Instead of `npm <command>`, use `bunx <command>`.
 - Instead of `npm run <script>`, use `bun run <script>`.
 
 **These guidelines are working if:** fewer unnecessary changes in diffs, fewer rewrites due to overcomplication, and clarifying questions come before implementation rather than after mistakes.
 
-## Quick Commands
+# Development Commands
 
-All commands use Bun as runtime. Always prefix with `bun --bun`.
+This project uses **Bun** as its primary package manager and runtime.
 
-| Task                 | Command                       |
-| -------------------- | ----------------------------- |
-| Dev server           | `bun --bun run dev`           |
-| Build                | `bun --bun run build`         |
-| Preview build        | `bun --bun run serve`         |
-| Deploy to Cloudflare | `bun --bun run deploy`        |
-| Lint                 | `bun --bun run lint`          |
-| Format               | `bun --bun run format`        |
-| Fix lint             | `bun --bun run lint:fix`      |
-| Test                 | `bun --bun run test` (Vitest) |
-| Generate migration   | `bun --bun run db:generate`   |
-| Push schema to DB    | `bun --bun run db:push`       |
-| Open DB studio       | `bun --bun run db:studio`     |
-| Export SQL schema    | `bun --bun run db:export:sql` |
-| Type-check           | `npx tsc --noEmit`            |
+> **Important:** To ensure the maximum performance benefits of Bun's native implementation over Node.js, always prefix commands with `bun --bun` unless otherwise specified.
+
+## General Development
+
+| Task                  | Command                 | Description                                                                                                      |
+| :-------------------- | :---------------------- | :--------------------------------------------------------------------------------------------------------------- |
+| **Start Dev Server**  | `bun --bun run dev`     | Spins up the Vite development server bound to `0.0.0.0` with forced dependency reloading.                        |
+| **Production Build**  | `bun --bun run build`   | Cleans the build folder, compiles the app using Vite under production mode, and uploads assets to Cloudflare R2. |
+| **Local Preview**     | `bun --bun run preview` | Previews the locally built production application.                                                               |
+| **Deploy App**        | `bun --bun run deploy`  | Runs the production build and deploys the application via Cloudflare Wrangler.                                   |
+| **Start Server**      | `bun --bun run start`   | Directly boots the compiled server entry point (`.output/server/index.mjs`).                                     |
+| **Generate CF Types** | `bunx wrangler types`   | Generates TypeScript definitions for Cloudflare bindings (`bun --bun run cf-typegen`).                           |
+
+---
+
+## Code Quality & Testing
+
+| Task                | Command                    | Description                                                                            |
+| :------------------ | :------------------------- | :------------------------------------------------------------------------------------- |
+| **Type-Check**      | `bunx tsc --noEmit`        | Runs the TypeScript compiler to check for static type errors without outputting files. |
+| **Lint Code**       | `bun --bun run lint`       | Fast linting of the `src` directory using `oxlint`.                                    |
+| **Fix Lint Issues** | `bun --bun run lint:fix`   | Automatically fixes autofixable linting issues via `oxlint`.                           |
+| **Format Code**     | `bun --bun run fmt`        | Formats codebase using `oxfmt`. (Use `bun --bun run fmt:check` to verify formatting).  |
+| **Run Tests**       | `bun --bun run test`       | Executes the test suite once using **Vitest**.                                         |
+| **Diagnose Issues** | `bunx react-doctor@latest` | Runs `react-doctor` to analyze the health of the React ecosystem in the project.       |
+
+---
+
+## Database Management (Drizzle ORM)
+
+All database operations are powered by **Drizzle Kit**.
+
+| Task                   | Command                       | Description                                                                                 |
+| :--------------------- | :---------------------------- | :------------------------------------------------------------------------------------------ |
+| **Generate Migration** | `bun --bun run db:generate`   | Creates a new SQL migration file based on your schema.                                      |
+| **Push Schema**        | `bun --bun run db:push`       | Directly pushes the current schema state to the database (best for rapid prototyping).      |
+| **Open DB Studio**     | `bun --bun run db:studio`     | Launches the local Drizzle Studio GUI database viewer.                                      |
+| **Export SQL Schema**  | `bun --bun run db:export:sql` | Generates a plain `.sql` file of your raw schema output to `src/drizzle/schema.export.sql`. |
+| **Apply SQL Schema**   | `bun --bun run db:apply:sql`  | Runs custom script to apply the generated schema SQL export file.                           |
+| **Pull Schema**        | `bun --bun run db:pull`       | Introspects the database and updates your local schema files.                               |
+
+### Advanced Data Migrations
+
+- **Run Debug Migration:** `bun --bun run db:migrate`
+  Runs `./src/scripts/migrate-debug.ts`.
+- **Full Data Sync/Migration:** `bun --bun run db:migrate:data` (or `db:migrate:sql`)
+  Injects environment variables, checks for both `$DATABASE_URL` and `$NEW_DATABASE_URL`, exports the current SQL, applies it to the target, and runs the sync data script.
 
 # Full-Stack Architecture Guidelines (TanStack + Effect + Drizzle)
 
