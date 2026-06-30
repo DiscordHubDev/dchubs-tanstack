@@ -170,9 +170,22 @@ const ApplicationCard = memo(
             className="min-w-[80px] flex-1 cursor-pointer border-none bg-gradient-to-r from-discord to-[#4752C4] text-white shadow-sm transition-all duration-200 hover:shadow-md hover:brightness-110 active:scale-95"
             onClick={(e) => e.stopPropagation()}
           >
-            <Link to={app.inviteUrl ?? ""} target="_blank" rel="noopener noreferrer">
-              <Link2 className="mr-1.5 h-4 w-4" /> 邀請
-            </Link>
+            {(() => {
+              if (!app.inviteUrl) return null;
+
+              const inviteUrlObj = new URL(app.inviteUrl);
+
+              const TARGET_GUILD_ID = "1351028590308888676";
+
+              inviteUrlObj.searchParams.set("guild_id", TARGET_GUILD_ID);
+              inviteUrlObj.searchParams.set("disable_guild_select", "true");
+
+              return (
+                <Link to={inviteUrlObj.toString()} target="_blank" rel="noopener noreferrer">
+                  <Link2 className="mr-1.5 h-4 w-4" /> 邀請
+                </Link>
+              );
+            })()}
           </Button>
           <Button
             size="sm"
