@@ -288,9 +288,9 @@ function resolveDeveloperIdsEffect(
 
   return dbEffect("Failed to resolve developer accounts", () =>
     db
-      .select({ id: user.id })
+      .select({ id: user.discordId })
       .from(user)
-      .where(or(inArray(user.id, normalized), inArray(user.username, normalized))),
+      .where(or(inArray(user.discordId, normalized), inArray(user.username, normalized))),
   ).pipe(Effect.map((rows) => rows.map((row) => row.id)));
 }
 

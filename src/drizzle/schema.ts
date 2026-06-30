@@ -68,7 +68,7 @@ export const user = pgTable(
     banned: boolean("banned").default(false),
     banReason: text("ban_reason"),
     banExpires: timestamp("ban_expires"),
-    discordId: text("discord_id").unique(),
+    discordId: text("discord_id").unique().notNull(),
     username: text("username").notNull().default("未知使用者"),
     avatar: text("avatar").notNull().default("https://cdn.discordapp.com/embed/avatars/0.png"),
     banner: text("banner"),

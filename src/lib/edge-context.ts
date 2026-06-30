@@ -42,7 +42,6 @@ function getRawEdgeContext(): RawEdgeContext {
 }
 
 async function fetchDomainUser(edgeUserId: string): Promise<DomainUser | null> {
-  // ... 你的邏輯不變 ...
   if (!edgeUserId) return null;
 
   const isDiscordId = /^\d+$/.test(edgeUserId);

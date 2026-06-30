@@ -124,8 +124,6 @@ function getServerDetailEffect(
   userId: string | null = null,
 ): Effect.Effect<ServerDetail | null, Error> {
   return Effect.gen(function* () {
-    // 1. 並行獲取「我的最愛 IDs」與「伺服器詳細資訊」
-    // 這兩者互不依賴，可以同時發起請求以節省時間
     const [favoriteIds, serverRows] = yield* Effect.all(
       [
         getFavoriteIdsEffect(userId),
@@ -172,7 +170,7 @@ function getServerDetailEffect(
           ? dbEffect("Failed to fetch server owner", () =>
               db
                 .select({
-                  id: user.id,
+                  id: user.discordId,
                   username: user.username,
                   name: user.name,
                   avatar: user.avatar,

@@ -423,7 +423,7 @@ export const rejectBotServerFn = createServerFn({ method: "POST" })
           .where(eq(bot.id, botId));
 
         // C. 寫入站內通知記錄
-        const devIds = botRecord.developers.map((d) => d.user.id);
+        const devIds = botRecord.developers.map((d) => d.user.discordId);
         if (devIds.length > 0) {
           const notifications = devIds.map((devId) => ({
             id: crypto.randomUUID(),
@@ -518,7 +518,7 @@ export const getUsersFn = createServerFn({ method: "GET" })
           ? or(
               ilike(user.name, `%${search}%`),
               ilike(user.username, `%${search}%`),
-              ilike(user.id, `%${search}%`),
+              ilike(user.discordId, `%${search}%`),
             )
           : undefined;
 

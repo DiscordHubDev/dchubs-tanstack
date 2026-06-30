@@ -99,12 +99,12 @@ function getBotEditBundleEffect(
       dbEffect("Failed to load bot developers", () =>
         db
           .select({
-            id: user.id,
+            discordId: user.discordId,
             username: user.username,
             avatar: user.avatar,
           })
           .from(botDevelopers)
-          .innerJoin(user, eq(botDevelopers.b, user.id))
+          .innerJoin(user, eq(botDevelopers.b, user.discordId))
           .where(eq(botDevelopers.a, botId))
           .orderBy(asc(user.username)),
       ),

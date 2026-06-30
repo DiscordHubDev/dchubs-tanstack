@@ -102,10 +102,10 @@ async function main() {
         throw new Error(`Directus 更新失敗: ${updateRes.statusText}`);
       }
 
-      console.log(`✨ 成功將 Directus ID ${user.id} 更新為: "${correctName}"`);
+      console.log(`✨ 成功將 Directus ID ${user.discord_id} 更新為: "${correctName}"`);
       successCount++;
     } catch (error) {
-      console.error(`❌ 處理用戶 ${user.id} 時發生錯誤:`, error);
+      console.error(`❌ 處理用戶 ${user.discord_id} 時發生錯誤:`, error);
       failCount++;
     }
 

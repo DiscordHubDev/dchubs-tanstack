@@ -59,7 +59,7 @@ const ensureUserExists = (tx: DbTransaction, discordId: string) =>
             emailVerified: false,
           })
           .onConflictDoNothing({ target: user.discordId })
-          .returning({ id: user.id });
+          .returning({ id: user.discordId });
         return row;
       },
       catch: (error) => new Error(`建立 placeholder owner 失敗: ${String(error)}`),
@@ -167,7 +167,7 @@ export const Route = createFileRoute("/api/discord-bot/publish")({
                 // 4-2. 處理 Server Admins
                 if (guild.admin_ids && guild.admin_ids.length > 0) {
                   const existingUsers = await tx.query.user.findMany({
-                    where: inArray(user.id, guild.admin_ids),
+                    where: inArray(user.discordId, guild.admin_ids),
                     columns: { id: true },
                   });
 

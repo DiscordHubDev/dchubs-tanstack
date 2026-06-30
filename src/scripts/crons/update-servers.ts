@@ -155,6 +155,7 @@ const upsertUserDb = (member: DiscordGuildMember) =>
         .insert(user)
         .values({
           id: discordUser.id,
+          discordId: discordUser.id,
           username: discordUser.username,
           avatar: avatarUrl,
           banner: bannerUrl,
@@ -163,7 +164,7 @@ const upsertUserDb = (member: DiscordGuildMember) =>
           name: discordUser.global_name || discordUser.username,
         })
         .onConflictDoUpdate({
-          target: user.id,
+          target: user.discordId,
           set: {
             username: discordUser.username,
             name: discordUser.global_name || discordUser.username,

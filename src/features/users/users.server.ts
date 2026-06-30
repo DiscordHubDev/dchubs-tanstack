@@ -254,7 +254,7 @@ export function getUserBaseProfileEffect(id: string): Effect.Effect<UserBaseProf
 
     const currentUser = yield* dbEffect("Failed to load user profile", () =>
       db.query.user.findFirst({
-        where: eq(user.id, id),
+        where: eq(user.discordId, id),
         columns: {
           id: true,
           username: true,
@@ -351,13 +351,13 @@ export function getUserBotsEffect(id: string) {
             db
               .select({
                 botId: botDevelopers.a,
-                id: user.id,
+                discordId: user.discordId,
                 username: user.username,
                 name: user.name,
                 avatar: user.avatar,
               })
               .from(botDevelopers)
-              .innerJoin(user, eq(botDevelopers.b, user.id))
+              .innerJoin(user, eq(botDevelopers.b, user.discordId))
               .where(inArray(botDevelopers.a, developedBotIds)),
           );
 
@@ -365,7 +365,7 @@ export function getUserBotsEffect(id: string) {
     for (const developer of developerRows) {
       const entries = developersByBotId.get(developer.botId) ?? [];
       entries.push({
-        id: developer.id,
+        id: developer.discordId,
         username: developer.username,
         name: developer.name,
         avatar: developer.avatar,
@@ -435,7 +435,7 @@ export function getUserSettingsEffect(id: string) {
 
     const settingsData = yield* dbEffect("Failed to load user settings", () =>
       db.query.user.findFirst({
-        where: eq(user.id, id),
+        where: eq(user.discordId, id),
         columns: {
           id: true,
           username: true,
@@ -466,7 +466,7 @@ export function getUserByIdOrNameEffect(query: string): Effect.Effect<DevUser[],
     if (!query) return []; // 💡 找不到時回傳空陣列
 
     const whereClause = or(
-      eq(user.id, query),
+      eq(user.discordId, query),
       ilike(user.username, `%${query}%`),
       ilike(user.name, `%${query}%`),
     );
@@ -490,7 +490,7 @@ function getUserByIdEffect(id: string): Effect.Effect<UserDetail | null, Error> 
 
     const currentUser = yield* dbEffect("Failed to load user", () =>
       db.query.user.findFirst({
-        where: eq(user.id, id),
+        where: eq(user.discordId, id),
         columns: {
           id: true,
           username: true,
@@ -597,13 +597,13 @@ function getUserByIdEffect(id: string): Effect.Effect<UserDetail | null, Error> 
             db
               .select({
                 botId: botDevelopers.a,
-                id: user.id,
+                discordId: user.discordId,
                 username: user.username,
                 name: user.name,
                 avatar: user.avatar,
               })
               .from(botDevelopers)
-              .innerJoin(user, eq(botDevelopers.b, user.id))
+              .innerJoin(user, eq(botDevelopers.b, user.discordId))
               .where(inArray(botDevelopers.a, developedBotIds)),
           );
 
@@ -611,7 +611,7 @@ function getUserByIdEffect(id: string): Effect.Effect<UserDetail | null, Error> 
     for (const developer of developerRows) {
       const entries = developersByBotId.get(developer.botId) ?? [];
       entries.push({
-        id: developer.id,
+        id: developer.discordId,
         username: developer.username,
         name: developer.name,
         avatar: developer.avatar,
@@ -654,7 +654,7 @@ function upsertUserFromSessionEffect(
 
     const existingUser = yield* dbEffect("Failed to load existing user", () =>
       db.query.user.findFirst({
-        where: eq(user.id, profile.id),
+        where: eq(user.discordId, profile.id),
       }),
     );
 
@@ -673,6 +673,7 @@ function upsertUserFromSessionEffect(
         .insert(user)
         .values({
           id: profile.id,
+          discordId: profile.id,
           name: profile.name || profile.username || "未知使用者",
           email: profile.email,
           username: nextUsername,
@@ -681,7 +682,7 @@ function upsertUserFromSessionEffect(
           bannerColor: nextBannerColor,
         })
         .onConflictDoUpdate({
-          target: user.id,
+          target: user.discordId,
           set: {
             username: nextUsername,
             avatar: nextAvatar,
@@ -752,7 +753,12 @@ export function updateUserSettingsForCurrentUser(
       // 2. 直接執行更新，並用 returning 檢查是否有更新到資料
       const result = yield* dbEffect(
         "Failed to update user settings",
-        () => db.update(user).set(updateData).where(eq(user.id, userId)).returning({ id: user.id }), // 取得更新後的 ID
+        () =>
+          db
+            .update(user)
+            .set(updateData)
+            .where(eq(user.discordId, userId))
+            .returning({ discordId: user.discordId }), // 取得更新後的 ID
       );
 
       // 如果回傳陣列長度為 0，代表該 userId 不存在

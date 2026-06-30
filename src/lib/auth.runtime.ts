@@ -117,7 +117,7 @@ export async function createAuth() {
     user: {
       modelName: "user",
       additionalFields: {
-        discordId: { type: "string", required: false },
+        discordId: { type: "string", required: true },
         username: { type: "string", required: false },
         avatar: { type: "string", required: false },
         banner: { type: "string", required: false },
@@ -152,6 +152,7 @@ export async function createAuth() {
         mapProfileToUser: (profile: DiscordProfileLike) => {
           const avatar = buildDiscordAvatar(profile);
           return {
+            id: profile.id,
             name: profile.global_name || profile.username || "",
             image: avatar,
             discordId: profile.id,

@@ -190,13 +190,13 @@ function getBotDetailEffect(
         dbEffect("Failed to fetch bot developers", () =>
           db
             .select({
-              id: user.id,
+              id: user.discordId,
               username: user.username,
               name: user.name,
               avatar: user.avatar,
             })
             .from(botDevelopers)
-            .innerJoin(user, eq(botDevelopers.b, user.id))
+            .innerJoin(user, eq(botDevelopers.b, user.discordId))
             .where(eq(botDevelopers.a, botId)),
         ),
         dbEffect("Failed to fetch bot reviews", () =>
