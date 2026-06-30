@@ -176,7 +176,7 @@ function getServerDetailEffect(
                   avatar: user.avatar,
                 })
                 .from(user)
-                .where(eq(user.id, currentServer.ownerId!))
+                .where(eq(user.discordId, currentServer.ownerId!))
                 .limit(1),
             )
           : Effect.succeed([]),

@@ -297,7 +297,7 @@ export const server = pgTable(
     index("Server_nsfw_idx").using("btree", table.nsfw.asc().nullsLast().op("bool_ops")), // <- 為過濾 NSFW 加的索引
     foreignKey({
       columns: [table.ownerId],
-      foreignColumns: [user.id],
+      foreignColumns: [user.discordId],
       name: "Server_ownerId_fkey",
     })
       .onUpdate("cascade")
