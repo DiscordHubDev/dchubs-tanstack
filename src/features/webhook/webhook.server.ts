@@ -1,6 +1,6 @@
 import { Effect } from "effect";
 import { NotificationFailed } from "#/errors/bot-errors";
-import { fetchJsonEffect } from "#/lib/effect-utils";
+import { fetchJsonEffect, toErrorMessage } from "#/lib/effect-utils";
 import type { CustomEmbedData } from "#/types/custom_embed";
 import type { WebhookPayload } from "./webhook.type";
 
@@ -150,7 +150,15 @@ export function sendDiscordWebhookEffect(
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(webhookData),
-    }).pipe(Effect.catchAll(() => Effect.fail(new NotificationFailed({}))));
+    }).pipe(
+      Effect.catchAll((error) =>
+        Effect.fail(
+          new NotificationFailed({
+            message: `Discord webhook 發送失敗 (${tag})：${toErrorMessage(error)}`,
+          }),
+        ),
+      ),
+    );
 
     yield* Effect.logInfo(`Webhook 發送成功 (${tag})`);
   });

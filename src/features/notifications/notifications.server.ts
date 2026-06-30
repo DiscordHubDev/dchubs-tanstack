@@ -11,7 +11,7 @@ export function resolveUserIdEffect(
     return Effect.succeed(userId.trim());
   }
 
-  return Effect.fail(new NotificationFailed({}));
+  return Effect.fail(new NotificationFailed({ message: "無法解析 userId，請提供有效的使用者 ID" }));
 }
 
 export function sendNotificationEffect(
@@ -36,7 +36,8 @@ export function sendNotificationEffect(
           label,
           userIds: [userId],
         }),
-      catch: () => new NotificationFailed({}),
+      catch: () =>
+        new NotificationFailed({ message: "站內通知發送失敗，請檢查使用者 ID 是否正確或稍後再試" }),
     });
   });
 }

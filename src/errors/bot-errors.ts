@@ -16,9 +16,9 @@ export class SubmitBotFailed extends Data.TaggedError("SubmitBotFailed")<{
   message: string;
 }> {}
 
-type EmptyPayload = Record<string, never>;
-
-export class NotificationFailed extends Data.TaggedError("NotificationFailed")<EmptyPayload> {}
+export class NotificationFailed extends Data.TaggedError("NotificationFailed")<{
+  readonly message: string;
+}> {}
 
 export class ImageUploadFailed extends Data.TaggedError("ImageUploadFailed")<{
   filename: string;

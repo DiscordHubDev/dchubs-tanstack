@@ -376,22 +376,39 @@ function persistBotEffect(
   );
 }
 
-function notifyDevelopersEffect(input: SubmitBotInput): Effect.Effect<void, never> {
-  // 注意：錯誤型別改成 never
+function notifyDevelopersEffect(
+  input: SubmitBotInput,
+  developerIds: readonly string[],
+): Effect.Effect<void, never> {
   if (input.mode === "edit") {
     return Effect.succeed(undefined);
   }
 
-  return sendNotificationEffect({
-    subject: "機器人已提交",
-    content: SUBMIT_SUCCESS_MESSAGE,
-    teaser: "你的機器人已成功提交，正在審核中。",
-    label: "機器人審核通知",
-    isSystem: true,
-  }).pipe(
-    Effect.catchAll((error) =>
-      Effect.sync(() => console.error("[notifyDevelopersEffect] 通知失敗，已忽略：", error)),
+  if (developerIds.length === 0) {
+    return Effect.logWarning(
+      "[notifyDevelopersEffect] 找不到任何可通知的開發者帳號，已略過站內通知",
+    );
+  }
+
+  return Effect.forEach(
+    developerIds,
+    (userId) =>
+      sendNotificationEffect({
+        userId,
+        subject: "機器人已提交",
+        content: SUBMIT_SUCCESS_MESSAGE,
+        teaser: "你的機器人已成功提交，正在審核中。",
+        label: "機器人審核通知",
+        isSystem: true,
+      }),
+    { concurrency: "unbounded" },
+  ).pipe(
+    Effect.tapError((error) =>
+      Effect.logError(
+        `[notifyDevelopersEffect] 站內通知發送失敗，已忽略：${toErrorMessage(error)}`,
+      ),
     ),
+    Effect.ignoreLogged,
   );
 }
 
@@ -430,7 +447,7 @@ function sendPendingWebhookEffect(
     body: JSON.stringify(payload),
   }).pipe(
     // 如果失敗，統一拋出 NotificationFailed
-    Effect.mapError(() => new NotificationFailed({})),
+    Effect.mapError(() => new NotificationFailed({ message: "Discord webhook 發送失敗" })),
     // 如果成功，忽略原本的 JSON 回傳值，轉換為 void (undefined)
     Effect.map(() => undefined),
   );
@@ -456,7 +473,7 @@ function submitPipeline(
     yield* persistBotEffect(payload, developerIds);
 
     if (isCreateMode) {
-      yield* notifyDevelopersEffect(input);
+      yield* notifyDevelopersEffect(input, developerIds);
       yield* sendDiscordWebhookEffect({
         _tag: "pendingBot",
         avatarUrl: payload.botRow.icon || "https://cdn.discordapp.com/embed/avatars/0.png",
