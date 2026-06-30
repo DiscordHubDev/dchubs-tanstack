@@ -1,19 +1,19 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Image } from "@unpic/react";
 import type { CustomEmbedData } from "#/types/custom_embed";
 
-export default function DiscordEmbedPreview({ data }: { data: CustomEmbedData }) {
-  const [timeString, setTimeString] = useState<string | null>(null);
+function getInitialTimeString(): string {
+  const now = new Date();
+  const time = now.toLocaleTimeString("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hour12: true,
+  });
+  return `今天 ${time}`;
+}
 
-  useEffect(() => {
-    const now = new Date();
-    const time = now.toLocaleTimeString("en-US", {
-      hour: "2-digit",
-      minute: "2-digit",
-      hour12: true,
-    });
-    setTimeString(`今天 ${time}`);
-  }, []);
+export default function DiscordEmbedPreview({ data }: { data: CustomEmbedData }) {
+  const [timeString] = useState<string>(getInitialTimeString);
 
   return (
     <div className="flex w-full cursor-default flex-col rounded-lg bg-[#313338] py-4 text-left font-['gg_sans','Noto_Sans','Helvetica_Neue',Helvetica,Arial,sans-serif] antialiased">

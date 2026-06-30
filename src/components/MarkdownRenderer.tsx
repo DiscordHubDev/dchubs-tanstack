@@ -34,10 +34,10 @@ const parseSafeUrl = (raw?: string) => {
 
 const mapPerms = (perms?: string) => {
   const set = new Set(
-    (perms || "")
-      .split(/[,\s]+/)
-      .map((s) => s.trim().toLowerCase())
-      .filter(Boolean),
+    (perms || "").split(/[,\s]+/).flatMap((s) => {
+      const trimmed = s.trim().toLowerCase();
+      return trimmed ? [trimmed] : [];
+    }),
   );
 
   const SBOX: Record<string, string> = {
@@ -144,12 +144,11 @@ const SafeImage = ({ src, alt, ...props }: SafeImageProps) => {
 };
 
 // 從 React Node 中提取純文字以產生 Slug ID
-const extractText = (children: React.ReactNode): string => {
-  if (typeof children === "string") return children;
-  if (Array.isArray(children)) return children.map(extractText).join("");
-  if (React.isValidElement(children))
-    return extractText((children.props as { children?: React.ReactNode }).children);
-  return "";
+const extractText = (node: React.ReactNode): string => {
+  if (typeof node !== "string" && !Array.isArray(node) && !React.isValidElement(node)) return "";
+  if (typeof node === "string") return node;
+  if (Array.isArray(node)) return node.map(extractText).join("");
+  return extractText((node.props as { children?: React.ReactNode }).children);
 };
 
 const customSlugify = (str: string) => {

@@ -251,7 +251,6 @@ const LoadingPage: FC<LoadingPageProps> = ({
   // Progress bar auto-advance
   useEffect(() => {
     if (loaderType !== "progress") return;
-    setProgress(6);
     const id = setInterval(() => {
       setProgress((p) => {
         const inc = (Math.random() * 9 + 2) * (1 - p / 100);

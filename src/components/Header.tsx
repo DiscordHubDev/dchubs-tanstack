@@ -20,6 +20,91 @@ const links: LinkItem[] = [
   { to: "/protected/add-bot", label: "新增機器人" },
 ];
 
+// 純函式：不依賴任何 local state，提到元件外部避免每次渲染重建
+const handleDiscordSignIn = () => {
+  void signIn("/");
+};
+
+type AuthButtonsInnerProps = {
+  isMobile: boolean;
+  pathname: string;
+  handleSignOut: () => Promise<void>;
+  setIsOpen: (open: boolean) => void;
+};
+
+type AuthButtonsProps = {
+  isMobile?: boolean;
+  isSignedIn: boolean;
+  pathname: string;
+  handleSignOut: () => Promise<void>;
+  setIsOpen: (open: boolean) => void;
+};
+
+// 抽離登入/登出按鈕主體，避免在 Header 內部定義造成 state 重置
+function AuthButtonsInner({ isMobile, pathname, handleSignOut, setIsOpen }: AuthButtonsInnerProps) {
+  return (
+    <div className={`flex ${isMobile ? "mt-2 w-full flex-col gap-2" : "items-center gap-3"}`}>
+      <Link
+        to="/protected/profile"
+        preload="intent"
+        onClick={() => isMobile && setIsOpen(false)}
+        className={isMobile ? "w-full" : ""}
+      >
+        <Button
+          className={`flex cursor-pointer items-center justify-start gap-2 bg-discord text-white transition-colors hover:bg-discord-hover ${
+            isMobile ? "h-10 w-full px-3 py-2 text-sm" : ""
+          } ${pathname === "/protected/profile" ? "bg-discord-hover" : ""}`}
+        >
+          <FaUser className="size-4 shrink-0" />
+          <span>個人資料</span>
+        </Button>
+      </Link>
+      <Button
+        onClick={handleSignOut}
+        variant="destructive"
+        className={`flex cursor-pointer items-center justify-start gap-2 bg-red-700 text-white transition-colors hover:bg-red-600 ${
+          isMobile ? "h-10 w-full px-3 py-2 text-sm" : "px-3"
+        }`}
+      >
+        <LogOut className="size-4 shrink-0" />
+        <span>登出</span>
+      </Button>
+    </div>
+  );
+}
+
+// 登入/登出按鈕入口，接受 Header 的 local state 作為 props
+function AuthButtons({
+  isMobile = false,
+  isSignedIn,
+  pathname,
+  handleSignOut,
+  setIsOpen,
+}: AuthButtonsProps) {
+  if (isSignedIn) {
+    return (
+      <AuthButtonsInner
+        isMobile={isMobile}
+        pathname={pathname}
+        handleSignOut={handleSignOut}
+        setIsOpen={setIsOpen}
+      />
+    );
+  }
+
+  return (
+    <Button
+      onClick={handleDiscordSignIn}
+      className={`flex cursor-pointer items-center justify-center gap-2 bg-discord text-white transition-colors hover:bg-discord-hover ${
+        isMobile ? "mt-2 w-full" : ""
+      }`}
+    >
+      <FaDiscord className="size-5" />
+      <span>登入 Discord</span>
+    </Button>
+  );
+}
+
 export default function Header() {
   const [isOpen, setIsOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
@@ -32,7 +117,6 @@ export default function Header() {
       setIsScrolled(window.scrollY > 8);
     };
 
-    handleScroll();
     window.addEventListener("scroll", handleScroll, { passive: true });
 
     return () => {
@@ -42,10 +126,6 @@ export default function Header() {
 
   const isSignedIn = Boolean(session?.discordProfile?.id ?? session?.user?.id);
 
-  const handleDiscordSignIn = () => {
-    void signIn("/");
-  };
-
   const handleSignOut = async () => {
     try {
       await signOut();
@@ -54,53 +134,6 @@ export default function Header() {
     } catch (error) {
       console.error("登出失敗:", error);
     }
-  };
-
-  // 抽離登入/登出按鈕群，方便在桌面版與行動版重複使用，保持程式碼簡潔
-  const AuthButtons = ({ isMobile = false }: { isMobile?: boolean }) => {
-    if (isSignedIn) {
-      return (
-        <div className={`flex ${isMobile ? "mt-2 w-full flex-col gap-2" : "items-center gap-3"}`}>
-          <Link
-            to="/protected/profile"
-            preload="intent"
-            onClick={() => isMobile && setIsOpen(false)}
-            className={isMobile ? "w-full" : ""}
-          >
-            <Button
-              className={`flex cursor-pointer items-center justify-start gap-2 bg-discord text-white transition-colors hover:bg-discord-hover ${
-                isMobile ? "h-10 w-full px-3 py-2 text-sm" : ""
-              } ${pathname === "/protected/profile" ? "bg-discord-hover" : ""}`}
-            >
-              <FaUser className="size-4 shrink-0" />
-              <span>個人資料</span>
-            </Button>
-          </Link>
-          <Button
-            onClick={handleSignOut}
-            variant="destructive"
-            className={`flex cursor-pointer items-center justify-start gap-2 bg-red-700 text-white transition-colors hover:bg-red-600 ${
-              isMobile ? "h-10 w-full px-3 py-2 text-sm" : "px-3"
-            }`}
-          >
-            <LogOut className="size-4 shrink-0" />
-            <span>登出</span>
-          </Button>
-        </div>
-      );
-    }
-
-    return (
-      <Button
-        onClick={handleDiscordSignIn}
-        className={`flex cursor-pointer items-center justify-center gap-2 bg-discord text-white transition-colors hover:bg-discord-hover ${
-          isMobile ? "mt-2 w-full" : ""
-        }`}
-      >
-        <FaDiscord className="size-5" />
-        <span>登入 Discord</span>
-      </Button>
-    );
   };
 
   return (
@@ -152,7 +185,12 @@ export default function Header() {
 
           {/* 右側：桌面版使用者功能 (md 以上顯示) */}
           <div className="hidden items-center md:flex">
-            <AuthButtons />
+            <AuthButtons
+              isSignedIn={isSignedIn}
+              pathname={pathname}
+              handleSignOut={handleSignOut}
+              setIsOpen={setIsOpen}
+            />
           </div>
 
           {/* 右側：行動版主選單漢堡按鈕 (md 以下顯示) */}
@@ -189,7 +227,13 @@ export default function Header() {
 
           {/* 行動端認證按鈕 */}
           <div className="mt-4 border-white/5 border-t pt-4">
-            <AuthButtons isMobile />
+            <AuthButtons
+              isMobile
+              isSignedIn={isSignedIn}
+              pathname={pathname}
+              handleSignOut={handleSignOut}
+              setIsOpen={setIsOpen}
+            />
           </div>
         </div>
       )}

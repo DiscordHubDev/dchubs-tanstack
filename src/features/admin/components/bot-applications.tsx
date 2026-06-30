@@ -106,8 +106,8 @@ const ApplicationCard = memo(
     onApprove: () => void;
     onReject: () => void;
   }) => (
-    // biome-ignore lint/a11y/useSemanticElements: The entire card is clickable, so using a div with role="button" is more appropriate here.
     <div
+      // biome-ignore lint/a11y/useSemanticElements: The entire card is clickable, so using a div with role="button" is more appropriate here.
       onClick={onView}
       onKeyDown={(e) => {
         if (e.key === "Enter" || e.key === " ") {

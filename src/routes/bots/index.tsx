@@ -3,7 +3,16 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Image } from "@unpic/react";
 // 引入 LazyMotion 以延遲加載 Framer Motion 核心，避免阻斷 FCP
 import { domAnimation, LazyMotion, m } from "framer-motion";
-import { lazy, Suspense, useCallback, useEffect, useMemo, useState, useTransition } from "react";
+import {
+  lazy,
+  Suspense,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  useTransition,
+} from "react";
 
 import { Input } from "#/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "#/components/ui/tabs";
@@ -213,18 +222,22 @@ function BotsPage() {
 
   const selectedCategoryIds = useMemo(() => {
     if (!search.categories) return [];
-    return search.categories
-      .split(",")
-      .map((item) => item.trim())
-      .filter(Boolean);
+    return search.categories.split(",").flatMap((item) => {
+      const trimmed = item.trim();
+      return trimmed ? [trimmed] : [];
+    });
   }, [search.categories]);
 
   const [isComposing, setIsComposing] = useState(false);
   const [inputValue, setInputValue] = useState(searchQuery);
   const [customCategories, setCustomCategories] = useState<CategoryType[]>([]);
 
+  const searchQueryRef = useRef(searchQuery);
   useEffect(() => {
-    setInputValue(searchQuery);
+    if (searchQueryRef.current !== searchQuery) {
+      searchQueryRef.current = searchQuery;
+      setInputValue(searchQuery);
+    }
   }, [searchQuery]);
 
   const botList = useSuspenseQuery(

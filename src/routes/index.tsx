@@ -232,10 +232,10 @@ function HomePage() {
 
   const selectedCategoryIds = useMemo(() => {
     if (!search.categories) return [];
-    return search.categories
-      .split(",")
-      .map((item) => item.trim())
-      .filter(Boolean);
+    return search.categories.split(",").flatMap((item) => {
+      const trimmed = item.trim();
+      return trimmed ? [trimmed] : [];
+    });
   }, [search.categories]);
 
   // ── Local UI state ──────────────────────────────────────────────────────
@@ -245,10 +245,7 @@ function HomePage() {
   const [inputValue, setInputValue] = useState(searchQuery);
   const [customCategories, setCustomCategories] = useState<CategoryType[]>([]);
 
-  const [isMounted, setIsMounted] = useState(false);
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
+  const [isMounted] = useState(() => typeof window !== "undefined");
 
   /**
    * OPTIMISATION 3 — Lazy filter-bundle activation.
@@ -265,8 +262,12 @@ function HomePage() {
   );
 
   // Sync input with URL (e.g. back/forward navigation)
+  const searchQueryRef = useRef(searchQuery);
   useEffect(() => {
-    setInputValue(searchQuery);
+    if (searchQueryRef.current !== searchQuery) {
+      searchQueryRef.current = searchQuery;
+      setInputValue(searchQuery);
+    }
   }, [searchQuery]);
 
   // Clean up Discord hash fragment on mount

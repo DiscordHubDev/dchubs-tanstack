@@ -311,12 +311,95 @@ function getSubmitErrorMessage(error: SubmitBotErrorPayload): string {
 }
 
 // ============================================================================
+// Effect Programs (Extracted for React Compiler compatibility)
+// ============================================================================
+
+/**
+ * Submit program: upload banner/screenshots then submit bot.
+ * Extracted from the component so React Compiler can analyze the component
+ * without encountering unsupported `yield*` generator syntax.
+ */
+function submitBotProgram({
+  media,
+  mode,
+  value,
+}: {
+  media: MediaState;
+  mode: "create" | "edit";
+  value: BotFormData;
+}): Effect.Effect<SubmitBotResult, SubmitBotFailed> {
+  return Effect.gen(function* () {
+    let finalBannerUrl = media.banner?.url ?? undefined;
+    const bannerFile = media.banner?.file;
+
+    if (bannerFile) {
+      yield* Effect.sync(() => toast.info("上傳 Banner 中..."));
+      const uploadedBanner = yield* Effect.tryPromise({
+        try: () => ScreenshotUpload([bannerFile]),
+        catch: (err) =>
+          new SubmitBotFailed({
+            message: `Banner 上傳失敗：${toErrorMessage(err)}`,
+          }),
+      });
+      finalBannerUrl = uploadedBanner[0]?.url ?? undefined;
+    }
+
+    const finalScreenshots = [...media.screenshots];
+    const localScreenshotIndices: number[] = [];
+    const localScreenshotFiles: File[] = [];
+
+    media.screenshots.forEach((s, index) => {
+      if (s.file) {
+        localScreenshotIndices.push(index);
+        localScreenshotFiles.push(s.file);
+      }
+    });
+
+    if (localScreenshotFiles.length > 0) {
+      yield* Effect.sync(() => toast.info(`上傳 ${localScreenshotFiles.length} 張截圖中...`));
+      const uploadedScreenshots = yield* Effect.tryPromise({
+        try: () => ScreenshotUpload(localScreenshotFiles),
+        catch: (err) =>
+          new SubmitBotFailed({
+            message: `截圖上傳失敗：${toErrorMessage(err)}`,
+          }),
+      });
+
+      localScreenshotIndices.forEach((originalIndex, newIndex) => {
+        finalScreenshots[originalIndex] = uploadedScreenshots[newIndex];
+      });
+    }
+
+    const payload = {
+      form: value,
+      screenshots: finalScreenshots,
+      banner: finalBannerUrl,
+      mode,
+    };
+
+    return yield* Effect.tryPromise({
+      try: () => submitBotFn({ data: payload }),
+      catch: (err) =>
+        new SubmitBotFailed({
+          message: `資料提交失敗：${toErrorMessage(err)}`,
+        }),
+    });
+  }).pipe(
+    Effect.catchAll((error) =>
+      Effect.succeed({
+        success: false as const,
+        error: { tag: error._tag, message: error.message },
+      } satisfies SubmitBotResult),
+    ),
+  );
+}
+
+// ============================================================================
 // Sub-components
 // ============================================================================
 
 function ClientOnly({ children }: { children: React.ReactNode }) {
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  const [mounted] = useState(() => typeof window !== "undefined");
   if (!mounted) return null;
   return <>{children}</>;
 }
@@ -750,17 +833,17 @@ export default function BotForm({ mode = "create", defaultValues }: BotFormProps
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const objectUrlsRef = useRef<Set<string>>(new Set());
-  const [media, setMedia] = useState<MediaState>({
-    screenshots: [],
-    banner: undefined,
+  const [media, setMedia] = useState<MediaState>(() => {
+    if (!defaultValues) return { screenshots: [], banner: undefined };
+    return {
+      screenshots: defaultValues.screenshots?.map(buildScreenshotFromUrl) ?? [],
+      banner: defaultValues.banner ? buildScreenshotFromUrl(defaultValues.banner) : undefined,
+    };
   });
   const [isUploadingMedia, setIsUploadingMedia] = useState(false);
 
   // Initial state hydration from localStorage (CSR only to avoid SSR mismatch)
-  const [persistedValues, setPersistedValues] = useState<Partial<BotFormData>>({});
-  useEffect(() => {
-    setPersistedValues(readPersistedFormValues());
-  }, []);
+  const [persistedValues] = useState<Partial<BotFormData>>(() => readPersistedFormValues());
 
   useEffect(() => {
     // ✅ 1. 先把當下的 ref 參考抓出來
@@ -835,71 +918,7 @@ export default function BotForm({ mode = "create", defaultValues }: BotFormProps
       media: MediaState;
       mode: "create" | "edit";
     }) => {
-      const program = Effect.gen(function* () {
-        let finalBannerUrl = media.banner?.url ?? undefined;
-        const bannerFile = media.banner?.file;
-
-        if (bannerFile) {
-          yield* Effect.sync(() => toast.info("上傳 Banner 中..."));
-          const uploadedBanner = yield* Effect.tryPromise({
-            try: () => ScreenshotUpload([bannerFile]),
-            catch: (err) =>
-              new SubmitBotFailed({
-                message: `Banner 上傳失敗：${toErrorMessage(err)}`,
-              }),
-          });
-          finalBannerUrl = uploadedBanner[0]?.url ?? undefined;
-        }
-
-        const finalScreenshots = [...media.screenshots];
-        const localScreenshotIndices: number[] = [];
-        const localScreenshotFiles: File[] = [];
-
-        media.screenshots.forEach((s, index) => {
-          if (s.file) {
-            localScreenshotIndices.push(index);
-            localScreenshotFiles.push(s.file);
-          }
-        });
-
-        if (localScreenshotFiles.length > 0) {
-          yield* Effect.sync(() => toast.info(`上傳 ${localScreenshotFiles.length} 張截圖中...`));
-          const uploadedScreenshots = yield* Effect.tryPromise({
-            try: () => ScreenshotUpload(localScreenshotFiles),
-            catch: (err) =>
-              new SubmitBotFailed({
-                message: `截圖上傳失敗：${toErrorMessage(err)}`,
-              }),
-          });
-
-          localScreenshotIndices.forEach((originalIndex, newIndex) => {
-            finalScreenshots[originalIndex] = uploadedScreenshots[newIndex];
-          });
-        }
-
-        const payload = {
-          form: value,
-          screenshots: finalScreenshots,
-          banner: finalBannerUrl,
-          mode,
-        };
-
-        return yield* Effect.tryPromise({
-          try: () => submitBotFn({ data: payload }),
-          catch: (err) =>
-            new SubmitBotFailed({
-              message: `資料提交失敗：${toErrorMessage(err)}`,
-            }),
-        });
-      }).pipe(
-        Effect.catchAll((error) =>
-          Effect.succeed({
-            success: false as const,
-            error: { tag: error._tag, message: error.message },
-          } satisfies SubmitBotResult),
-        ),
-      );
-
+      const program = submitBotProgram({ media, mode, value });
       return Effect.runPromise(program);
     },
     onSuccess: async (response) => {
@@ -972,28 +991,12 @@ export default function BotForm({ mode = "create", defaultValues }: BotFormProps
         }
         event.preventDefault();
         event.returnValue = "";
-        return "";
       }
     };
 
     window.addEventListener("beforeunload", handleBeforeUnload);
     return () => window.removeEventListener("beforeunload", handleBeforeUnload);
   }, [form.store]);
-
-  useEffect(() => {
-    if (defaultValues?.screenshots?.length) {
-      setMedia((prev) => ({
-        ...prev,
-        screenshots: defaultValues.screenshots!.map(buildScreenshotFromUrl),
-      }));
-    }
-    if (defaultValues?.banner) {
-      setMedia((prev) => ({
-        ...prev,
-        banner: buildScreenshotFromUrl(defaultValues.banner!),
-      }));
-    }
-  }, [defaultValues]);
 
   const handleScroll = useCallback(() => {
     const textarea = textareaRef.current;

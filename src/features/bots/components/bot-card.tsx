@@ -1,4 +1,3 @@
-import { useState, useEffect } from "react";
 import { Link } from "@tanstack/react-router";
 import { AlertTriangle, ArrowUp, Clock, Heart, Pin, Users } from "lucide-react";
 import { memo } from "react";
@@ -135,15 +134,7 @@ function BotCardHeader({ item }: { item: PublicBot }) {
 }
 
 function BotCardMeta({ item }: { item: PublicBot }) {
-  const [time, setTime] = useState<string | null>(null);
-
-  useEffect(() => {
-    if (item.approvedAt) {
-      setTime(formatTime(item.approvedAt));
-    } else {
-      setTime(formatTime(new Date().toISOString()));
-    }
-  }, [item.approvedAt]);
+  const time = item.approvedAt ? formatTime(item.approvedAt) : formatTime(new Date().toISOString());
 
   return (
     <div className="mt-3 flex flex-wrap items-center gap-3 text-gray-400 text-sm">

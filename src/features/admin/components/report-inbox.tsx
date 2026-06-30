@@ -132,9 +132,8 @@ const ReportRow = memo(
     const isPending = report.status === "pending";
 
     return (
-      // biome-ignore lint/a11y/useSemanticElements: This is a complex card with a nested delete button, so a native button cannot be used here.
       <div
-        // [調整] 加入了 group 以便連動內部樣式。新增 hover 陰影與微邊框發光、active 點擊縮放、focus-visible 鍵盤焦點光環。圓角改為 rounded-xl 更具現代感。
+        // biome-ignore lint/a11y/useSemanticElements: This is a complex card with a nested delete button, so a native button cannot be used here.
         className="group cursor-pointer rounded-xl border border-[#202225] bg-[#36393F] p-3 transition-all duration-200 hover:-translate-y-[1px] hover:border-[#5865F2]/70 hover:shadow-[#5865F2]/10 hover:shadow-lg focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#5865F2] active:scale-[0.99] sm:p-4"
         onClick={() => onView(report)}
         onKeyDown={(e) => {
@@ -179,19 +178,7 @@ const ReportRow = memo(
           </div>
 
           {isPending && (
-            // biome-ignore lint/a11y/useSemanticElements: This is a complex card with a nested delete button, so a native button cannot be used here.
-            <div
-              className="mt-2 flex flex-shrink-0 gap-2 sm:mt-0"
-              onClick={(e) => e.stopPropagation()}
-              onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
-                  e.preventDefault();
-                  e.stopPropagation();
-                }
-              }}
-              role="button"
-              tabIndex={0}
-            >
+            <div className="mt-2 flex shrink-0 gap-2 sm:mt-0" onClick={(e) => e.stopPropagation()}>
               <TooltipProvider>
                 <Tooltip>
                   <TooltipTrigger asChild>

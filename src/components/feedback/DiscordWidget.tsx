@@ -64,13 +64,11 @@ export default function DiscordWidget({ serverId = "1297055626014490695" }: Disc
                   loading="lazy"
                   className="h-8 w-8 rounded-full bg-[#1e1f22]"
                 />
-                {/* 修正：加上 role="img"，讓 aria-label 屬性完全合法 */}
                 <span
-                  role="img"
+                  aria-hidden="true"
                   className={`absolute bottom-0 right-0 h-3 w-3 rounded-full border-2 border-[#2b2d31] ${getStatusColor(
                     member.status,
                   )}`}
-                  aria-label={`狀態: ${member.status}`}
                 />
               </div>
               <span className="truncate text-sm font-medium text-gray-300">{member.username}</span>

@@ -243,8 +243,6 @@ function buildBotPayload(
 
   const isResubmission = mode === "create" && existingBot?.status === "rejected";
 
-  console.log("Form Embed Data:", input.form.customEmbed);
-
   // 解析前端傳來的 customEmbed
   // 注意：若 TypeScript 報錯 SubmitBotInput 不包含 customEmbed，請記得於對應的 Type 定義中補上
   const determineStatus = () => {
@@ -300,11 +298,6 @@ function persistBotEffect(
   payload: BotPayload,
   developerIds: readonly string[],
 ): Effect.Effect<void, SubmitBotFailed> {
-  const finalStatus =
-    payload.botRow.status === "rejected"
-      ? "pending"
-      : (payload.botRow.status as "pending" | "approved" | "rejected");
-
   return dbEffect("Failed to persist bot", () =>
     db.transaction(async (tx) => {
       if (payload.exists) {
@@ -326,8 +319,8 @@ function persistBotEffect(
             voteNotificationUrl: payload.botRow.voteNotificationUrl,
             secret: payload.botRow.secret,
             nsfw: payload.botRow.nsfw,
-            customEmbed: formatCustomEmbedData(payload.botRow.customEmbed),
-            status: finalStatus, // 👉 2. 這裡改用計算後的 finalStatus
+            customEmbed: payload.botRow.customEmbed,
+            status: payload.botRow.status, // 👉 2. 這裡改用計算後的 finalStatus
           })
           .where(eq(bot.id, payload.botId));
       } else {
@@ -350,8 +343,8 @@ function persistBotEffect(
           servers: 0,
           users: 0,
           upvotes: 0,
-          customEmbed: formatCustomEmbedData(payload.botRow.customEmbed),
-          status: finalStatus, // 👉 3. 這裡也改用計算後的 finalStatus
+          customEmbed: payload.botRow.customEmbed,
+          status: payload.botRow.status, // 👉 3. 這裡也改用計算後的 finalStatus
           nsfw: payload.botRow.nsfw,
         });
       }
@@ -383,9 +376,8 @@ function persistBotEffect(
   );
 }
 
-function notifyDevelopersEffect(
-  input: SubmitBotInput,
-): Effect.Effect<void, NotificationFailed | SubmitBotFailed> {
+function notifyDevelopersEffect(input: SubmitBotInput): Effect.Effect<void, never> {
+  // 注意：錯誤型別改成 never
   if (input.mode === "edit") {
     return Effect.succeed(undefined);
   }
@@ -396,7 +388,11 @@ function notifyDevelopersEffect(
     teaser: "你的機器人已成功提交，正在審核中。",
     label: "機器人審核通知",
     isSystem: true,
-  });
+  }).pipe(
+    Effect.catchAll((error) =>
+      Effect.sync(() => console.error("[notifyDevelopersEffect] 通知失敗，已忽略：", error)),
+    ),
+  );
 }
 
 function getPendingWebhookUrl(): string | null {
@@ -442,16 +438,11 @@ function sendPendingWebhookEffect(
 
 function submitPipeline(
   input: SubmitBotInput,
-): Effect.Effect<
-  string,
-  InvalidInviteUrl | BotAlreadyExists | DiscordRpcFailed | SubmitBotFailed | NotificationFailed
-> {
+): Effect.Effect<string, InvalidInviteUrl | BotAlreadyExists | DiscordRpcFailed | SubmitBotFailed> {
   return Effect.gen(function* () {
-    console.log("🔥 收到前端的 developers:", input.form.developers);
     const botId = yield* parseClientId(input.form.botInvite);
     const exists = yield* getExistingBotEffect(botId);
 
-    // 提取 mode 變數，方便後續重複判斷，並給予預設值 "create"
     const isCreateMode = (input.mode ?? "create") === "create";
 
     if (isCreateMode && exists && exists.status !== "rejected") {
@@ -464,13 +455,8 @@ function submitPipeline(
     const developerIds = yield* resolveDeveloperIdsEffect(payload.developerNames);
     yield* persistBotEffect(payload, developerIds);
 
-    // 👇 1. 只有在 create 模式下才通知開發者
     if (isCreateMode) {
       yield* notifyDevelopersEffect(input);
-    }
-
-    // 👇 2. 只有在 create 模式下才發送 Discord Webhook
-    if (isCreateMode) {
       yield* sendDiscordWebhookEffect({
         _tag: "pendingBot",
         avatarUrl: payload.botRow.icon || "https://cdn.discordapp.com/embed/avatars/0.png",
@@ -480,7 +466,14 @@ function submitPipeline(
           botDescription: payload.botRow.description || "",
           tags: payload.botRow.tags || [],
         },
-      });
+      }).pipe(
+        Effect.tapError((error) =>
+          Effect.logError(
+            `[submitPipeline] Discord webhook 發送失敗，已忽略：${toErrorMessage(error)}`,
+          ),
+        ),
+        Effect.ignoreLogged,
+      );
     }
 
     return botId;
@@ -705,7 +698,11 @@ function enforceBotDeveloperEffect(botId: string, userId: string) {
       );
     }
 
-    return true;
+    return yield* Effect.fail(
+      new ForbiddenError({
+        message: "Forbidden: You are not a developer of this bot",
+      }),
+    );
   });
 }
 

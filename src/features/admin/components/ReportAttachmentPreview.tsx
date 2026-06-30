@@ -1,7 +1,7 @@
 "use client";
 
 import { ExternalLink, FileText, Image as ImageIcon, type LucideIcon, Video } from "lucide-react";
-import { memo, useEffect, useState } from "react";
+import { memo, useEffect, useRef, useState } from "react";
 import { OptimizedImage } from "#/components/OptimizedImage";
 import { fetchJsonEffect, runEffect } from "#/lib/effect-utils";
 import type { UploadedFile } from "#/lib/types";
@@ -16,14 +16,23 @@ const useRawAttachment = (url: string, type: UploadedFile["type"] | ReportAttach
   // 如果你預期它是字串或其他型態，可以根據實際需求調整 useState 的泛型
   const [content, setContent] = useState<any | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(false);
+  const [isLoading, setIsLoading] = useState<boolean>(() => type === "raw" && !!url);
+  const keyRef = useRef(`${url}:${type}`);
 
   useEffect(() => {
-    if (type !== "raw" || !url) return;
+    const newKey = `${url}:${type}`;
+    if (newKey !== keyRef.current) {
+      keyRef.current = newKey;
+      if (type !== "raw" || !url) {
+        setContent(null);
+        setError(null);
+        setIsLoading(false);
+        return;
+      }
+      setIsLoading(true);
+    }
 
     const controller = new AbortController();
-    setIsLoading(true);
-    setError(null);
 
     const fetchRawData = async () => {
       try {
