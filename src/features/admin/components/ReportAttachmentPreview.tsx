@@ -1,7 +1,7 @@
 "use client";
 
 import { ExternalLink, FileText, Image as ImageIcon, type LucideIcon, Video } from "lucide-react";
-import { memo, useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { OptimizedImage } from "#/components/OptimizedImage";
 import { fetchJsonEffect, runEffect } from "#/lib/effect-utils";
 import type { UploadedFile } from "#/lib/types";
@@ -12,25 +12,32 @@ interface AttachmentPreviewProps {
 }
 
 const useRawAttachment = (url: string, type: UploadedFile["type"] | ReportAttachment["type"]) => {
-  // 註：因為 fetchJsonEffect 最終解出來的是 JSON 資料（unknown），
-  // 如果你預期它是字串或其他型態，可以根據實際需求調整 useState 的泛型
   const [content, setContent] = useState<any | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState<boolean>(() => type === "raw" && !!url);
-  const keyRef = useRef(`${url}:${type}`);
 
-  useEffect(() => {
-    const newKey = `${url}:${type}`;
-    if (newKey !== keyRef.current) {
-      keyRef.current = newKey;
-      if (type !== "raw" || !url) {
-        setContent(null);
-        setError(null);
-        setIsLoading(false);
-        return;
-      }
+  // Derive initial isLoading state
+  const [isLoading, setIsLoading] = useState<boolean>(type === "raw" && !!url);
+
+  // 1. Use state to track the previous key for comparison
+  const [prevKey, setPrevKey] = useState(`${type}::${url}`);
+
+  // 2. If the props changed, update state during render
+  if (prevKey !== `${type}::${url}`) {
+    setPrevKey(`${type}::${url}`);
+
+    if (type !== "raw" || !url) {
+      setContent(null);
+      setError(null);
+      setIsLoading(false);
+    } else {
+      setContent(null); // Clear old content immediately
+      setError(null);
       setIsLoading(true);
     }
+  }
+
+  useEffect(() => {
+    if (type !== "raw" || !url) return;
 
     const controller = new AbortController();
 
@@ -40,13 +47,11 @@ const useRawAttachment = (url: string, type: UploadedFile["type"] | ReportAttach
         const data = await runEffect(effect);
         setContent(data);
       } catch (err: unknown) {
-        // 處理 Effect 失敗（例如：非 HTTPS、請求失敗、JSON 解析失敗等）
         if (err instanceof Error && err.name !== "AbortError") {
           setError("無法讀取內容，請稍後再試");
         }
-      } finally {
-        setIsLoading(false);
       }
+      setIsLoading(false);
     };
 
     fetchRawData();
@@ -57,7 +62,7 @@ const useRawAttachment = (url: string, type: UploadedFile["type"] | ReportAttach
   return { content, error, isLoading };
 };
 
-const AttachmentPreview = memo(({ attachment }: AttachmentPreviewProps) => {
+const AttachmentPreview = ({ attachment }: AttachmentPreviewProps) => {
   const type = attachment.type;
   const url = attachment.url;
 
@@ -151,8 +156,6 @@ const AttachmentPreview = memo(({ attachment }: AttachmentPreviewProps) => {
       )}
     </Container>
   );
-});
-
-AttachmentPreview.displayName = "AttachmentPreview";
+};
 
 export default AttachmentPreview;

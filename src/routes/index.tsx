@@ -136,7 +136,10 @@ function HomePageRoute() {
 export const Route = createFileRoute("/")({
   ssr: true,
   validateSearch,
-  // 加入預先連線，解決 DNS + TLS 延遲
+  loaderDeps: ({ search }) => ({
+    category: (search.tab ?? DEFAULT_CATEGORY) as ServerCategory,
+    page: search.page ?? 1,
+  }),
   head: () => {
     return {
       links: [
@@ -145,10 +148,6 @@ export const Route = createFileRoute("/")({
       ],
     };
   },
-  loaderDeps: ({ search }) => ({
-    category: (search.tab ?? DEFAULT_CATEGORY) as ServerCategory,
-    page: search.page ?? 1,
-  }),
   loader: async ({ context, deps }) => {
     await context.queryClient.ensureQueryData(
       serversListQueryOptions({
@@ -164,6 +163,7 @@ export const Route = createFileRoute("/")({
     };
   },
 
+  // 5. Component last
   component: HomePageRoute,
 });
 
@@ -240,7 +240,7 @@ function HomePage() {
 
   // ── Local UI state ──────────────────────────────────────────────────────
 
-  const [isComposing, setIsComposing] = useState(false);
+  const isComposingRef = useRef(false);
   const [isSearching, setIsSearching] = useState(false);
   const [inputValue, setInputValue] = useState(searchQuery);
   const [customCategories, setCustomCategories] = useState<CategoryType[]>([]);
@@ -299,7 +299,7 @@ function HomePage() {
 
   // ── Data fetching ────────────────────────────────────────────────────────
 
-  const serversList = useSuspenseQuery(
+  const { data: serversListData } = useSuspenseQuery(
     serversListQueryOptions({
       category: activeTab,
       page: currentPage,
@@ -312,13 +312,13 @@ function HomePage() {
    * This prevents the component from suspending while the bundle is loading —
    * the server list renders immediately with whatever data it already has.
    */
-  const filterBundle = useQuery({
+  const { data: filterBundleDataRaw } = useQuery({
     ...serverFilterBundleQueryOptions(),
     enabled: filterBundleEnabled,
   });
 
   // Safe accessor — falls back to empty arrays/zeros before bundle arrives
-  const filterBundleData = filterBundle.data ?? EMPTY_FILTER_BUNDLE;
+  const filterBundleData = filterBundleDataRaw ?? EMPTY_FILTER_BUNDLE;
 
   // ── Derived state ────────────────────────────────────────────────────────
 
@@ -337,7 +337,7 @@ function HomePage() {
     }
 
     // [區塊 B] 載入來自 API 的標籤
-    for (const item of filterBundle.data?.categories ?? []) {
+    for (const item of filterBundleDataRaw?.categories ?? []) {
       map.set(item.id, item);
     }
 
@@ -347,7 +347,7 @@ function HomePage() {
     }
 
     return [...map.values()];
-  }, [filterBundle.data?.categories, customCategories]); // 確保 customCategories 在依賴陣列中
+  }, [filterBundleDataRaw, customCategories]); // 確保 customCategories 在依賴陣列中
 
   const useClientSideFiltering = Boolean(searchQuery.trim() || selectedCategoryIds.length);
 
@@ -381,16 +381,16 @@ function HomePage() {
       return paginateServers(clientFiltered, currentPage, ITEMS_PER_PAGE);
     }
     return {
-      servers: serversList.data.servers,
-      total: serversList.data.total,
-      totalPages: serversList.data.totalPages,
-      page: serversList.data.page,
+      servers: serversListData.servers,
+      total: serversListData.total,
+      totalPages: serversListData.totalPages,
+      page: serversListData.page,
     };
-  }, [useClientSideFiltering, clientFiltered, currentPage, serversList.data]);
+  }, [serversListData, useClientSideFiltering, clientFiltered, currentPage]);
 
   const shouldShowSkeleton = isSearching;
 
-  const isStatsLoading = !isMounted || filterBundle.isLoading;
+  const isStatsLoading = !isMounted || !filterBundleDataRaw;
 
   // ── Callbacks ────────────────────────────────────────────────────────────
 
@@ -484,9 +484,9 @@ function HomePage() {
     (event: React.ChangeEvent<HTMLInputElement>) => {
       const value = event.target.value;
       setInputValue(value);
-      if (!isComposing) commitSearch(value);
+      if (!isComposingRef.current) commitSearch(value);
     },
-    [commitSearch, isComposing],
+    [commitSearch],
   );
 
   const handleCategoryChange = useCallback(
@@ -552,9 +552,11 @@ function HomePage() {
               className="w-full border-white/20 bg-white/10 py-6 pl-10 text-white placeholder:text-white/60"
               value={inputValue}
               onChange={handleSearchChange}
-              onCompositionStart={() => setIsComposing(true)}
+              onCompositionStart={() => {
+                isComposingRef.current = true;
+              }}
               onCompositionEnd={(event) => {
-                setIsComposing(false);
+                isComposingRef.current = false;
                 commitSearch(event.currentTarget.value);
               }}
             />

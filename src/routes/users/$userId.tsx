@@ -21,12 +21,12 @@ function getSessionUserId(session: NormalizedSession | null): string | null {
 }
 
 export const Route = createFileRoute("/users/$userId")({
-  ssr: false,
-  preloadStaleTime: 10 * 60 * 1000,
   validateSearch: (search): UserProfileSearch => {
     const tab = parseProfileTab(search.tab);
     return tab ? { tab } : {};
   },
+  ssr: false,
+  preloadStaleTime: 10 * 60 * 1000,
   loader: async ({ context, params }) => {
     await context.queryClient.ensureQueryData(userProfileQueryOptions(params.userId));
     return { viewedUserId: params.userId };

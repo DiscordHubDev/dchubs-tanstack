@@ -14,6 +14,7 @@ const siteUrl =
   "https://dchubs.org";
 
 export const Route = createFileRoute("/protected/add-server")({
+  validateSearch: (_search) => ({}),
   beforeLoad: async ({ location }) => {
     const authStatus = await checkAuthServerFn();
 

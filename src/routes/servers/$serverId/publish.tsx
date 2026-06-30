@@ -8,6 +8,7 @@ const siteUrl =
   "https://dchubs.org";
 
 export const Route = createFileRoute("/servers/$serverId/publish")({
+  validateSearch: () => ({}),
   preload: false,
   staticData: { breadcrumb: "發布伺服器" },
   head: ({ match }) => {

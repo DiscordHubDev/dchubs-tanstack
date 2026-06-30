@@ -30,24 +30,9 @@ export type RulesFieldProps = {
 
 export function RulesField({ field, disabled = false, maxRules = 10 }: RulesFieldProps) {
   const inputRefs = useRef<Array<HTMLInputElement | null>>([]);
-  const keyCounterRef = useRef(0);
-  const ruleKeysRef = useRef<string[]>([]);
   const rules = Array.isArray(field.state.value) ? (field.state.value as string[]) : [];
   const errorMessage = readFirstError(field.state.meta.errors);
   const canAddRule = !disabled && rules.length < maxRules;
-
-  const buildRuleKey = () => {
-    keyCounterRef.current += 1;
-    return `rule-${keyCounterRef.current}`;
-  };
-
-  while (ruleKeysRef.current.length < rules.length) {
-    ruleKeysRef.current.push(buildRuleKey());
-  }
-  if (ruleKeysRef.current.length > rules.length) {
-    ruleKeysRef.current.length = rules.length;
-  }
-  const ruleKeys = ruleKeysRef.current;
 
   const focusRuleInput = (index: number) => {
     setTimeout(() => {
@@ -60,10 +45,8 @@ export function RulesField({ field, disabled = false, maxRules = 10 }: RulesFiel
       return;
     }
 
-    const nextRules = [...rules, ""];
-    ruleKeysRef.current = [...ruleKeysRef.current, buildRuleKey()];
-    field.handleChange(nextRules);
-    focusRuleInput(nextRules.length - 1);
+    field.handleChange([...rules, ""]);
+    focusRuleInput(rules.length);
   };
 
   const insertRuleAfter = (index: number) => {
@@ -72,10 +55,6 @@ export function RulesField({ field, disabled = false, maxRules = 10 }: RulesFiel
     }
 
     const nextRules = [...rules.slice(0, index + 1), "", ...rules.slice(index + 1)];
-    const nextKeys = [...ruleKeysRef.current];
-    nextKeys.splice(index + 1, 0, buildRuleKey());
-    ruleKeysRef.current = nextKeys;
-
     field.handleChange(nextRules);
     focusRuleInput(index + 1);
   };
@@ -86,10 +65,6 @@ export function RulesField({ field, disabled = false, maxRules = 10 }: RulesFiel
 
   const removeRule = (index: number) => {
     const nextRules = rules.filter((_, itemIndex) => itemIndex !== index);
-    const nextKeys = [...ruleKeysRef.current];
-    nextKeys.splice(index, 1);
-    ruleKeysRef.current = nextKeys;
-
     field.handleChange(nextRules);
 
     if (nextRules.length === 0) {
@@ -120,7 +95,7 @@ export function RulesField({ field, disabled = false, maxRules = 10 }: RulesFiel
         </p>
       ) : (
         rules.map((rule, index) => (
-          <div key={ruleKeys[index]} className="flex items-center gap-2">
+          <div key={index} className="flex items-center gap-2">
             <Input
               ref={(node) => {
                 inputRefs.current[index] = node;

@@ -116,14 +116,14 @@ export function UserProfilePage({
   const isOwner = viewedUserId === currentUserId;
   const navigationRef = useRef(false);
 
-  const prefetchTimeoutRef = useRef<number | null>(null);
+  const [prefetchTimeoutId, setPrefetchTimeoutId] = useState<number | null>(null);
   const handlePrefetch = useCallback(
     (tab: ProfileTab) => {
-      if (prefetchTimeoutRef.current) {
-        window.clearTimeout(prefetchTimeoutRef.current);
+      if (prefetchTimeoutId) {
+        window.clearTimeout(prefetchTimeoutId);
       }
 
-      prefetchTimeoutRef.current = window.setTimeout(() => {
+      const id = window.setTimeout(() => {
         // 🛡️ 內部輔助函式：將重複的檢查與 prefetch 邏輯抽離，並保持泛型安全
         const ensurePrefetch = <TQueryFnData, TError, TData, TQueryKey extends readonly unknown[]>(
           options: import("@tanstack/react-query").FetchQueryOptions<
@@ -159,18 +159,19 @@ export function UserProfilePage({
             break;
         }
       }, 150);
+      setPrefetchTimeoutId(id);
     },
-    [queryClient, viewedUserId, isOwner],
+    [queryClient, viewedUserId, isOwner, prefetchTimeoutId],
   );
 
   // 記得在元件卸載時清除 Timeout，避免 memory leak
   useEffect(() => {
     return () => {
-      if (prefetchTimeoutRef.current) {
-        window.clearTimeout(prefetchTimeoutRef.current);
+      if (prefetchTimeoutId) {
+        window.clearTimeout(prefetchTimeoutId);
       }
     };
-  }, []);
+  }, [prefetchTimeoutId]);
 
   const handleManageServer = useCallback(
     (serverId: string, e: MouseEvent) => {
@@ -430,8 +431,6 @@ function APIKeyManager() {
     refreshToken: string;
   } | null>(null);
   const [hasToken, setHasToken] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-  const isRequestingRef = useRef(false);
 
   const mutation = useMutation({
     mutationFn: () =>
@@ -439,10 +438,7 @@ function APIKeyManager() {
   });
 
   const handleCreateOrRegen = useCallback(async () => {
-    if (isRequestingRef.current || isLoading) return;
-
-    isRequestingRef.current = true;
-    setIsLoading(true);
+    if (mutation.isPending) return;
 
     try {
       const tokens = await mutation.mutateAsync();
@@ -456,13 +452,8 @@ function APIKeyManager() {
       }
     } catch {
       showErrorNotification("操作失敗，請稍後再試");
-    } finally {
-      setIsLoading(false);
-      window.setTimeout(() => {
-        isRequestingRef.current = false;
-      }, 1000);
     }
-  }, [isLoading, mutation]);
+  }, [mutation]);
 
   return (
     <div className="mt-4 flex w-full flex-col items-center space-y-6">
@@ -470,9 +461,9 @@ function APIKeyManager() {
       <Button
         className="cursor-pointer bg-discord text-white hover:bg-discord-hover disabled:opacity-50"
         onClick={() => void handleCreateOrRegen()}
-        disabled={isLoading || isRequestingRef.current}
+        disabled={mutation.isPending}
       >
-        {isLoading ? (
+        {mutation.isPending ? (
           <>載入中...</>
         ) : apiKey || hasToken ? (
           <>
@@ -1316,9 +1307,9 @@ export function PinButton({ itemId, itemType }: PinButtonProps) {
         text: "無法連線至伺服器，請稍後再試。",
         confirmButtonColor: "#5865f2",
       });
-    } finally {
-      setIsLoading(false);
     }
+
+    setIsLoading(false);
   };
 
   return (
@@ -1446,7 +1437,7 @@ export function UserSettingsForm({ user }: { user: UserSettings }) {
               <input
                 type="text"
                 value={user.name || user.username}
-                disabled
+                readOnly
                 className="w-full cursor-not-allowed rounded-md border border-[#1e1f22] bg-[#36393f] px-3 py-2 text-white opacity-50"
               />
             </label>

@@ -228,7 +228,7 @@ function BotsPage() {
     });
   }, [search.categories]);
 
-  const [isComposing, setIsComposing] = useState(false);
+  const isComposingRef = useRef(false);
   const [inputValue, setInputValue] = useState(searchQuery);
   const [customCategories, setCustomCategories] = useState<CategoryType[]>([]);
 
@@ -240,14 +240,14 @@ function BotsPage() {
     }
   }, [searchQuery]);
 
-  const botList = useSuspenseQuery(
+  const { data: botListData } = useSuspenseQuery(
     botsListQueryOptions({
       category: activeTab,
       page: currentPage,
       limit: ITEMS_PER_PAGE,
     }),
   );
-  const filterBundle = useSuspenseQuery(botFilterBundleQueryOptions());
+  const { data: filterBundleData } = useSuspenseQuery(botFilterBundleQueryOptions());
 
   const mergedCategories = useMemo(() => {
     // ... (保持原本邏輯，無更動)
@@ -262,7 +262,7 @@ function BotsPage() {
       map.set(item.id, item);
       nameSet.add(item.name.toLowerCase());
     }
-    for (const item of filterBundle.data?.categories ?? []) {
+    for (const item of filterBundleData?.categories ?? []) {
       const nameKey = item.name.toLowerCase();
       if (!nameSet.has(nameKey)) {
         map.set(item.id, item);
@@ -277,14 +277,13 @@ function BotsPage() {
       }
     }
     return [...map.values()];
-  }, [filterBundle.data?.categories, customCategories]);
+  }, [filterBundleData, customCategories]);
 
   const useClientSideFiltering = Boolean(searchQuery.trim() || selectedCategoryIds.length);
 
   const clientFiltered = useMemo(() => {
-    // ... (保持原本邏輯，無更動)
     if (!useClientSideFiltering) return [];
-    let filtered = filterBundle.data?.allBots ?? [];
+    let filtered = filterBundleData?.allBots ?? [];
     if (selectedCategoryIds.length > 0) {
       const selectedNames = mergedCategories
         .filter((item) => selectedCategoryIds.includes(item.id))
@@ -296,8 +295,8 @@ function BotsPage() {
     }
     return filterBotsBySearch(sortBotsByCategory(filtered, activeTab), searchQuery);
   }, [
+    filterBundleData,
     useClientSideFiltering,
-    filterBundle.data?.allBots,
     selectedCategoryIds,
     mergedCategories,
     activeTab,
@@ -307,12 +306,12 @@ function BotsPage() {
   const displayData = useMemo(() => {
     if (useClientSideFiltering) return paginateBots(clientFiltered, currentPage, ITEMS_PER_PAGE);
     return {
-      bots: botList.data.bots,
-      total: botList.data.total,
-      totalPages: botList.data.totalPages,
-      page: botList.data.page,
+      bots: botListData.bots,
+      total: botListData.total,
+      totalPages: botListData.totalPages,
+      page: botListData.page,
     };
-  }, [useClientSideFiltering, clientFiltered, currentPage, botList.data]);
+  }, [botListData, useClientSideFiltering, clientFiltered, currentPage]);
 
   const updateSearch = useCallback(
     (patch: Partial<BotHomeSearch>, options?: { resetScroll?: boolean }) => {
@@ -376,9 +375,9 @@ function BotsPage() {
     (event: React.ChangeEvent<HTMLInputElement>) => {
       const value = event.target.value;
       setInputValue(value);
-      if (!isComposing) commitSearch(value);
+      if (!isComposingRef.current) commitSearch(value);
     },
-    [commitSearch, isComposing],
+    [commitSearch],
   );
 
   const handleCategoryChange = useCallback(
@@ -438,9 +437,11 @@ function BotsPage() {
                 className="w-full border-white/20 bg-white/10 py-6 pl-10 text-white placeholder:text-white/60"
                 value={inputValue}
                 onChange={handleSearchChange}
-                onCompositionStart={() => setIsComposing(true)}
+                onCompositionStart={() => {
+                  isComposingRef.current = true;
+                }}
                 onCompositionEnd={(event) => {
-                  setIsComposing(false);
+                  isComposingRef.current = false;
                   commitSearch(event.currentTarget.value);
                 }}
               />
@@ -589,17 +590,15 @@ function BotsPage() {
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <span className="text-gray-300">總機器人數</span>
-                    <span className="font-medium">{filterBundle.data?.stats.totalBots ?? 0}</span>
+                    <span className="font-medium">{filterBundleData?.stats.totalBots ?? 0}</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-gray-300">已驗證機器人</span>
-                    <span className="font-medium">
-                      {filterBundle.data?.stats.verifiedBots ?? 0}
-                    </span>
+                    <span className="font-medium">{filterBundleData?.stats.verifiedBots ?? 0}</span>
                   </div>
                   <div className="flex items-center justify-between">
                     <span className="text-gray-300">目前已使用分類數</span>
-                    <span className="font-medium">{filterBundle.data?.stats.totalTags ?? 0}</span>
+                    <span className="font-medium">{filterBundleData?.stats.totalTags ?? 0}</span>
                   </div>
                 </div>
               </div>

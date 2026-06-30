@@ -706,10 +706,7 @@ export function ServerDetailPage() {
 
   const isSignedIn = useMemo(() => Boolean(sessionUserId), [sessionUserId]);
 
-  const bannerIsCloudinary = useMemo(
-    () => Boolean(detail?.banner && isCloudinaryUrl(detail.banner)),
-    [detail?.banner],
-  );
+  const bannerIsCloudinary = Boolean(detail?.banner && isCloudinaryUrl(detail.banner));
 
   // [優化 2] 穩定的 query key — serverId 幾乎不變，但 useMemo 確保參考穩定
   const detailQueryKey = useMemo(() => queryKeys.servers.detail(serverId), [serverId]);

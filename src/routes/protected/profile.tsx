@@ -21,9 +21,6 @@ const siteUrl =
   "https://dchubs.org";
 
 export const Route = createFileRoute("/protected/profile")({
-  ssr: false,
-  preloadStaleTime: 10 * 60 * 1000,
-
   validateSearch: (search): ProfileSearch => {
     const id = parseNonEmptyString(search.id);
     const tab = parseProfileTab(search.tab);
@@ -33,6 +30,8 @@ export const Route = createFileRoute("/protected/profile")({
       ...(tab ? { tab } : {}),
     };
   },
+  ssr: false,
+  preloadStaleTime: 10 * 60 * 1000,
 
   loaderDeps: ({ search }) => ({
     viewedUserId: search.id,

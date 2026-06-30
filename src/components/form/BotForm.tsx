@@ -246,6 +246,8 @@ function hasRequiredPublishFields(values: {
   );
 }
 
+const ALLOWED_IMAGE_TYPES_SET = new Set(ALLOWED_IMAGE_TYPES);
+
 function validateFiles(files: File[], remainingSlots: number): Effect.Effect<File[], never> {
   return Effect.sync(() => {
     const warnings: string[] = [];
@@ -253,7 +255,7 @@ function validateFiles(files: File[], remainingSlots: number): Effect.Effect<Fil
 
     for (const file of files) {
       const mimeType = file.type.toLowerCase() as AllowedImageType;
-      if (!ALLOWED_IMAGE_TYPES.includes(mimeType)) {
+      if (!ALLOWED_IMAGE_TYPES_SET.has(mimeType)) {
         warnings.push("請傳送動圖或者是一般圖片！");
         continue;
       }
@@ -1020,15 +1022,20 @@ export default function BotForm({ mode = "create", defaultValues }: BotFormProps
     if (remainingSlots <= 0) return;
 
     setIsUploadingMedia(true);
-    try {
-      const validFiles = await Effect.runPromise(
-        validateFiles(files, remainingSlots).pipe(
-          Effect.catchAll(() => Effect.succeed([] as File[])),
-        ),
-      );
 
-      if (validFiles.length === 0) return;
+    // Catch both expected failures (catchAll) and unexpected defects
+    // (catchAllDefect) inside the Effect pipeline itself, so there's no
+    // need for an outer try/catch/finally in the component.
+    const validFiles = await Effect.runPromise(
+      validateFiles(files, remainingSlots).pipe(
+        Effect.catchAllDefect((defect) => {
+          console.error("Unexpected error during media upload:", defect);
+          return Effect.succeed([] as File[]);
+        }),
+      ),
+    );
 
+    if (validFiles.length > 0) {
       const newItems: MediaItem[] = validFiles.map((file) => {
         const url = URL.createObjectURL(file);
         objectUrlsRef.current.add(url);
@@ -1047,9 +1054,9 @@ export default function BotForm({ mode = "create", defaultValues }: BotFormProps
           screenshots: [...prev.screenshots, ...newItems],
         }));
       }
-    } finally {
-      setIsUploadingMedia(false);
     }
+
+    setIsUploadingMedia(false);
   };
 
   const removeScreenshot = useCallback((index: number) => {
