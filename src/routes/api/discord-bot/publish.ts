@@ -4,6 +4,84 @@ import { Effect, ParseResult, Schema } from "effect";
 import { db } from "#/drizzle/db";
 import { server, serverAdmins, user } from "#/drizzle/schema"; // 確保引入正確的 table
 
+type DbTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+const fetchDiscordUser = (discordId: string) =>
+  Effect.tryPromise({
+    try: async () => {
+      const res = await fetch(`https://discord.com/api/v10/users/${discordId}`, {
+        headers: { Authorization: `Bot ${process.env.DISCORD_BOT_TOKEN}` },
+      });
+      if (!res.ok) {
+        throw new Error(`Discord API 回應 ${res.status}`);
+      }
+      return (await res.json()) as {
+        id: string;
+        username: string;
+        email: string | null;
+        global_name: string | null;
+        avatar: string | null;
+      };
+    },
+    catch: (error) => new Error(`抓取 Discord 使用者失敗: ${String(error)}`),
+  }).pipe(Effect.catchAll(() => Effect.succeed(null)));
+
+const ensureUserExists = (tx: DbTransaction, discordId: string) =>
+  Effect.gen(function* () {
+    const existing = yield* Effect.tryPromise({
+      try: () =>
+        tx.query.user.findFirst({
+          where: eq(user.discordId, discordId),
+          columns: { id: true },
+        }),
+      catch: (error) => new Error(`查詢使用者失敗: ${String(error)}`),
+    });
+
+    if (existing) return existing.id;
+
+    const discordUser = yield* fetchDiscordUser(discordId);
+    const displayName = discordUser?.global_name ?? discordUser?.username ?? "未知使用者";
+    const avatarUrl = discordUser?.avatar
+      ? `https://cdn.discordapp.com/avatars/${discordId}/${discordUser.avatar}.png`
+      : "https://cdn.discordapp.com/embed/avatars/0.png";
+
+    const created = yield* Effect.tryPromise({
+      try: async () => {
+        const [row] = await tx
+          .insert(user)
+          .values({
+            id: discordId,
+            discordId,
+            name: displayName,
+            username: discordUser?.username ?? "未知使用者",
+            avatar: avatarUrl,
+            email: discordUser?.email ?? `discord-${discordId}@placeholder.invalid`,
+            emailVerified: false,
+          })
+          .onConflictDoNothing({ target: user.discordId })
+          .returning({ id: user.id });
+        return row;
+      },
+      catch: (error) => new Error(`建立 placeholder owner 失敗: ${String(error)}`),
+    });
+
+    if (created) return created.id;
+
+    const raceWinner = yield* Effect.tryPromise({
+      try: () =>
+        tx.query.user.findFirst({
+          where: eq(user.discordId, discordId),
+          columns: { id: true },
+        }),
+      catch: (error) => new Error(`race condition 查詢失敗: ${String(error)}`),
+    });
+
+    if (!raceWinner) {
+      return yield* Effect.fail(new Error(`無法建立或尋找 owner 使用者: ${discordId}`));
+    }
+    return raceWinner.id;
+  });
+
 // 1. 擴充預期的 Discord Bot 傳入資料結構
 const DiscordGuildSchema = Schema.Struct({
   id: Schema.String,
@@ -25,18 +103,14 @@ export const Route = createFileRoute("/api/discord-bot/publish")({
   server: {
     handlers: {
       POST: async ({ request }) => {
-        // 使用 Effect.gen 建立管線化的流程
         const program = Effect.gen(function* () {
-          // 解析請求本體
           const body = yield* Effect.tryPromise({
             try: () => request.json(),
             catch: () => new Error("無法解析 JSON 請求本體"),
           });
 
-          // 2. 驗證資料格式 (如果失敗會自動被底下的 catchTag("ParseError") 捕捉)
           const guild = yield* Schema.decodeUnknown(DiscordGuildSchema)(body);
 
-          // 3. 資料轉換與清理
           const iconUrl = guild.icon
             ? `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.png`
             : null;
@@ -45,24 +119,32 @@ export const Route = createFileRoute("/api/discord-bot/publish")({
             : null;
           const isNsfw = guild.nsfw_level === 3;
 
-          const insertData = {
-            id: guild.id,
+          // 注意：這裡先不放 ownerId，因為要等進入 transaction、
+          // 確認/建立 owner 的 user row 後才知道正確的內部 user.id
+          const baseInsertData = {
             name: guild.name,
             description: guild.description || "這個伺服器還沒有提供敘述。",
             members: guild.approximate_member_count ?? 0,
             online: guild.approximate_presence_count ?? 0,
-            ownerId: guild.owner_id,
             icon: iconUrl,
             banner: bannerUrl,
             nsfw: isNsfw,
             upvotes: 0,
-            inviteUrl: guild.invite_url || null, // 寫入 Invite URL
+            inviteUrl: guild.invite_url || null,
           };
 
-          // 4. 執行 Drizzle Transaction (確保伺服器與管理員同步是原子操作)
           yield* Effect.tryPromise({
             try: () =>
               db.transaction(async (tx) => {
+                // 4-0. 確保 owner 存在於 user 表（不存在就用 Discord API 抓資料建立）
+                const ownerUserId = await Effect.runPromise(ensureUserExists(tx, guild.owner_id));
+
+                const insertData = {
+                  id: guild.id,
+                  ...baseInsertData,
+                  ownerId: ownerUserId,
+                };
+
                 // 4-1. Upsert 伺服器資料
                 await tx
                   .insert(server)
@@ -77,14 +159,13 @@ export const Route = createFileRoute("/api/discord-bot/publish")({
                       icon: insertData.icon,
                       banner: insertData.banner,
                       nsfw: insertData.nsfw,
-                      inviteUrl: insertData.inviteUrl, // 更新 Invite URL
+                      inviteUrl: insertData.inviteUrl,
+                      ownerId: insertData.ownerId,
                     },
                   });
 
-                // 4-2. 處理 Server Admins (多對多關聯)
+                // 4-2. 處理 Server Admins
                 if (guild.admin_ids && guild.admin_ids.length > 0) {
-                  // ⚠️ 關鍵防護：檢查哪些 admin_ids 真的存在於我們的 `user` 表中
-                  // 如果直接寫入 _ServerAdmins，碰到尚未登入過網站的 Discord 使用者會觸發 Foreign Key Error
                   const existingUsers = await tx.query.user.findMany({
                     where: inArray(user.id, guild.admin_ids),
                     columns: { id: true },
@@ -92,14 +173,12 @@ export const Route = createFileRoute("/api/discord-bot/publish")({
 
                   const validAdminIds = existingUsers.map((u) => u.id);
 
-                  // 先清空此伺服器舊的管理員關係
                   await tx.delete(serverAdmins).where(eq(serverAdmins.a, guild.id));
 
-                  // 寫入新的有效管理員關係
                   if (validAdminIds.length > 0) {
                     const adminInsertData = validAdminIds.map((adminId) => ({
-                      a: guild.id, // server.id
-                      b: adminId, // user.id
+                      a: guild.id,
+                      b: adminId,
                     }));
                     await tx.insert(serverAdmins).values(adminInsertData);
                   }
@@ -108,13 +187,11 @@ export const Route = createFileRoute("/api/discord-bot/publish")({
             catch: (error) => new Error(`資料庫同步失敗: ${String(error)}`),
           });
 
-          // 5. 成功回傳
           return Response.json(
             { success: true, message: "伺服器資料與管理員同步成功" },
             { status: 200 },
           );
         }).pipe(
-          // 錯誤處理分支一：Schema 驗證失敗
           Effect.catchTag("ParseError", (parseError) =>
             Effect.succeed(
               Response.json(
@@ -126,14 +203,12 @@ export const Route = createFileRoute("/api/discord-bot/publish")({
               ),
             ),
           ),
-          // 錯誤處理分支二：其他錯誤 (例如 JSON 解析錯誤、資料庫錯誤)
           Effect.catchAll((error) => {
             console.error("Failed to sync server:", error.message);
             return Effect.succeed(Response.json({ error: error.message }, { status: 500 }));
           }),
         );
 
-        // 啟動 Effect 程式
         return await Effect.runPromise(program);
       },
     },
