@@ -24,7 +24,10 @@ const fetchDiscordUser = (discordId: string) =>
       };
     },
     catch: (error) => new Error(`抓取 Discord 使用者失敗: ${String(error)}`),
-  }).pipe(Effect.catchAll(() => Effect.succeed(null)));
+  }).pipe(
+    Effect.tapError((e) => Effect.sync(() => console.warn("fetchDiscordUser 失敗:", e))),
+    Effect.catchAll(() => Effect.succeed(null)),
+  );
 
 const ensureUserExists = (tx: DbTransaction, discordId: string) =>
   Effect.gen(function* () {
@@ -32,12 +35,12 @@ const ensureUserExists = (tx: DbTransaction, discordId: string) =>
       try: () =>
         tx.query.user.findFirst({
           where: eq(user.discordId, discordId),
-          columns: { id: true },
+          columns: { discordId: true },
         }),
       catch: (error) => new Error(`查詢使用者失敗: ${String(error)}`),
     });
 
-    if (existing) return existing.id;
+    if (existing) return existing.discordId;
 
     const discordUser = yield* fetchDiscordUser(discordId);
     const displayName = discordUser?.global_name ?? discordUser?.username ?? "未知使用者";
@@ -83,20 +86,24 @@ const ensureUserExists = (tx: DbTransaction, discordId: string) =>
   });
 
 // 1. 擴充預期的 Discord Bot 傳入資料結構
+const SnowflakeId = Schema.String.pipe(
+  Schema.pattern(/^\d{17,20}$/),
+  Schema.annotations({ message: () => "不是合法的 Discord Snowflake ID" }),
+);
+
 const DiscordGuildSchema = Schema.Struct({
-  id: Schema.String,
+  id: SnowflakeId,
   name: Schema.String,
   description: Schema.optional(Schema.NullOr(Schema.String)),
   icon: Schema.optional(Schema.NullOr(Schema.String)),
   banner: Schema.optional(Schema.NullOr(Schema.String)),
-  owner_id: Schema.String,
+  owner_id: SnowflakeId, // ← 關鍵
   features: Schema.optional(Schema.mutable(Schema.Array(Schema.String))),
   approximate_member_count: Schema.optional(Schema.Number),
   approximate_presence_count: Schema.optional(Schema.Number),
   nsfw_level: Schema.optional(Schema.Number),
-  // 🔔 新增欄位：由 Bot 端直接算好並傳入，確保極致效能
   invite_url: Schema.optional(Schema.NullOr(Schema.String)),
-  admin_ids: Schema.optional(Schema.mutable(Schema.Array(Schema.String))),
+  admin_ids: Schema.optional(Schema.mutable(Schema.Array(SnowflakeId))),
 });
 
 export const Route = createFileRoute("/api/discord-bot/publish")({
@@ -184,7 +191,13 @@ export const Route = createFileRoute("/api/discord-bot/publish")({
                   }
                 }
               }),
-            catch: (error) => new Error(`資料庫同步失敗: ${String(error)}`),
+            catch: (error) => {
+              console.error("原始資料庫錯誤:", error);
+              if (error instanceof Error && "cause" in error) {
+                console.error("cause:", error.cause);
+              }
+              return new Error(`資料庫同步失敗: ${String(error)}`);
+            },
           });
 
           return Response.json(
