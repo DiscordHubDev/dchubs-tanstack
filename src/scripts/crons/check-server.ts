@@ -59,25 +59,34 @@ interface DiscordUser {
 
 const DISCORD_REQUEST_CONCURRENCY = 3; // tune down if you still see 429s
 const MAX_RATE_LIMIT_RETRIES = 5;
-
+const DISCORD_GUILDS_PAGE_LIMIT = 200;
 const getBotGuildIdsEffect = (botToken: string) =>
-  Effect.tryPromise({
-    try: async () => {
-      const res = await fetch("https://discord.com/api/v10/users/@me/guilds", {
-        headers: {
-          Authorization: `Bot ${botToken}`,
-          "Content-Type": "application/json",
-        },
-      });
-      if (!res.ok) throw new Error(`Discord API Error: ${res.status}`);
-      const guilds = (await res.json()) as DiscordUserGuild[];
-      return guilds.map((guild) => guild.id);
-    },
-    catch: (error: any) =>
-      new DiscordApiError({
-        message: error?.message || "Failed to fetch guilds from Discord API",
-        status: error?.status || 500,
-      }),
+  Effect.gen(function* () {
+    const allIds: string[] = [];
+    let after: string | undefined;
+
+    while (true) {
+      const url = new URL("https://discord.com/api/v10/users/@me/guilds");
+      url.searchParams.set("limit", String(DISCORD_GUILDS_PAGE_LIMIT));
+      if (after) url.searchParams.set("after", after);
+
+      const guilds = yield* fetchDiscordJson(url.toString(), botToken).pipe(
+        Effect.map((g) => g as DiscordUserGuild[]),
+        Effect.mapError(
+          (error) =>
+            new DiscordApiError({
+              message: error.message,
+            }),
+        ),
+      );
+
+      if (guilds.length === 0) break;
+
+      allIds.push(...guilds.map((g) => g.id));
+      after = guilds[guilds.length - 1].id;
+    }
+
+    return allIds;
   });
 
 const getAllServerIdsChunkedEffect = () =>
