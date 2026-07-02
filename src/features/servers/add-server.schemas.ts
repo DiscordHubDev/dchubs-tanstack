@@ -6,6 +6,8 @@ export const RawDiscordGuildSchema = Schema.Struct({
   icon: Schema.NullOr(Schema.String),
   owner: Schema.optional(Schema.Boolean),
   permissions: Schema.optional(Schema.String),
+  approximate_member_count: Schema.optional(Schema.Number), // approximate number of members in this guild
+  approximate_presence_count: Schema.optional(Schema.Number), // approximate number of non-offline members
 });
 
 export const RawDiscordGuildListSchema = Schema.Array(RawDiscordGuildSchema);

@@ -386,13 +386,12 @@ function upsertServerPublishEffect(
           icon: iconUrl,
           banner: bannerUrl,
           ownerId: userId,
-          members: 0,
-          online: 0,
+          members: guild.approximateMemberCount ?? 0,
+          online: guild.approximatePresenceCount ?? 0,
           upvotes: 0,
           features: [],
           screenshots: [],
           nsfw: input.form.nsfw,
-          // ✨ 直接呼叫函式處理
           customEmbed: formatCustomEmbedData(input.form.customEmbed),
         })
         .onConflictDoUpdate({
@@ -408,9 +407,10 @@ function upsertServerPublishEffect(
             secret,
             voteNotificationUrl: webhookUrl,
             icon: iconUrl,
+            members: guild.approximateMemberCount ?? 0,
+            online: guild.approximatePresenceCount ?? 0,
             banner: bannerUrl,
             nsfw: input.form.nsfw,
-            // ✨ 這裡也直接呼叫
             customEmbed: formatCustomEmbedData(input.form.customEmbed),
           },
         }),

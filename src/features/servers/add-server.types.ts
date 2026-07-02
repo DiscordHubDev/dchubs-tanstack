@@ -5,6 +5,8 @@ export type DiscordGuild = {
   owner: boolean;
   permissions: string;
   isPublished: boolean;
+  approximateMemberCount?: number; // approximate number of members in this guild
+  approximatePresenceCount?: number; // approximate number of non-offline members
 };
 
 export type GuildMembershipBundle = {

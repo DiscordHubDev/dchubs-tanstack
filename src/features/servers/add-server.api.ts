@@ -4,7 +4,7 @@ import { RawDiscordGuildListSchema } from "./add-server.schemas";
 import type { DiscordGuild } from "./add-server.types";
 
 const decodeRawGuildList = Schema.decodeUnknownSync(RawDiscordGuildListSchema);
-const DISCORD_GUILDS_ENDPOINT = "https://discord.com/api/v10/users/@me/guilds";
+const DISCORD_GUILDS_ENDPOINT = "https://discord.com/api/v10/users/@me/guilds?with_counts=true";
 const MAX_RATE_LIMIT_RETRIES = 3;
 const DEFAULT_RETRY_DELAY_MS = 1000;
 const MAX_RETRY_DELAY_MS = 10_000;
@@ -81,6 +81,8 @@ function mapRawGuildToDiscordGuild(raw: {
   icon: string | null;
   owner?: boolean;
   permissions?: string;
+  approximate_member_count?: number; // approximate number of members in this guild
+  approximate_presence_count?: number; // approximate number of non-offline members
 }): DiscordGuild {
   return {
     id: raw.id,
@@ -89,6 +91,8 @@ function mapRawGuildToDiscordGuild(raw: {
     owner: raw.owner ?? false,
     permissions: raw.permissions ?? "0",
     isPublished: false,
+    approximateMemberCount: raw.approximate_member_count,
+    approximatePresenceCount: raw.approximate_presence_count,
   };
 }
 
@@ -116,6 +120,8 @@ export async function fetchDiscordGuilds({
         icon: string | null;
         owner?: boolean;
         permissions?: string;
+        approximate_member_count?: number; // 	approximate number of members in this guild
+        approximate_presence_count?: number; // approximate number of non-offline members
       }>;
 
       try {
