@@ -196,7 +196,7 @@ function getBotDetailEffect(
               avatar: user.avatar,
             })
             .from(botDevelopers)
-            .innerJoin(user, eq(botDevelopers.b, user.discordId))
+            .innerJoin(user, eq(botDevelopers.b, user.id))
             .where(eq(botDevelopers.a, botId)),
         ),
         dbEffect("Failed to fetch bot reviews", () =>
@@ -260,6 +260,8 @@ function getBotDetailEffect(
       })
       .slice(0, 3)
       .map((item) => mapRowToPublicBot(item, favoriteIds));
+
+    console.log("devs: ", developerRows);
 
     const detail: BotDetail = {
       ...mapRowToPublicBot(currentBot, favoriteIds),

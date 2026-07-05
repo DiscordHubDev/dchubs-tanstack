@@ -251,11 +251,10 @@ function buildBotPayload(
   const bannerUrl =
     normalizeOptionalString(input.banner) ?? resolveBotBannerUrl(botInfo.banner_url);
 
-  const isResubmission = mode === "create" && existingBot?.status === "rejected";
+  const isResubmission = existingBot?.status === "rejected";
 
-  // 解析前端傳來的 customEmbed
-  // 注意：若 TypeScript 報錯 SubmitBotInput 不包含 customEmbed，請記得於對應的 Type 定義中補上
   const determineStatus = () => {
+    // 這樣一來，即使是 update 模式，被拒絕的機器人也會成功轉為 pending
     if (mode === "create" || isResubmission) return "pending";
     return existingBot?.status || "pending";
   };
@@ -365,8 +364,8 @@ function persistBotEffect(
         });
       }
 
-      await tx.delete(botCommand).where(eq(botCommand.botId, payload.botId));
       if (payload.commands.length > 0) {
+        await tx.delete(botCommand).where(eq(botCommand.botId, payload.botId));
         await tx.insert(botCommand).values(
           payload.commands.map((command) => ({
             id: crypto.randomUUID(),
@@ -379,8 +378,8 @@ function persistBotEffect(
         );
       }
 
-      await tx.delete(botDevelopers).where(eq(botDevelopers.a, payload.botId));
       if (developerIds.length > 0) {
+        await tx.delete(botDevelopers).where(eq(botDevelopers.a, payload.botId));
         await tx.insert(botDevelopers).values(
           developerIds.map((developerId) => ({
             a: payload.botId,
