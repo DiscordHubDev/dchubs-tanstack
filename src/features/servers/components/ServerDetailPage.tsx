@@ -39,7 +39,18 @@
 import { useMutation, useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { getRouteApi, Link, useRouteContext } from "@tanstack/react-router";
 import { Image } from "@unpic/react";
-import { Activity, ArrowUp, Clock, Flag, Globe, Heart, Star, Users } from "lucide-react";
+import {
+  Activity,
+  ArrowUp,
+  Calendar,
+  Clock,
+  Flag,
+  Globe,
+  Heart,
+  Server,
+  Star,
+  Users,
+} from "lucide-react";
 import { memo, useCallback, useMemo, useState } from "react";
 import { toast } from "react-toastify";
 import MarkdownRenderer from "#/components/MarkdownRenderer";
@@ -59,6 +70,7 @@ import { queryKeys } from "#/lib/query-keys";
 import { rateServerFn, reportServerFn, voteServerFn } from "../server-detail.functions";
 import { serverDetailQueryOptions } from "../server-detail.query";
 import type { ServerDetailTab, ServerReview } from "../server-detail.types";
+import { Avatar, AvatarFallback } from "#/components/ui/avatar";
 
 // ---------------------------------------------------------------------------
 // 路由 API
@@ -370,56 +382,84 @@ const ServerInfoPanel = memo(function ServerInfoPanel({
   website,
 }: ServerInfoPanelProps) {
   return (
-    <div className="mb-6 rounded-lg bg-[#2b2d31] p-5">
-      <h3 className="mb-4 font-semibold text-lg">伺服器資訊</h3>
-      <div className="space-y-4">
-        {owner ? (
-          <div>
-            <h4 className="mb-2 text-gray-400">擁有者</h4>
-            <Link
-              to="/users/$userId"
-              preload="intent"
-              params={{ userId: owner.id }}
-              className="flex items-center gap-3 rounded-lg p-3 transition-colors hover:cursor-pointer hover:bg-white/5"
-            >
-              {owner.avatar ? (
-                <OptimizedImage
-                  src={owner.avatar}
-                  alt={`${owner.username} avatar`}
-                  width={32}
-                  height={32}
-                  className="rounded-full object-cover"
-                />
-              ) : (
-                <div className="flex h-8 w-8 items-center justify-center rounded-full bg-[#5865f2] font-semibold text-sm">
-                  {owner.username.charAt(0).toUpperCase()}
-                </div>
-              )}
-              <p className="font-medium text-gray-100 text-sm">{owner.name || owner.username}</p>
-            </Link>
-          </div>
-        ) : null}
-
-        <div className="flex items-center">
-          <span className="w-24 text-gray-400">建立於:</span>
-          <span className="text-gray-300">{new Date(createdAt).toLocaleDateString("zh-TW")}</span>
+    <div className="mb-6 rounded-2xl border border-white/[0.04] bg-[#2b2d31] p-5">
+      {/* 標題區塊 */}
+      <div className="mb-5 flex items-center gap-2.5">
+        <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-[9px] bg-[#5865f2]/15">
+          <Server size={17} className="text-[#8b93f8]" />
         </div>
-
-        {website ? (
-          <div className="flex items-center">
-            <span className="w-24 text-gray-400">網站:</span>
-            <a
-              href={website}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center text-[#5865f2] hover:underline"
-            >
-              <Globe size={14} className="mr-1" />
-              <span>訪問網站</span>
-            </a>
-          </div>
-        ) : null}
+        <h3 className="flex-1 font-semibold text-[#f2f3f5] text-base">伺服器資訊</h3>
       </div>
+
+      {/* 擁有者區塊 */}
+      {owner ? (
+        <>
+          <div className="mb-4">
+            <h4 className="mb-2 text-[11px] font-medium uppercase tracking-wide text-[#8a8d93]">
+              擁有者
+            </h4>
+            <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
+              <Link
+                to="/users/$userId"
+                params={{ userId: owner.id }}
+                preload="intent"
+                className="flex items-center gap-3 rounded-lg p-3 transition-colors hover:cursor-pointer hover:bg-white/5 min-w-0 sm:flex-1"
+              >
+                <Avatar className="h-9 w-9 flex-shrink-0 ring-2 ring-white/[0.08]">
+                  {owner.avatar ? (
+                    <OptimizedImage
+                      src={owner.avatar}
+                      alt={`${owner.username} avatar`}
+                      width={36}
+                      height={36}
+                      className="h-full w-full object-cover"
+                    />
+                  ) : (
+                    <AvatarFallback className="select-none bg-[#5865f2] font-semibold text-xs text-white uppercase">
+                      {owner.username?.charAt(0) || "U"}
+                    </AvatarFallback>
+                  )}
+                </Avatar>
+                <div className="min-w-0">
+                  <p className="truncate font-medium text-[#f2f3f5] text-sm">
+                    {owner.name || owner.username}
+                  </p>
+                  <p className="truncate text-[11px] text-[#8a8d93]">@{owner.username}</p>
+                </div>
+              </Link>
+            </div>
+          </div>
+          <div className="my-4 h-px bg-white/5" />
+        </>
+      ) : null}
+
+      {/* 建立日期 */}
+      <div className="mb-4 flex items-center gap-2.5">
+        <div className="flex h-[30px] w-[30px] flex-shrink-0 items-center justify-center rounded-lg bg-white/5">
+          <Calendar size={15} className="text-[#8a8d93]" />
+        </div>
+        <div>
+          <p className="text-[10.5px] uppercase tracking-wide text-[#8a8d93]">建立於</p>
+          <p className="text-sm font-medium text-[#dbdee1]" suppressHydrationWarning>
+            {new Date(createdAt).toLocaleDateString("zh-TW")}
+          </p>
+        </div>
+      </div>
+
+      {/* 操作按鈕（網站） */}
+      {website && (
+        <div className="mt-5 flex flex-wrap gap-2">
+          <a
+            href={website}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="flex min-w-[160px] flex-1 items-center justify-center gap-1.5 rounded-[10px] border border-white/[0.08] px-3.5 py-2.5 text-sm font-medium text-[#dbdee1] transition-colors hover:bg-white/[0.05]"
+          >
+            <Globe size={15} className="text-[#5b9dff]" />
+            訪問網站
+          </a>
+        </div>
+      )}
     </div>
   );
 });

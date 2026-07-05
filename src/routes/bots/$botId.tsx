@@ -9,6 +9,8 @@ import {
 import {
   AlertTriangle,
   ArrowUp,
+  Bot,
+  Calendar,
   Clock,
   Flag,
   Globe,
@@ -594,7 +596,7 @@ function BotDetailPage() {
       <div className="relative z-10 mx-auto -mt-14 max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="flex flex-col gap-6 md:flex-row">
           <div className="flex flex-col items-start gap-4 md:flex-row md:items-end">
-            <Avatar className="h-24 w-24 flex-shrink-0 border-4 border-[#1e1f22] bg-[#36393f] shadow-md md:h-32 md:w-32">
+            <Avatar className="h-24 w-24 shrink-0 border-4 border-[#1e1f22] bg-[#36393f] shadow-md md:h-32 md:w-32">
               <OptimizedImage
                 src={detail.icon}
                 fallbackSrc="/placeholder.png"
@@ -743,81 +745,99 @@ function BotDetailPage() {
 
         <div className="mt-8 grid grid-cols-1 gap-8 lg:grid-cols-4">
           <div className="lg:col-span-1">
-            <div className="mb-6 rounded-lg bg-[#2b2d31] p-5">
-              <h3 className="mb-4 font-semibold text-lg">機器人資訊</h3>
-              <div className="space-y-4">
-                {detail.developers.length > 0 ? (
-                  <div>
-                    <h4 className="mb-2 text-gray-400">開發者</h4>
-                    <div className="grid gap-2">
+            <div className="mb-6 rounded-2xl border border-white/[0.04] bg-[#2b2d31] p-5">
+              <div className="mb-5 flex items-center gap-2.5">
+                <div className="flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-[9px] bg-[#5865f2]/15">
+                  <Bot size={17} className="text-[#8b93f8]" />
+                </div>
+                <h3 className="flex-1 font-semibold text-[#f2f3f5] text-base">機器人資訊</h3>
+              </div>
+
+              {/* 開發者 */}
+              {detail.developers.length > 0 ? (
+                <>
+                  <div className="mb-4">
+                    <h4 className="mb-2 text-[11px] font-medium uppercase tracking-wide text-[#8a8d93]">
+                      開發者
+                    </h4>
+                    <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap">
                       {detail.developers.map((dev) => (
                         <Link
                           to="/users/$userId"
                           params={{ userId: dev.id }}
                           preload="intent"
                           key={dev.id}
-                          className="flex items-center gap-3 rounded-lg p-3 transition-colors hover:cursor-pointer hover:bg-white/5"
+                          className="flex items-center gap-3 rounded-lg p-3 transition-colors hover:cursor-pointer hover:bg-white/5 min-w-0 sm:flex-1"
                         >
-                          <Avatar className="h-8 w-8 flex-shrink-0">
+                          <Avatar className="h-9 w-9 flex-shrink-0 ring-2 ring-white/[0.08]">
                             <OptimizedImage
                               src={dev.avatar}
                               alt={`${dev.username} avatar`}
-                              width={32}
-                              height={32}
+                              width={36}
+                              height={36}
                               className="h-full w-full object-cover"
                             />
-                            <AvatarFallback className="select-none bg-[#5865f2] font-semibold text-sm text-white uppercase">
+                            <AvatarFallback className="select-none bg-[#5865f2] font-semibold text-xs text-white uppercase">
                               {dev.username?.charAt(0) || "U"}
                             </AvatarFallback>
                           </Avatar>
-                          <p className="font-medium text-gray-100 text-sm">
-                            {dev.name || dev.username}
-                          </p>
+                          <div className="min-w-0">
+                            <p className="truncate font-medium text-[#f2f3f5] text-sm">
+                              {dev.name || dev.username}
+                            </p>
+                            <p className="truncate text-[11px] text-[#8a8d93]">@{dev.username}</p>
+                          </div>
                         </Link>
                       ))}
                     </div>
                   </div>
-                ) : null}
+                  <div className="my-4 h-px bg-white/5" />
+                </>
+              ) : null}
 
-                <div className="flex items-center">
-                  <span className="w-24 text-gray-400">上架於:</span>
-                  <span className="text-gray-300" suppressHydrationWarning>
+              {/* 上架日期 */}
+              <div className="mb-4 flex items-center gap-2.5">
+                <div className="flex h-[30px] w-[30px] flex-shrink-0 items-center justify-center rounded-lg bg-white/5">
+                  <Calendar size={15} className="text-[#8a8d93]" />
+                </div>
+                <div>
+                  <p className="text-[10.5px] uppercase tracking-wide text-[#8a8d93]">上架於</p>
+                  <p className="text-sm font-medium text-[#dbdee1]" suppressHydrationWarning>
                     {detail.approvedAt
                       ? new Date(detail.approvedAt).toLocaleDateString("zh-TW")
                       : "未知"}
-                  </span>
+                  </p>
                 </div>
+              </div>
 
-                {detail.website ? (
-                  <div className="flex items-center">
-                    <span className="w-24 text-gray-400">網站:</span>
+              {/* 操作按鈕 */}
+              {(detail.website || detail.supportServer) && (
+                <div className="flex flex-wrap gap-2">
+                  {detail.website ? (
                     <a
                       href={detail.website}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center text-[#5865f2] hover:underline"
+                      className="flex min-w-[160px] flex-1 items-center justify-center gap-1.5 rounded-[10px] border border-white/[0.08] px-3.5 py-2.5 text-sm font-medium text-[#dbdee1] transition-colors hover:bg-white/[0.05]"
                     >
-                      <Globe size={14} className="mr-1" />
-                      <span>訪問網站</span>
+                      <Globe size={15} className="text-[#5b9dff]" />
+                      訪問網站
                     </a>
-                  </div>
-                ) : null}
+                  ) : null}
 
-                {detail.supportServer ? (
-                  <div className="flex items-center">
-                    <span className="w-24 text-gray-400">支援伺服器:</span>
+                  {detail.supportServer ? (
                     <a
                       href={detail.supportServer}
                       target="_blank"
                       rel="noopener noreferrer"
-                      className="flex items-center text-[#5865f2] hover:underline"
+                      className="flex min-w-[160px] flex-1 items-center justify-center gap-1.5 rounded-[10px] border border-[#5865f2]/35 bg-discord px-3.5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-discord-hover"
                     >
-                      <FaDiscord size={14} className="mr-1" />
-                      <span>加入支援伺服器</span>
+                      <FaDiscord size={15} />
+                      加入支援伺服器
                     </a>
-                  </div>
-                ) : null}
-              </div>
+                  ) : null}
+                </div>
+              )}
             </div>
 
             <div className="mb-6 rounded-lg bg-[#2b2d31] p-5">
