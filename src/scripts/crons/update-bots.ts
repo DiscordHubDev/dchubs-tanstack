@@ -8,10 +8,13 @@ import { getDiscordRPCWithMember } from "#/features/api/api.function";
 const BOT_PROCESS_DELAY_MS = 3000;
 const DB_BATCH_WRITE_SIZE = 20;
 
-type BotRow = Pick<typeof bot.$inferSelect, "id" | "name" | "icon" | "banner" | "verified">;
+type BotRow = Pick<
+  typeof bot.$inferSelect,
+  "id" | "name" | "icon" | "banner" | "verified" | "isAdmin"
+>;
 type BotUpdateSet = Pick<
   Partial<typeof bot.$inferInsert>,
-  "servers" | "name" | "icon" | "banner" | "verified"
+  "servers" | "name" | "icon" | "banner" | "verified" | "isAdmin"
 >;
 type PendingUpdate = { id: string; data: BotUpdateSet };
 
@@ -19,6 +22,13 @@ class BotUpdateError extends Data.TaggedError("BotUpdateError")<{
   readonly botId: string;
   readonly message: string;
 }> {}
+
+function hasAdminPermission(permissions: number | string | bigint): boolean {
+  const perms = BigInt(permissions);
+  const ADMINISTRATOR_FLAGS = 8n;
+
+  return (perms & ADMINISTRATOR_FLAGS) === ADMINISTRATOR_FLAGS;
+}
 
 // 封裝 RPC 呼叫 (失敗時回傳 Option.none() 而不中斷)
 const fetchUpdatedBotInfoEffect = (botId: string) =>
@@ -33,6 +43,7 @@ const fetchUpdatedBotInfoEffect = (botId: string) =>
         avatar_url: typeof data.member.avatarUrl === "string" ? data.member.avatarUrl : null,
         banner_url: typeof data.member.bannerUrl === "string" ? data.member.bannerUrl : null,
         verified: data.is_verified ?? false,
+        isAdmin: hasAdminPermission(data.install_params?.permissions ?? 0),
       });
     },
     catch: (_err) => new BotUpdateError({ botId, message: "Discord RPC Fetch Failed" }),
@@ -95,6 +106,7 @@ const updateBotsProgram = Effect.gen(function* () {
       icon: bot.icon,
       banner: bot.banner,
       verified: bot.verified,
+      isAdmin: bot.isAdmin,
     })
     .from(bot)
     .where(eq(bot.status, "approved"));
@@ -125,6 +137,7 @@ const updateBotsProgram = Effect.gen(function* () {
         data.icon = infoOpt.value.avatar_url ?? current.icon;
         data.banner = infoOpt.value.banner_url ?? current.banner;
         data.verified = infoOpt.value.verified;
+        data.isAdmin = infoOpt.value.isAdmin;
       }
 
       if (Object.keys(data).length > 0) {
