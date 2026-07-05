@@ -8,501 +8,502 @@
 // You should NOT make any changes in this file as it will be overwritten.
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
-import { Route as rootRouteImport } from './routes/__root'
-import { Route as TutorialRouteImport } from './routes/tutorial'
-import { Route as TermsRouteImport } from './routes/terms'
-import { Route as SitemapDotxmlRouteImport } from './routes/sitemap[.]xml'
-import { Route as PrivacyRouteImport } from './routes/privacy'
-import { Route as IndexRouteImport } from './routes/index'
-import { Route as BotsIndexRouteImport } from './routes/bots/index'
-import { Route as UsersUserIdRouteImport } from './routes/users/$userId'
-import { Route as ProtectedProfileRouteImport } from './routes/protected/profile'
-import { Route as ProtectedAdminRouteImport } from './routes/protected/admin'
-import { Route as ProtectedAddServerRouteImport } from './routes/protected/add-server'
-import { Route as ProtectedAddBotRouteImport } from './routes/protected/add-bot'
-import { Route as BotsBotIdRouteImport } from './routes/bots/$botId'
-import { Route as ApiHealthRouteImport } from './routes/api/health'
-import { Route as ServersServerIdRouteRouteImport } from './routes/servers/$serverId/route'
-import { Route as ServersServerIdIndexRouteImport } from './routes/servers/$serverId/index'
-import { Route as ServersServerIdPublishRouteImport } from './routes/servers/$serverId/publish'
-import { Route as ApiSitemapStaticRouteImport } from './routes/api/sitemap/static'
-import { Route as ApiSitemapServersRouteImport } from './routes/api/sitemap/servers'
-import { Route as ApiSitemapBotsRouteImport } from './routes/api/sitemap/bots'
-import { Route as ApiDiscordBotPublishRouteImport } from './routes/api/discord-bot/publish'
-import { Route as ApiDiscordBotPinRouteImport } from './routes/api/discord-bot/pin'
-import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
-import { Route as ProtectedBotsBotIdEditRouteImport } from './routes/protected/bots/$botId.edit'
+import { Route as rootRouteImport } from "./routes/__root";
+import { Route as TutorialRouteImport } from "./routes/tutorial";
+import { Route as TermsRouteImport } from "./routes/terms";
+import { Route as SitemapDotxmlRouteImport } from "./routes/sitemap[.]xml";
+import { Route as PrivacyRouteImport } from "./routes/privacy";
+import { Route as IndexRouteImport } from "./routes/index";
+import { Route as BotsIndexRouteImport } from "./routes/bots/index";
+import { Route as UsersUserIdRouteImport } from "./routes/users/$userId";
+import { Route as ProtectedProfileRouteImport } from "./routes/protected/profile";
+import { Route as ProtectedAdminRouteImport } from "./routes/protected/admin";
+import { Route as ProtectedAddServerRouteImport } from "./routes/protected/add-server";
+import { Route as ProtectedAddBotRouteImport } from "./routes/protected/add-bot";
+import { Route as BotsBotIdRouteImport } from "./routes/bots/$botId";
+import { Route as ApiHealthRouteImport } from "./routes/api/health";
+import { Route as ServersServerIdRouteRouteImport } from "./routes/servers/$serverId/route";
+import { Route as ServersServerIdIndexRouteImport } from "./routes/servers/$serverId/index";
+import { Route as ServersServerIdPublishRouteImport } from "./routes/servers/$serverId/publish";
+import { Route as ApiSitemapStaticRouteImport } from "./routes/api/sitemap/static";
+import { Route as ApiSitemapServersRouteImport } from "./routes/api/sitemap/servers";
+import { Route as ApiSitemapBotsRouteImport } from "./routes/api/sitemap/bots";
+import { Route as ApiDiscordBotPublishRouteImport } from "./routes/api/discord-bot/publish";
+import { Route as ApiDiscordBotPinRouteImport } from "./routes/api/discord-bot/pin";
+import { Route as ApiAuthSplatRouteImport } from "./routes/api/auth/$";
+import { Route as ProtectedBotsBotIdEditRouteImport } from "./routes/protected/bots/$botId.edit";
 
 const TutorialRoute = TutorialRouteImport.update({
-  id: '/tutorial',
-  path: '/tutorial',
+  id: "/tutorial",
+  path: "/tutorial",
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const TermsRoute = TermsRouteImport.update({
-  id: '/terms',
-  path: '/terms',
+  id: "/terms",
+  path: "/terms",
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const SitemapDotxmlRoute = SitemapDotxmlRouteImport.update({
-  id: '/sitemap.xml',
-  path: '/sitemap.xml',
+  id: "/sitemap.xml",
+  path: "/sitemap.xml",
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const PrivacyRoute = PrivacyRouteImport.update({
-  id: '/privacy',
-  path: '/privacy',
+  id: "/privacy",
+  path: "/privacy",
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const IndexRoute = IndexRouteImport.update({
-  id: '/',
-  path: '/',
+  id: "/",
+  path: "/",
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const BotsIndexRoute = BotsIndexRouteImport.update({
-  id: '/bots/',
-  path: '/bots/',
+  id: "/bots/",
+  path: "/bots/",
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const UsersUserIdRoute = UsersUserIdRouteImport.update({
-  id: '/users/$userId',
-  path: '/users/$userId',
+  id: "/users/$userId",
+  path: "/users/$userId",
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const ProtectedProfileRoute = ProtectedProfileRouteImport.update({
-  id: '/protected/profile',
-  path: '/protected/profile',
+  id: "/protected/profile",
+  path: "/protected/profile",
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const ProtectedAdminRoute = ProtectedAdminRouteImport.update({
-  id: '/protected/admin',
-  path: '/protected/admin',
+  id: "/protected/admin",
+  path: "/protected/admin",
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const ProtectedAddServerRoute = ProtectedAddServerRouteImport.update({
-  id: '/protected/add-server',
-  path: '/protected/add-server',
+  id: "/protected/add-server",
+  path: "/protected/add-server",
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const ProtectedAddBotRoute = ProtectedAddBotRouteImport.update({
-  id: '/protected/add-bot',
-  path: '/protected/add-bot',
+  id: "/protected/add-bot",
+  path: "/protected/add-bot",
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const BotsBotIdRoute = BotsBotIdRouteImport.update({
-  id: '/bots/$botId',
-  path: '/bots/$botId',
+  id: "/bots/$botId",
+  path: "/bots/$botId",
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const ApiHealthRoute = ApiHealthRouteImport.update({
-  id: '/api/health',
-  path: '/api/health',
+  id: "/api/health",
+  path: "/api/health",
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const ServersServerIdRouteRoute = ServersServerIdRouteRouteImport.update({
-  id: '/servers/$serverId',
-  path: '/servers/$serverId',
+  id: "/servers/$serverId",
+  path: "/servers/$serverId",
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const ServersServerIdIndexRoute = ServersServerIdIndexRouteImport.update({
-  id: '/',
-  path: '/',
+  id: "/",
+  path: "/",
   getParentRoute: () => ServersServerIdRouteRoute,
-} as any)
+} as any);
 const ServersServerIdPublishRoute = ServersServerIdPublishRouteImport.update({
-  id: '/publish',
-  path: '/publish',
+  id: "/publish",
+  path: "/publish",
   getParentRoute: () => ServersServerIdRouteRoute,
-} as any)
+} as any);
 const ApiSitemapStaticRoute = ApiSitemapStaticRouteImport.update({
-  id: '/api/sitemap/static',
-  path: '/api/sitemap/static',
+  id: "/api/sitemap/static",
+  path: "/api/sitemap/static",
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const ApiSitemapServersRoute = ApiSitemapServersRouteImport.update({
-  id: '/api/sitemap/servers',
-  path: '/api/sitemap/servers',
+  id: "/api/sitemap/servers",
+  path: "/api/sitemap/servers",
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const ApiSitemapBotsRoute = ApiSitemapBotsRouteImport.update({
-  id: '/api/sitemap/bots',
-  path: '/api/sitemap/bots',
+  id: "/api/sitemap/bots",
+  path: "/api/sitemap/bots",
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const ApiDiscordBotPublishRoute = ApiDiscordBotPublishRouteImport.update({
-  id: '/api/discord-bot/publish',
-  path: '/api/discord-bot/publish',
+  id: "/api/discord-bot/publish",
+  path: "/api/discord-bot/publish",
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const ApiDiscordBotPinRoute = ApiDiscordBotPinRouteImport.update({
-  id: '/api/discord-bot/pin',
-  path: '/api/discord-bot/pin',
+  id: "/api/discord-bot/pin",
+  path: "/api/discord-bot/pin",
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
-  id: '/api/auth/$',
-  path: '/api/auth/$',
+  id: "/api/auth/$",
+  path: "/api/auth/$",
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 const ProtectedBotsBotIdEditRoute = ProtectedBotsBotIdEditRouteImport.update({
-  id: '/protected/bots/$botId/edit',
-  path: '/protected/bots/$botId/edit',
+  id: "/protected/bots/$botId/edit",
+  path: "/protected/bots/$botId/edit",
   getParentRoute: () => rootRouteImport,
-} as any)
+} as any);
 
 export interface FileRoutesByFullPath {
-  '/': typeof IndexRoute
-  '/privacy': typeof PrivacyRoute
-  '/sitemap.xml': typeof SitemapDotxmlRoute
-  '/terms': typeof TermsRoute
-  '/tutorial': typeof TutorialRoute
-  '/servers/$serverId': typeof ServersServerIdRouteRouteWithChildren
-  '/api/health': typeof ApiHealthRoute
-  '/bots/$botId': typeof BotsBotIdRoute
-  '/protected/add-bot': typeof ProtectedAddBotRoute
-  '/protected/add-server': typeof ProtectedAddServerRoute
-  '/protected/admin': typeof ProtectedAdminRoute
-  '/protected/profile': typeof ProtectedProfileRoute
-  '/users/$userId': typeof UsersUserIdRoute
-  '/bots/': typeof BotsIndexRoute
-  '/api/auth/$': typeof ApiAuthSplatRoute
-  '/api/discord-bot/pin': typeof ApiDiscordBotPinRoute
-  '/api/discord-bot/publish': typeof ApiDiscordBotPublishRoute
-  '/api/sitemap/bots': typeof ApiSitemapBotsRoute
-  '/api/sitemap/servers': typeof ApiSitemapServersRoute
-  '/api/sitemap/static': typeof ApiSitemapStaticRoute
-  '/servers/$serverId/publish': typeof ServersServerIdPublishRoute
-  '/servers/$serverId/': typeof ServersServerIdIndexRoute
-  '/protected/bots/$botId/edit': typeof ProtectedBotsBotIdEditRoute
+  "/": typeof IndexRoute;
+  "/privacy": typeof PrivacyRoute;
+  "/sitemap.xml": typeof SitemapDotxmlRoute;
+  "/terms": typeof TermsRoute;
+  "/tutorial": typeof TutorialRoute;
+  "/servers/$serverId": typeof ServersServerIdRouteRouteWithChildren;
+  "/api/health": typeof ApiHealthRoute;
+  "/bots/$botId": typeof BotsBotIdRoute;
+  "/protected/add-bot": typeof ProtectedAddBotRoute;
+  "/protected/add-server": typeof ProtectedAddServerRoute;
+  "/protected/admin": typeof ProtectedAdminRoute;
+  "/protected/profile": typeof ProtectedProfileRoute;
+  "/users/$userId": typeof UsersUserIdRoute;
+  "/bots/": typeof BotsIndexRoute;
+  "/api/auth/$": typeof ApiAuthSplatRoute;
+  "/api/discord-bot/pin": typeof ApiDiscordBotPinRoute;
+  "/api/discord-bot/publish": typeof ApiDiscordBotPublishRoute;
+  "/api/sitemap/bots": typeof ApiSitemapBotsRoute;
+  "/api/sitemap/servers": typeof ApiSitemapServersRoute;
+  "/api/sitemap/static": typeof ApiSitemapStaticRoute;
+  "/servers/$serverId/publish": typeof ServersServerIdPublishRoute;
+  "/servers/$serverId/": typeof ServersServerIdIndexRoute;
+  "/protected/bots/$botId/edit": typeof ProtectedBotsBotIdEditRoute;
 }
 export interface FileRoutesByTo {
-  '/': typeof IndexRoute
-  '/privacy': typeof PrivacyRoute
-  '/sitemap.xml': typeof SitemapDotxmlRoute
-  '/terms': typeof TermsRoute
-  '/tutorial': typeof TutorialRoute
-  '/api/health': typeof ApiHealthRoute
-  '/bots/$botId': typeof BotsBotIdRoute
-  '/protected/add-bot': typeof ProtectedAddBotRoute
-  '/protected/add-server': typeof ProtectedAddServerRoute
-  '/protected/admin': typeof ProtectedAdminRoute
-  '/protected/profile': typeof ProtectedProfileRoute
-  '/users/$userId': typeof UsersUserIdRoute
-  '/bots': typeof BotsIndexRoute
-  '/api/auth/$': typeof ApiAuthSplatRoute
-  '/api/discord-bot/pin': typeof ApiDiscordBotPinRoute
-  '/api/discord-bot/publish': typeof ApiDiscordBotPublishRoute
-  '/api/sitemap/bots': typeof ApiSitemapBotsRoute
-  '/api/sitemap/servers': typeof ApiSitemapServersRoute
-  '/api/sitemap/static': typeof ApiSitemapStaticRoute
-  '/servers/$serverId/publish': typeof ServersServerIdPublishRoute
-  '/servers/$serverId': typeof ServersServerIdIndexRoute
-  '/protected/bots/$botId/edit': typeof ProtectedBotsBotIdEditRoute
+  "/": typeof IndexRoute;
+  "/privacy": typeof PrivacyRoute;
+  "/sitemap.xml": typeof SitemapDotxmlRoute;
+  "/terms": typeof TermsRoute;
+  "/tutorial": typeof TutorialRoute;
+  "/api/health": typeof ApiHealthRoute;
+  "/bots/$botId": typeof BotsBotIdRoute;
+  "/protected/add-bot": typeof ProtectedAddBotRoute;
+  "/protected/add-server": typeof ProtectedAddServerRoute;
+  "/protected/admin": typeof ProtectedAdminRoute;
+  "/protected/profile": typeof ProtectedProfileRoute;
+  "/users/$userId": typeof UsersUserIdRoute;
+  "/bots": typeof BotsIndexRoute;
+  "/api/auth/$": typeof ApiAuthSplatRoute;
+  "/api/discord-bot/pin": typeof ApiDiscordBotPinRoute;
+  "/api/discord-bot/publish": typeof ApiDiscordBotPublishRoute;
+  "/api/sitemap/bots": typeof ApiSitemapBotsRoute;
+  "/api/sitemap/servers": typeof ApiSitemapServersRoute;
+  "/api/sitemap/static": typeof ApiSitemapStaticRoute;
+  "/servers/$serverId/publish": typeof ServersServerIdPublishRoute;
+  "/servers/$serverId": typeof ServersServerIdIndexRoute;
+  "/protected/bots/$botId/edit": typeof ProtectedBotsBotIdEditRoute;
 }
 export interface FileRoutesById {
-  __root__: typeof rootRouteImport
-  '/': typeof IndexRoute
-  '/privacy': typeof PrivacyRoute
-  '/sitemap.xml': typeof SitemapDotxmlRoute
-  '/terms': typeof TermsRoute
-  '/tutorial': typeof TutorialRoute
-  '/servers/$serverId': typeof ServersServerIdRouteRouteWithChildren
-  '/api/health': typeof ApiHealthRoute
-  '/bots/$botId': typeof BotsBotIdRoute
-  '/protected/add-bot': typeof ProtectedAddBotRoute
-  '/protected/add-server': typeof ProtectedAddServerRoute
-  '/protected/admin': typeof ProtectedAdminRoute
-  '/protected/profile': typeof ProtectedProfileRoute
-  '/users/$userId': typeof UsersUserIdRoute
-  '/bots/': typeof BotsIndexRoute
-  '/api/auth/$': typeof ApiAuthSplatRoute
-  '/api/discord-bot/pin': typeof ApiDiscordBotPinRoute
-  '/api/discord-bot/publish': typeof ApiDiscordBotPublishRoute
-  '/api/sitemap/bots': typeof ApiSitemapBotsRoute
-  '/api/sitemap/servers': typeof ApiSitemapServersRoute
-  '/api/sitemap/static': typeof ApiSitemapStaticRoute
-  '/servers/$serverId/publish': typeof ServersServerIdPublishRoute
-  '/servers/$serverId/': typeof ServersServerIdIndexRoute
-  '/protected/bots/$botId/edit': typeof ProtectedBotsBotIdEditRoute
+  __root__: typeof rootRouteImport;
+  "/": typeof IndexRoute;
+  "/privacy": typeof PrivacyRoute;
+  "/sitemap.xml": typeof SitemapDotxmlRoute;
+  "/terms": typeof TermsRoute;
+  "/tutorial": typeof TutorialRoute;
+  "/servers/$serverId": typeof ServersServerIdRouteRouteWithChildren;
+  "/api/health": typeof ApiHealthRoute;
+  "/bots/$botId": typeof BotsBotIdRoute;
+  "/protected/add-bot": typeof ProtectedAddBotRoute;
+  "/protected/add-server": typeof ProtectedAddServerRoute;
+  "/protected/admin": typeof ProtectedAdminRoute;
+  "/protected/profile": typeof ProtectedProfileRoute;
+  "/users/$userId": typeof UsersUserIdRoute;
+  "/bots/": typeof BotsIndexRoute;
+  "/api/auth/$": typeof ApiAuthSplatRoute;
+  "/api/discord-bot/pin": typeof ApiDiscordBotPinRoute;
+  "/api/discord-bot/publish": typeof ApiDiscordBotPublishRoute;
+  "/api/sitemap/bots": typeof ApiSitemapBotsRoute;
+  "/api/sitemap/servers": typeof ApiSitemapServersRoute;
+  "/api/sitemap/static": typeof ApiSitemapStaticRoute;
+  "/servers/$serverId/publish": typeof ServersServerIdPublishRoute;
+  "/servers/$serverId/": typeof ServersServerIdIndexRoute;
+  "/protected/bots/$botId/edit": typeof ProtectedBotsBotIdEditRoute;
 }
 export interface FileRouteTypes {
-  fileRoutesByFullPath: FileRoutesByFullPath
+  fileRoutesByFullPath: FileRoutesByFullPath;
   fullPaths:
-    | '/'
-    | '/privacy'
-    | '/sitemap.xml'
-    | '/terms'
-    | '/tutorial'
-    | '/servers/$serverId'
-    | '/api/health'
-    | '/bots/$botId'
-    | '/protected/add-bot'
-    | '/protected/add-server'
-    | '/protected/admin'
-    | '/protected/profile'
-    | '/users/$userId'
-    | '/bots/'
-    | '/api/auth/$'
-    | '/api/discord-bot/pin'
-    | '/api/discord-bot/publish'
-    | '/api/sitemap/bots'
-    | '/api/sitemap/servers'
-    | '/api/sitemap/static'
-    | '/servers/$serverId/publish'
-    | '/servers/$serverId/'
-    | '/protected/bots/$botId/edit'
-  fileRoutesByTo: FileRoutesByTo
+    | "/"
+    | "/privacy"
+    | "/sitemap.xml"
+    | "/terms"
+    | "/tutorial"
+    | "/servers/$serverId"
+    | "/api/health"
+    | "/bots/$botId"
+    | "/protected/add-bot"
+    | "/protected/add-server"
+    | "/protected/admin"
+    | "/protected/profile"
+    | "/users/$userId"
+    | "/bots/"
+    | "/api/auth/$"
+    | "/api/discord-bot/pin"
+    | "/api/discord-bot/publish"
+    | "/api/sitemap/bots"
+    | "/api/sitemap/servers"
+    | "/api/sitemap/static"
+    | "/servers/$serverId/publish"
+    | "/servers/$serverId/"
+    | "/protected/bots/$botId/edit";
+  fileRoutesByTo: FileRoutesByTo;
   to:
-    | '/'
-    | '/privacy'
-    | '/sitemap.xml'
-    | '/terms'
-    | '/tutorial'
-    | '/api/health'
-    | '/bots/$botId'
-    | '/protected/add-bot'
-    | '/protected/add-server'
-    | '/protected/admin'
-    | '/protected/profile'
-    | '/users/$userId'
-    | '/bots'
-    | '/api/auth/$'
-    | '/api/discord-bot/pin'
-    | '/api/discord-bot/publish'
-    | '/api/sitemap/bots'
-    | '/api/sitemap/servers'
-    | '/api/sitemap/static'
-    | '/servers/$serverId/publish'
-    | '/servers/$serverId'
-    | '/protected/bots/$botId/edit'
+    | "/"
+    | "/privacy"
+    | "/sitemap.xml"
+    | "/terms"
+    | "/tutorial"
+    | "/api/health"
+    | "/bots/$botId"
+    | "/protected/add-bot"
+    | "/protected/add-server"
+    | "/protected/admin"
+    | "/protected/profile"
+    | "/users/$userId"
+    | "/bots"
+    | "/api/auth/$"
+    | "/api/discord-bot/pin"
+    | "/api/discord-bot/publish"
+    | "/api/sitemap/bots"
+    | "/api/sitemap/servers"
+    | "/api/sitemap/static"
+    | "/servers/$serverId/publish"
+    | "/servers/$serverId"
+    | "/protected/bots/$botId/edit";
   id:
-    | '__root__'
-    | '/'
-    | '/privacy'
-    | '/sitemap.xml'
-    | '/terms'
-    | '/tutorial'
-    | '/servers/$serverId'
-    | '/api/health'
-    | '/bots/$botId'
-    | '/protected/add-bot'
-    | '/protected/add-server'
-    | '/protected/admin'
-    | '/protected/profile'
-    | '/users/$userId'
-    | '/bots/'
-    | '/api/auth/$'
-    | '/api/discord-bot/pin'
-    | '/api/discord-bot/publish'
-    | '/api/sitemap/bots'
-    | '/api/sitemap/servers'
-    | '/api/sitemap/static'
-    | '/servers/$serverId/publish'
-    | '/servers/$serverId/'
-    | '/protected/bots/$botId/edit'
-  fileRoutesById: FileRoutesById
+    | "__root__"
+    | "/"
+    | "/privacy"
+    | "/sitemap.xml"
+    | "/terms"
+    | "/tutorial"
+    | "/servers/$serverId"
+    | "/api/health"
+    | "/bots/$botId"
+    | "/protected/add-bot"
+    | "/protected/add-server"
+    | "/protected/admin"
+    | "/protected/profile"
+    | "/users/$userId"
+    | "/bots/"
+    | "/api/auth/$"
+    | "/api/discord-bot/pin"
+    | "/api/discord-bot/publish"
+    | "/api/sitemap/bots"
+    | "/api/sitemap/servers"
+    | "/api/sitemap/static"
+    | "/servers/$serverId/publish"
+    | "/servers/$serverId/"
+    | "/protected/bots/$botId/edit";
+  fileRoutesById: FileRoutesById;
 }
 export interface RootRouteChildren {
-  IndexRoute: typeof IndexRoute
-  PrivacyRoute: typeof PrivacyRoute
-  SitemapDotxmlRoute: typeof SitemapDotxmlRoute
-  TermsRoute: typeof TermsRoute
-  TutorialRoute: typeof TutorialRoute
-  ServersServerIdRouteRoute: typeof ServersServerIdRouteRouteWithChildren
-  ApiHealthRoute: typeof ApiHealthRoute
-  BotsBotIdRoute: typeof BotsBotIdRoute
-  ProtectedAddBotRoute: typeof ProtectedAddBotRoute
-  ProtectedAddServerRoute: typeof ProtectedAddServerRoute
-  ProtectedAdminRoute: typeof ProtectedAdminRoute
-  ProtectedProfileRoute: typeof ProtectedProfileRoute
-  UsersUserIdRoute: typeof UsersUserIdRoute
-  BotsIndexRoute: typeof BotsIndexRoute
-  ApiAuthSplatRoute: typeof ApiAuthSplatRoute
-  ApiDiscordBotPinRoute: typeof ApiDiscordBotPinRoute
-  ApiDiscordBotPublishRoute: typeof ApiDiscordBotPublishRoute
-  ApiSitemapBotsRoute: typeof ApiSitemapBotsRoute
-  ApiSitemapServersRoute: typeof ApiSitemapServersRoute
-  ApiSitemapStaticRoute: typeof ApiSitemapStaticRoute
-  ProtectedBotsBotIdEditRoute: typeof ProtectedBotsBotIdEditRoute
+  IndexRoute: typeof IndexRoute;
+  PrivacyRoute: typeof PrivacyRoute;
+  SitemapDotxmlRoute: typeof SitemapDotxmlRoute;
+  TermsRoute: typeof TermsRoute;
+  TutorialRoute: typeof TutorialRoute;
+  ServersServerIdRouteRoute: typeof ServersServerIdRouteRouteWithChildren;
+  ApiHealthRoute: typeof ApiHealthRoute;
+  BotsBotIdRoute: typeof BotsBotIdRoute;
+  ProtectedAddBotRoute: typeof ProtectedAddBotRoute;
+  ProtectedAddServerRoute: typeof ProtectedAddServerRoute;
+  ProtectedAdminRoute: typeof ProtectedAdminRoute;
+  ProtectedProfileRoute: typeof ProtectedProfileRoute;
+  UsersUserIdRoute: typeof UsersUserIdRoute;
+  BotsIndexRoute: typeof BotsIndexRoute;
+  ApiAuthSplatRoute: typeof ApiAuthSplatRoute;
+  ApiDiscordBotPinRoute: typeof ApiDiscordBotPinRoute;
+  ApiDiscordBotPublishRoute: typeof ApiDiscordBotPublishRoute;
+  ApiSitemapBotsRoute: typeof ApiSitemapBotsRoute;
+  ApiSitemapServersRoute: typeof ApiSitemapServersRoute;
+  ApiSitemapStaticRoute: typeof ApiSitemapStaticRoute;
+  ProtectedBotsBotIdEditRoute: typeof ProtectedBotsBotIdEditRoute;
 }
 
-declare module '@tanstack/react-router' {
+declare module "@tanstack/react-router" {
   interface FileRoutesByPath {
-    '/tutorial': {
-      id: '/tutorial'
-      path: '/tutorial'
-      fullPath: '/tutorial'
-      preLoaderRoute: typeof TutorialRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/terms': {
-      id: '/terms'
-      path: '/terms'
-      fullPath: '/terms'
-      preLoaderRoute: typeof TermsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/sitemap.xml': {
-      id: '/sitemap.xml'
-      path: '/sitemap.xml'
-      fullPath: '/sitemap.xml'
-      preLoaderRoute: typeof SitemapDotxmlRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/privacy': {
-      id: '/privacy'
-      path: '/privacy'
-      fullPath: '/privacy'
-      preLoaderRoute: typeof PrivacyRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/': {
-      id: '/'
-      path: '/'
-      fullPath: '/'
-      preLoaderRoute: typeof IndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/bots/': {
-      id: '/bots/'
-      path: '/bots'
-      fullPath: '/bots/'
-      preLoaderRoute: typeof BotsIndexRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/users/$userId': {
-      id: '/users/$userId'
-      path: '/users/$userId'
-      fullPath: '/users/$userId'
-      preLoaderRoute: typeof UsersUserIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/protected/profile': {
-      id: '/protected/profile'
-      path: '/protected/profile'
-      fullPath: '/protected/profile'
-      preLoaderRoute: typeof ProtectedProfileRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/protected/admin': {
-      id: '/protected/admin'
-      path: '/protected/admin'
-      fullPath: '/protected/admin'
-      preLoaderRoute: typeof ProtectedAdminRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/protected/add-server': {
-      id: '/protected/add-server'
-      path: '/protected/add-server'
-      fullPath: '/protected/add-server'
-      preLoaderRoute: typeof ProtectedAddServerRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/protected/add-bot': {
-      id: '/protected/add-bot'
-      path: '/protected/add-bot'
-      fullPath: '/protected/add-bot'
-      preLoaderRoute: typeof ProtectedAddBotRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/bots/$botId': {
-      id: '/bots/$botId'
-      path: '/bots/$botId'
-      fullPath: '/bots/$botId'
-      preLoaderRoute: typeof BotsBotIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/health': {
-      id: '/api/health'
-      path: '/api/health'
-      fullPath: '/api/health'
-      preLoaderRoute: typeof ApiHealthRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/servers/$serverId': {
-      id: '/servers/$serverId'
-      path: '/servers/$serverId'
-      fullPath: '/servers/$serverId'
-      preLoaderRoute: typeof ServersServerIdRouteRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/servers/$serverId/': {
-      id: '/servers/$serverId/'
-      path: '/'
-      fullPath: '/servers/$serverId/'
-      preLoaderRoute: typeof ServersServerIdIndexRouteImport
-      parentRoute: typeof ServersServerIdRouteRoute
-    }
-    '/servers/$serverId/publish': {
-      id: '/servers/$serverId/publish'
-      path: '/publish'
-      fullPath: '/servers/$serverId/publish'
-      preLoaderRoute: typeof ServersServerIdPublishRouteImport
-      parentRoute: typeof ServersServerIdRouteRoute
-    }
-    '/api/sitemap/static': {
-      id: '/api/sitemap/static'
-      path: '/api/sitemap/static'
-      fullPath: '/api/sitemap/static'
-      preLoaderRoute: typeof ApiSitemapStaticRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/sitemap/servers': {
-      id: '/api/sitemap/servers'
-      path: '/api/sitemap/servers'
-      fullPath: '/api/sitemap/servers'
-      preLoaderRoute: typeof ApiSitemapServersRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/sitemap/bots': {
-      id: '/api/sitemap/bots'
-      path: '/api/sitemap/bots'
-      fullPath: '/api/sitemap/bots'
-      preLoaderRoute: typeof ApiSitemapBotsRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/discord-bot/publish': {
-      id: '/api/discord-bot/publish'
-      path: '/api/discord-bot/publish'
-      fullPath: '/api/discord-bot/publish'
-      preLoaderRoute: typeof ApiDiscordBotPublishRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/discord-bot/pin': {
-      id: '/api/discord-bot/pin'
-      path: '/api/discord-bot/pin'
-      fullPath: '/api/discord-bot/pin'
-      preLoaderRoute: typeof ApiDiscordBotPinRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/api/auth/$': {
-      id: '/api/auth/$'
-      path: '/api/auth/$'
-      fullPath: '/api/auth/$'
-      preLoaderRoute: typeof ApiAuthSplatRouteImport
-      parentRoute: typeof rootRouteImport
-    }
-    '/protected/bots/$botId/edit': {
-      id: '/protected/bots/$botId/edit'
-      path: '/protected/bots/$botId/edit'
-      fullPath: '/protected/bots/$botId/edit'
-      preLoaderRoute: typeof ProtectedBotsBotIdEditRouteImport
-      parentRoute: typeof rootRouteImport
-    }
+    "/tutorial": {
+      id: "/tutorial";
+      path: "/tutorial";
+      fullPath: "/tutorial";
+      preLoaderRoute: typeof TutorialRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/terms": {
+      id: "/terms";
+      path: "/terms";
+      fullPath: "/terms";
+      preLoaderRoute: typeof TermsRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/sitemap.xml": {
+      id: "/sitemap.xml";
+      path: "/sitemap.xml";
+      fullPath: "/sitemap.xml";
+      preLoaderRoute: typeof SitemapDotxmlRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/privacy": {
+      id: "/privacy";
+      path: "/privacy";
+      fullPath: "/privacy";
+      preLoaderRoute: typeof PrivacyRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/": {
+      id: "/";
+      path: "/";
+      fullPath: "/";
+      preLoaderRoute: typeof IndexRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/bots/": {
+      id: "/bots/";
+      path: "/bots";
+      fullPath: "/bots/";
+      preLoaderRoute: typeof BotsIndexRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/users/$userId": {
+      id: "/users/$userId";
+      path: "/users/$userId";
+      fullPath: "/users/$userId";
+      preLoaderRoute: typeof UsersUserIdRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/protected/profile": {
+      id: "/protected/profile";
+      path: "/protected/profile";
+      fullPath: "/protected/profile";
+      preLoaderRoute: typeof ProtectedProfileRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/protected/admin": {
+      id: "/protected/admin";
+      path: "/protected/admin";
+      fullPath: "/protected/admin";
+      preLoaderRoute: typeof ProtectedAdminRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/protected/add-server": {
+      id: "/protected/add-server";
+      path: "/protected/add-server";
+      fullPath: "/protected/add-server";
+      preLoaderRoute: typeof ProtectedAddServerRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/protected/add-bot": {
+      id: "/protected/add-bot";
+      path: "/protected/add-bot";
+      fullPath: "/protected/add-bot";
+      preLoaderRoute: typeof ProtectedAddBotRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/bots/$botId": {
+      id: "/bots/$botId";
+      path: "/bots/$botId";
+      fullPath: "/bots/$botId";
+      preLoaderRoute: typeof BotsBotIdRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/api/health": {
+      id: "/api/health";
+      path: "/api/health";
+      fullPath: "/api/health";
+      preLoaderRoute: typeof ApiHealthRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/servers/$serverId": {
+      id: "/servers/$serverId";
+      path: "/servers/$serverId";
+      fullPath: "/servers/$serverId";
+      preLoaderRoute: typeof ServersServerIdRouteRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/servers/$serverId/": {
+      id: "/servers/$serverId/";
+      path: "/";
+      fullPath: "/servers/$serverId/";
+      preLoaderRoute: typeof ServersServerIdIndexRouteImport;
+      parentRoute: typeof ServersServerIdRouteRoute;
+    };
+    "/servers/$serverId/publish": {
+      id: "/servers/$serverId/publish";
+      path: "/publish";
+      fullPath: "/servers/$serverId/publish";
+      preLoaderRoute: typeof ServersServerIdPublishRouteImport;
+      parentRoute: typeof ServersServerIdRouteRoute;
+    };
+    "/api/sitemap/static": {
+      id: "/api/sitemap/static";
+      path: "/api/sitemap/static";
+      fullPath: "/api/sitemap/static";
+      preLoaderRoute: typeof ApiSitemapStaticRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/api/sitemap/servers": {
+      id: "/api/sitemap/servers";
+      path: "/api/sitemap/servers";
+      fullPath: "/api/sitemap/servers";
+      preLoaderRoute: typeof ApiSitemapServersRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/api/sitemap/bots": {
+      id: "/api/sitemap/bots";
+      path: "/api/sitemap/bots";
+      fullPath: "/api/sitemap/bots";
+      preLoaderRoute: typeof ApiSitemapBotsRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/api/discord-bot/publish": {
+      id: "/api/discord-bot/publish";
+      path: "/api/discord-bot/publish";
+      fullPath: "/api/discord-bot/publish";
+      preLoaderRoute: typeof ApiDiscordBotPublishRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/api/discord-bot/pin": {
+      id: "/api/discord-bot/pin";
+      path: "/api/discord-bot/pin";
+      fullPath: "/api/discord-bot/pin";
+      preLoaderRoute: typeof ApiDiscordBotPinRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/api/auth/$": {
+      id: "/api/auth/$";
+      path: "/api/auth/$";
+      fullPath: "/api/auth/$";
+      preLoaderRoute: typeof ApiAuthSplatRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
+    "/protected/bots/$botId/edit": {
+      id: "/protected/bots/$botId/edit";
+      path: "/protected/bots/$botId/edit";
+      fullPath: "/protected/bots/$botId/edit";
+      preLoaderRoute: typeof ProtectedBotsBotIdEditRouteImport;
+      parentRoute: typeof rootRouteImport;
+    };
   }
 }
 
 interface ServersServerIdRouteRouteChildren {
-  ServersServerIdPublishRoute: typeof ServersServerIdPublishRoute
-  ServersServerIdIndexRoute: typeof ServersServerIdIndexRoute
+  ServersServerIdPublishRoute: typeof ServersServerIdPublishRoute;
+  ServersServerIdIndexRoute: typeof ServersServerIdIndexRoute;
 }
 
 const ServersServerIdRouteRouteChildren: ServersServerIdRouteRouteChildren = {
   ServersServerIdPublishRoute: ServersServerIdPublishRoute,
   ServersServerIdIndexRoute: ServersServerIdIndexRoute,
-}
+};
 
-const ServersServerIdRouteRouteWithChildren =
-  ServersServerIdRouteRoute._addFileChildren(ServersServerIdRouteRouteChildren)
+const ServersServerIdRouteRouteWithChildren = ServersServerIdRouteRoute._addFileChildren(
+  ServersServerIdRouteRouteChildren,
+);
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
@@ -526,17 +527,17 @@ const rootRouteChildren: RootRouteChildren = {
   ApiSitemapServersRoute: ApiSitemapServersRoute,
   ApiSitemapStaticRoute: ApiSitemapStaticRoute,
   ProtectedBotsBotIdEditRoute: ProtectedBotsBotIdEditRoute,
-}
+};
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
-  ._addFileTypes<FileRouteTypes>()
+  ._addFileTypes<FileRouteTypes>();
 
-import type { getRouter } from './router.tsx'
-import type { startInstance } from './start.ts'
-declare module '@tanstack/react-start' {
+import type { getRouter } from "./router.tsx";
+import type { startInstance } from "./start.ts";
+declare module "@tanstack/react-start" {
   interface Register {
-    ssr: true
-    router: Awaited<ReturnType<typeof getRouter>>
-    config: Awaited<ReturnType<typeof startInstance.getOptions>>
+    ssr: true;
+    router: Awaited<ReturnType<typeof getRouter>>;
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>;
   }
 }
