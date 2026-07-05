@@ -67,6 +67,7 @@ type BotPayload = {
     status: "pending" | "approved" | "rejected";
     customEmbed?: any; // 👉 新增 customEmbed，型別為 any，實際上會存入 JSON 物件
     isAdmin: boolean; // 👉 新增 isAdmin，型別為 boolean
+    verified: boolean; // 👉 新增 verified，型別為 boolean
   };
   commands: NormalizedCommand[];
   developerNames: string[];
@@ -281,6 +282,7 @@ function buildBotPayload(
       status: determineStatus(),
       customEmbed: formatCustomEmbedData(input.form.customEmbed),
       isAdmin: hasAdminPermission(rpc.install_params?.permissions ?? 0),
+      verified: rpc.is_verified,
     },
     commands,
     developerNames,
@@ -332,6 +334,7 @@ function persistBotEffect(
             customEmbed: payload.botRow.customEmbed,
             status: payload.botRow.status, // 👉 2. 這裡改用計算後的 finalStatus
             isAdmin: payload.botRow.isAdmin, // 👉 2. 更新 isAdmin 欄位
+            verified: payload.botRow.verified, // 👉 2. 更新 verified 欄位
           })
           .where(eq(bot.id, payload.botId));
       } else {
@@ -358,6 +361,7 @@ function persistBotEffect(
           status: payload.botRow.status, // 👉 3. 這裡也改用計算後的 finalStatus
           nsfw: payload.botRow.nsfw,
           isAdmin: payload.botRow.isAdmin, // 👉 3. 新增 isAdmin 欄位
+          verified: payload.botRow.verified, // 👉 3. 新增 verified 欄位
         });
       }
 
