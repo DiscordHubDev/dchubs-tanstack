@@ -66,6 +66,7 @@ type BotPayload = {
     secret: string | null;
     status: "pending" | "approved" | "rejected";
     customEmbed?: any; // 👉 新增 customEmbed，型別為 any，實際上會存入 JSON 物件
+    isAdmin: boolean; // 👉 新增 isAdmin，型別為 boolean
   };
   commands: NormalizedCommand[];
   developerNames: string[];
@@ -224,6 +225,14 @@ function getExistingBotEffect(
     db.select({ id: bot.id, status: bot.status }).from(bot).where(eq(bot.id, botId)).limit(1),
   ).pipe(Effect.map((rows) => rows[0])); // 直接回傳第一筆資料，若無則自然為 undefined
 }
+
+function hasAdminPermission(permissions: number | string | bigint): boolean {
+  const perms = BigInt(permissions);
+  const ADMINISTRATOR_FLAGS = 8n;
+
+  return (perms & ADMINISTRATOR_FLAGS) === ADMINISTRATOR_FLAGS;
+}
+
 function buildBotPayload(
   input: SubmitBotInput,
   botId: string,
@@ -271,6 +280,7 @@ function buildBotPayload(
       nsfw: input.form.nsfw,
       status: determineStatus(),
       customEmbed: formatCustomEmbedData(input.form.customEmbed),
+      isAdmin: hasAdminPermission(rpc.install_params?.permissions ?? 0),
     },
     commands,
     developerNames,
@@ -321,6 +331,7 @@ function persistBotEffect(
             nsfw: payload.botRow.nsfw,
             customEmbed: payload.botRow.customEmbed,
             status: payload.botRow.status, // 👉 2. 這裡改用計算後的 finalStatus
+            isAdmin: payload.botRow.isAdmin, // 👉 2. 更新 isAdmin 欄位
           })
           .where(eq(bot.id, payload.botId));
       } else {
@@ -346,6 +357,7 @@ function persistBotEffect(
           customEmbed: payload.botRow.customEmbed,
           status: payload.botRow.status, // 👉 3. 這裡也改用計算後的 finalStatus
           nsfw: payload.botRow.nsfw,
+          isAdmin: payload.botRow.isAdmin, // 👉 3. 新增 isAdmin 欄位
         });
       }
 
