@@ -1,6 +1,6 @@
 import { type AnyFieldApi, useForm } from "@tanstack/react-form";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
+import { useNavigate, useRouteContext } from "@tanstack/react-router";
 import { useSelector } from "@tanstack/react-store";
 import { Effect, Schema } from "effect";
 import { AlertTriangle, Info, Loader2, Plus, Search, Trash2, UserPlus, X } from "lucide-react";
@@ -147,7 +147,7 @@ const validateTags = (value: readonly string[]) => {
 };
 
 const validateDevelopers = effectValidator(BotDevelopersSchema, {
-  fallback: "開發者格式不正確",
+  fallback: "至少需要一位開發者",
 });
 
 const validateCommands = effectValidator(BotCommandsSchema, {
@@ -847,6 +847,27 @@ export default function BotForm({ mode = "create", defaultValues }: BotFormProps
   // Initial state hydration from localStorage (CSR only to avoid SSR mismatch)
   const [persistedValues] = useState<Partial<BotFormData>>(() => readPersistedFormValues());
 
+  const { session } = useRouteContext({ from: "__root__" });
+
+  const currentUser = session?.user;
+
+  const initialDevelopers = currentUser
+    ? [
+        {
+          name: currentUser.discordId,
+          _displayUsername: currentUser.name || currentUser.username,
+          avatar: currentUser.avatar,
+        },
+      ]
+    : [];
+
+  const finalDevelopers =
+    persistedValues?.developers && persistedValues.developers.length > 0
+      ? persistedValues.developers
+      : defaultValues?.developers && defaultValues.developers.length > 0
+        ? defaultValues.developers
+        : initialDevelopers;
+
   useEffect(() => {
     // ✅ 1. 先把當下的 ref 參考抓出來
     const urlsToRevoke = objectUrlsRef.current;
@@ -868,7 +889,6 @@ export default function BotForm({ mode = "create", defaultValues }: BotFormProps
       botInvite: "",
       botWebsite: "",
       botSupport: "",
-      developers: [],
       commands: [],
       tags: [],
       secret: "",
@@ -894,6 +914,7 @@ export default function BotForm({ mode = "create", defaultValues }: BotFormProps
       },
       ...defaultValues,
       ...persistedValues,
+      developers: finalDevelopers,
     } as BotFormData,
     validators: {
       onChange: ({ value }) => {
