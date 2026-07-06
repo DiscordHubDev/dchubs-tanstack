@@ -1,7 +1,8 @@
-import { createFileRoute, useRouteContext } from "@tanstack/react-router";
+import { createFileRoute, notFound, useRouteContext } from "@tanstack/react-router";
 import LoadingPage from "#/components/loading";
 import { UserProfilePage } from "#/features/users/components/profile-page";
 import type { ProfileTab } from "#/features/users/profile.schemas";
+import { getUserIdByDiscordIdFn } from "#/features/users/users.functions";
 import { userProfileQueryOptions } from "#/features/users/users.query";
 import type { NormalizedSession } from "#/lib/auth.functions";
 
@@ -17,7 +18,7 @@ function parseProfileTab(value: unknown): ProfileTab | undefined {
 }
 
 function getSessionUserId(session: NormalizedSession | null): string | null {
-  return session?.discordProfile?.id ?? session?.user?.discordId ?? session?.user?.id ?? null;
+  return session?.user?.id ?? null;
 }
 
 export const Route = createFileRoute("/users/$userId")({
@@ -27,12 +28,34 @@ export const Route = createFileRoute("/users/$userId")({
   },
   ssr: false,
   preloadStaleTime: 10 * 60 * 1000,
+
   loader: async ({ context, params }) => {
-    await context.queryClient.ensureQueryData(userProfileQueryOptions(params.userId));
-    return { viewedUserId: params.userId };
+    console.log("params.userId =", params.userId);
+    const resolvedId = await getUserIdByDiscordIdFn({
+      data: { discordId: params.userId },
+    });
+
+    console.log("resolvedId =", resolvedId);
+
+    if (!resolvedId) {
+      throw notFound();
+    }
+
+    await context.queryClient.ensureQueryData(userProfileQueryOptions(resolvedId));
+
+    return { viewedUserId: resolvedId };
   },
+
   pendingComponent: () => (
     <LoadingPage loadingText="正在準備用戶資料..." subText="請稍候" loaderType="dots" />
+  ),
+  notFoundComponent: () => (
+    <div className="flex min-h-dvh items-center justify-center bg-[#1e1f22] text-white">
+      <div className="text-center">
+        <h2 className="mb-2 font-semibold text-2xl">找不到用戶</h2>
+        <p className="text-gray-400 text-sm">用戶資料不存在或已被移除。</p>
+      </div>
+    </div>
   ),
   component: RouteComponent,
 });

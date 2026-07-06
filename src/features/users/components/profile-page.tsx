@@ -960,7 +960,7 @@ const BotCard = memo(
               <Users size={14} className="mr-1" />
               <span>{(bot.servers ?? 0).toLocaleString()} 伺服器</span>
             </div>
-            <BotStatusIndicator status={bot.status ?? "pending"} />
+            {isOwner && <BotStatusIndicator status={bot.status ?? "pending"} />}
           </CardContent>
         </Link>
 

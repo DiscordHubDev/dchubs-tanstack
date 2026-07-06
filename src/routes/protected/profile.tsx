@@ -1,10 +1,9 @@
-import { createFileRoute, notFound, redirect } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import LoadingPage from "#/components/loading";
 import { UserProfilePage } from "#/features/users/components/profile-page";
 import type { ProfileSearch, ProfileTab } from "#/features/users/profile.schemas";
 import { userProfileQueryOptions } from "#/features/users/users.query";
 import { checkAuthServerFn } from "#/lib/auth.functions";
-import { getUserIdByDiscordIdFn } from "#/features/users/users.functions";
 
 const PROFILE_TABS: readonly ProfileTab[] = ["servers", "bots", "favorites", "settings"];
 
@@ -35,7 +34,7 @@ export const Route = createFileRoute("/protected/profile")({
   preloadStaleTime: 10 * 60 * 1000,
 
   loaderDeps: ({ search }) => ({
-    viewedDiscordId: search.id,
+    viewedUserId: search.id,
   }),
 
   beforeLoad: async ({ location }) => {
@@ -54,24 +53,12 @@ export const Route = createFileRoute("/protected/profile")({
   loader: async ({ context, deps }) => {
     const currentUserId = context.currentUserId;
 
-    let targetUserId = currentUserId;
-
-    if (deps.viewedDiscordId) {
-      const resolvedId = await getUserIdByDiscordIdFn({
-        data: { discordId: deps.viewedDiscordId },
-      });
-
-      if (!resolvedId) {
-        throw notFound();
-      }
-
-      targetUserId = resolvedId;
-    }
+    const targetUserId = deps.viewedUserId ?? currentUserId;
 
     await context.queryClient.ensureQueryData(userProfileQueryOptions(targetUserId));
 
     return {
-      viewedUserId: targetUserId, // 內部 id,後面元件全部沿用這個
+      viewedUserId: targetUserId,
       currentUserId,
     };
   },
