@@ -254,7 +254,7 @@ export function getUserBaseProfileEffect(id: string): Effect.Effect<UserBaseProf
 
     const currentUser = yield* dbEffect("Failed to load user profile", () =>
       db.query.user.findFirst({
-        where: eq(user.discordId, id),
+        where: eq(user.id, id),
         columns: {
           id: true,
           username: true,
@@ -357,7 +357,7 @@ export function getUserBotsEffect(id: string) {
                 avatar: user.avatar,
               })
               .from(botDevelopers)
-              .innerJoin(user, eq(botDevelopers.b, user.discordId))
+              .innerJoin(user, eq(botDevelopers.b, user.id))
               .where(inArray(botDevelopers.a, developedBotIds)),
           );
 
