@@ -1,9 +1,10 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute, notFound, redirect } from "@tanstack/react-router";
 import LoadingPage from "#/components/loading";
 import { UserProfilePage } from "#/features/users/components/profile-page";
 import type { ProfileSearch, ProfileTab } from "#/features/users/profile.schemas";
 import { userProfileQueryOptions } from "#/features/users/users.query";
 import { checkAuthServerFn } from "#/lib/auth.functions";
+import { getUserIdByDiscordIdFn } from "#/features/users/users.functions";
 
 const PROFILE_TABS: readonly ProfileTab[] = ["servers", "bots", "favorites", "settings"];
 
@@ -34,7 +35,7 @@ export const Route = createFileRoute("/protected/profile")({
   preloadStaleTime: 10 * 60 * 1000,
 
   loaderDeps: ({ search }) => ({
-    viewedUserId: search.id,
+    viewedDiscordId: search.id,
   }),
 
   beforeLoad: async ({ location }) => {
@@ -53,12 +54,24 @@ export const Route = createFileRoute("/protected/profile")({
   loader: async ({ context, deps }) => {
     const currentUserId = context.currentUserId;
 
-    const targetUserId = deps.viewedUserId ?? currentUserId;
+    let targetUserId = currentUserId;
+
+    if (deps.viewedDiscordId) {
+      const resolvedId = await getUserIdByDiscordIdFn({
+        data: { discordId: deps.viewedDiscordId },
+      });
+
+      if (!resolvedId) {
+        throw notFound();
+      }
+
+      targetUserId = resolvedId;
+    }
 
     await context.queryClient.ensureQueryData(userProfileQueryOptions(targetUserId));
 
     return {
-      viewedUserId: targetUserId,
+      viewedUserId: targetUserId, // 內部 id,後面元件全部沿用這個
       currentUserId,
     };
   },
@@ -101,16 +114,5 @@ function RouteComponent() {
         });
       }}
     />
-  );
-}
-
-function _ProfilePending() {
-  return (
-    <div className="flex min-h-dvh items-center justify-center bg-[#2b2d31] text-white">
-      <div className="animate-pulse text-center">
-        <h2 className="mb-2 font-semibold text-2xl">載入中...</h2>
-        <p className="text-gray-400 text-sm">正在準備用戶資料...</p>
-      </div>
-    </div>
   );
 }

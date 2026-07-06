@@ -1,6 +1,6 @@
 // scripts/update-bots.ts
 import { eq } from "drizzle-orm";
-import { Data, Effect, Array as EffectArray, Option } from "effect";
+import { Data, Effect, Array as EffectArray, Option, Fiber } from "effect";
 import { client, db } from "#/drizzle/db";
 import { bot } from "#/drizzle/schema";
 import { getDiscordRPCWithMember } from "#/features/api/api.function";
@@ -12,11 +12,12 @@ type BotRow = Pick<
   typeof bot.$inferSelect,
   "id" | "name" | "icon" | "banner" | "verified" | "isAdmin"
 >;
-type BotUpdateSet = Pick<
+type BotInfoUpdateSet = Pick<
   Partial<typeof bot.$inferInsert>,
-  "servers" | "name" | "icon" | "banner" | "verified" | "isAdmin"
+  "name" | "icon" | "banner" | "verified" | "isAdmin"
 >;
-type PendingUpdate = { id: string; data: BotUpdateSet };
+type BotCountUpdateSet = Pick<Partial<typeof bot.$inferInsert>, "servers">;
+type PendingUpdate<T> = { id: string; data: T };
 
 class BotUpdateError extends Data.TaggedError("BotUpdateError")<{
   readonly botId: string;
@@ -83,7 +84,10 @@ const fetchBotServerCountEffect = (botId: string) =>
     }),
   );
 
-const flushUpdatesEffect = (pending: PendingUpdate[]) =>
+const flushUpdatesEffect = <T extends Record<string, unknown>>(
+  pending: PendingUpdate<T>[],
+  label: string,
+) =>
   Effect.tryPromise({
     try: async () => {
       if (pending.length === 0) return;
@@ -92,12 +96,12 @@ const flushUpdatesEffect = (pending: PendingUpdate[]) =>
           await tx.update(bot).set(data).where(eq(bot.id, id));
         }
       });
-      console.log(`💾 批次寫入 ${pending.length} 筆到資料庫`);
+      console.log(`💾 [${label}] 批次寫入 ${pending.length} 筆到資料庫`);
     },
-    catch: (_err) => new Error("Database Transaction Failed"),
+    catch: (_err) => new Error(`Database Transaction Failed (${label})`),
   });
 
-const updateBotsProgram = Effect.gen(function* () {
+const fetchApprovedBots = Effect.gen(function* () {
   const isDev = process.env.NODE_ENV === "development";
   let query = db
     .select({
@@ -115,43 +119,86 @@ const updateBotsProgram = Effect.gen(function* () {
 
   const bots: BotRow[] = yield* Effect.tryPromise(() => query);
   console.log(`📋 [背景任務] ${isDev ? "🛠️ [開發模式]" : ""} 共需處理 ${bots.length} 個 bots`);
+  return bots;
+});
 
-  // 將 Bots 切割成每批次大小 (DB_BATCH_WRITE_SIZE)
-  const chunks = EffectArray.chunksOf(bots, DB_BATCH_WRITE_SIZE);
+// ─── 階段一：更新基本資訊 (name / icon / banner / verified / isAdmin) ───
+const updateBotBasicInfoProgram = (bots: BotRow[]) =>
+  Effect.gen(function* () {
+    console.log("🚀 開始更新 Bot 基本資訊...");
+    const chunks = EffectArray.chunksOf(bots, DB_BATCH_WRITE_SIZE);
 
-  for (let chunkIdx = 0; chunkIdx < chunks.length; chunkIdx++) {
-    const chunk = chunks[chunkIdx];
-    const pendingUpdates: PendingUpdate[] = [];
+    for (const chunk of chunks) {
+      const pendingUpdates: PendingUpdate<BotInfoUpdateSet>[] = [];
 
-    for (let i = 0; i < chunk.length; i++) {
-      const current = chunk[i];
-      console.log(`\n🔄 處理 ${current.name} (${current.id})`);
+      for (const current of chunk) {
+        console.log(`\n🔄 [基本資訊] 處理 ${current.name} (${current.id})`);
 
-      const infoOpt = yield* fetchUpdatedBotInfoEffect(current.id);
-      const countOpt = yield* fetchBotServerCountEffect(current.id);
+        const infoOpt = yield* fetchUpdatedBotInfoEffect(current.id);
 
-      const data: BotUpdateSet = {};
-      if (Option.isSome(countOpt)) data.servers = countOpt.value;
-      if (Option.isSome(infoOpt)) {
-        data.name = infoOpt.value.name ?? current.name;
-        data.icon = infoOpt.value.avatar_url ?? current.icon;
-        data.banner = infoOpt.value.banner_url ?? current.banner;
-        data.verified = infoOpt.value.verified;
-        data.isAdmin = infoOpt.value.isAdmin;
+        if (Option.isSome(infoOpt)) {
+          const data: BotInfoUpdateSet = {
+            name: infoOpt.value.name ?? current.name,
+            icon: infoOpt.value.avatar_url ?? current.icon,
+            banner: infoOpt.value.banner_url ?? current.banner,
+            verified: infoOpt.value.verified,
+            isAdmin: infoOpt.value.isAdmin,
+          };
+          pendingUpdates.push({ id: current.id, data });
+        }
       }
 
-      if (Object.keys(data).length > 0) {
-        pendingUpdates.push({ id: current.id, data });
-      }
-
-      // 單線程延遲，避免 Python 後端過載
-      if (i < chunk.length - 1 || chunkIdx < chunks.length - 1) {
-        yield* Effect.sleep(`${BOT_PROCESS_DELAY_MS} millis`);
-      }
+      yield* flushUpdatesEffect(pendingUpdates, "基本資訊");
     }
-    // 批次寫入 DB
-    yield* flushUpdatesEffect(pendingUpdates);
-  }
+
+    console.log("✅ Bot 基本資訊全部更新完畢！");
+  });
+
+// ─── 階段二：更新伺服器數量 (背景執行，含節流 delay 避免 Python 後端過載) ───
+const updateBotServerCountProgram = (bots: BotRow[]) =>
+  Effect.gen(function* () {
+    console.log("🔢 [背景] 開始更新伺服器數量...");
+    const chunks = EffectArray.chunksOf(bots, DB_BATCH_WRITE_SIZE);
+
+    for (let chunkIdx = 0; chunkIdx < chunks.length; chunkIdx++) {
+      const chunk = chunks[chunkIdx];
+      const pendingUpdates: PendingUpdate<BotCountUpdateSet>[] = [];
+
+      for (let i = 0; i < chunk.length; i++) {
+        const current = chunk[i];
+        console.log(`\n🔄 [伺服器數量] 處理 ${current.name} (${current.id})`);
+
+        const countOpt = yield* fetchBotServerCountEffect(current.id);
+
+        if (Option.isSome(countOpt)) {
+          pendingUpdates.push({ id: current.id, data: { servers: countOpt.value } });
+        }
+
+        // 單線程延遲，避免 Python 後端過載
+        if (i < chunk.length - 1 || chunkIdx < chunks.length - 1) {
+          yield* Effect.sleep(`${BOT_PROCESS_DELAY_MS} millis`);
+        }
+      }
+
+      yield* flushUpdatesEffect(pendingUpdates, "伺服器數量");
+    }
+
+    console.log("🎉 [背景] 伺服器數量全部更新完畢！");
+  });
+
+const updateBotsProgram = Effect.gen(function* () {
+  const bots = yield* fetchApprovedBots;
+
+  // 先完整跑完基本資訊更新
+  yield* updateBotBasicInfoProgram(bots);
+
+  // 基本資訊更新完後，將伺服器數量更新丟到背景 (fork) 執行
+  console.log("📤 基本資訊已完成，伺服器數量更新已轉入背景執行...");
+  const serverCountFiber = yield* Effect.fork(updateBotServerCountProgram(bots));
+
+  // 等待背景任務完成 (腳本仍需存活到背景任務結束才能關閉連線)
+  yield* Fiber.join(serverCountFiber);
+
   console.log("🎉 [背景任務] 全部 Bot 更新完畢！");
 });
 

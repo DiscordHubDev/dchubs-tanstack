@@ -25,6 +25,9 @@ import {
   updateUserSettingsForCurrentUser,
   upsertUserFromSession,
 } from "./users.server";
+import { db } from "#/drizzle/db";
+import { user } from "#/drizzle/schema";
+import { eq } from "drizzle-orm";
 
 const emptySchema = Schema.Struct({});
 const strictValidator = (input: any) => {
@@ -127,6 +130,19 @@ export const pinItemFn = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const { id, type } = data;
     return toResult(pinItemLogicEffect(id, type));
+  });
+
+export const getUserIdByDiscordIdFn = createServerFn({ method: "GET" })
+  .middleware([protectedMiddleware])
+  .inputValidator((data: { discordId: string }) => data)
+  .handler(async ({ data }) => {
+    const result = await db
+      .select({ id: user.id })
+      .from(user)
+      .where(eq(user.discordId, data.discordId))
+      .limit(1);
+
+    return result[0]?.id ?? null;
   });
 
 // Compatible aliases for legacy naming.
