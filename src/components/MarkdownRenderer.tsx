@@ -2,10 +2,12 @@
 
 import type { ImgHTMLAttributes } from "react";
 import * as React from "react";
-import { useState } from "react";
+import { useState, useRef } from "react";
 import ReactMarkdown from "react-markdown";
 import rehypeRaw from "rehype-raw";
 import rehypeSanitize, { defaultSchema } from "rehype-sanitize";
+import rehypeSlug from "rehype-slug";
+import rehypeExternalLinks from "rehype-external-links";
 import remarkBreaks from "remark-breaks";
 import remarkGfm from "remark-gfm";
 import { OptimizedImage } from "./OptimizedImage";
@@ -15,7 +17,7 @@ type Props = {
 };
 
 // ==========================================
-// 2. 輔助元件與函數
+// 1. 輔助元件與函數 (SafeIframe, SafeImage)
 // ==========================================
 
 const parseSafeUrl = (raw?: string) => {
@@ -65,11 +67,16 @@ const SafeIframe = ({ src, title, className, ...rest }: SafeIframeProps) => {
 
   if (!url) {
     return (
-      <div className="rounded bg-gray-700 p-4 text-gray-300 text-sm">
+      <div className="rounded bg-black/20 p-4 text-sm text-gray-300">
         無法嵌入（只允許 http/https）。
         {src && (
           <div className="mt-2 break-all">
-            <a href={src} target="_blank" rel="noopener noreferrer" className="underline">
+            <a
+              href={src}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="underline hover:text-white"
+            >
               {src}
             </a>
           </div>
@@ -82,7 +89,7 @@ const SafeIframe = ({ src, title, className, ...rest }: SafeIframeProps) => {
 
   return (
     <div
-      className={`my-2 aspect-video w-full overflow-hidden rounded border border-gray-600 ${className || ""}`}
+      className={`my-4 aspect-video w-full overflow-hidden rounded-lg border border-white/10 ${className || ""}`}
     >
       <iframe
         src={url.toString()}
@@ -91,7 +98,7 @@ const SafeIframe = ({ src, title, className, ...rest }: SafeIframeProps) => {
         referrerPolicy="strict-origin-when-cross-origin"
         sandbox={sandbox || undefined}
         allow=""
-        className="h-full w-full"
+        className="h-full w-full border-0"
       />
     </div>
   );
@@ -105,7 +112,7 @@ const SafeImage = ({ src, alt, ...props }: SafeImageProps) => {
 
   if (!src) {
     return (
-      <div className="rounded bg-gray-700 p-4 text-center text-gray-400">
+      <div className="rounded bg-black/20 p-4 text-center text-gray-400">
         圖片載入失敗：缺少圖片來源
       </div>
     );
@@ -113,83 +120,84 @@ const SafeImage = ({ src, alt, ...props }: SafeImageProps) => {
 
   if (hasError) {
     return (
-      <div className="rounded bg-gray-700 p-4 text-center text-gray-400">
+      <div className="rounded bg-black/20 p-4 text-center text-gray-400">
         <div>圖片載入失敗</div>
-        <div className="mt-1 break-all text-xs">{src}</div>
+        <div className="mt-1 break-all text-xs text-gray-500">{src}</div>
       </div>
     );
   }
 
   return (
-    <div className="my-2 text-center">
+    <div className="my-4 text-center">
       {isLoading && (
-        <div className="animate-pulse rounded bg-gray-700 p-4 text-gray-400">載入圖片中...</div>
+        <div className="animate-pulse rounded bg-black/20 p-4 text-gray-400">載入圖片中...</div>
       )}
       <OptimizedImage
         {...props}
         src={src}
         alt={alt || "圖片"}
-        width={800} // ✨ 提供寬度基準 (如 800)
-        height={450} // ✨ 提供高度基準 (如 450，滿足 h-auto 的比例)
-        className="h-auto max-w-full rounded shadow-lg"
+        width={800}
+        height={450}
+        className="mx-auto h-auto max-w-full rounded shadow-lg"
         onLoad={() => setIsLoading(false)}
         onError={() => {
           setIsLoading(false);
           setHasError(true);
         }}
-        style={{ display: isLoading ? "none" : "block", margin: "0 auto" }}
+        style={{ display: isLoading ? "none" : "block" }}
       />
     </div>
   );
 };
 
-// 從 React Node 中提取純文字以產生 Slug ID
-const extractText = (node: React.ReactNode): string => {
-  if (typeof node !== "string" && !Array.isArray(node) && !React.isValidElement(node)) return "";
-  if (typeof node === "string") return node;
-  if (Array.isArray(node)) return node.map(extractText).join("");
-  return extractText((node.props as { children?: React.ReactNode }).children);
-};
+// 帶有複製按鈕的程式碼區塊元件
+const PreWithCopy = ({ children, ...props }: React.HTMLAttributes<HTMLPreElement>) => {
+  const [copied, setCopied] = useState(false);
+  const preRef = useRef<HTMLPreElement>(null);
 
-const customSlugify = (str: string) => {
-  try {
-    return encodeURIComponent(str).toLowerCase();
-  } catch {
-    return str.replace(/[^\w-]/gu, "").toLowerCase() || "heading";
-  }
+  const handleCopy = () => {
+    if (preRef.current) {
+      navigator.clipboard.writeText(preRef.current.innerText);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }
+  };
+
+  return (
+    <div className="group relative my-4">
+      <button
+        onClick={handleCopy}
+        className="absolute right-2 top-2 rounded bg-black/40 px-2 py-1 text-xs text-gray-300 opacity-0 transition-opacity hover:bg-black/60 hover:text-white group-hover:opacity-100"
+      >
+        {copied ? "Copied!" : "Copy"}
+      </button>
+      <pre ref={preRef} {...props}>
+        {children}
+      </pre>
+    </div>
+  );
 };
 
 // ==========================================
-// 3. Error Boundary
+// 2. Error Boundary
 // ==========================================
-
-type MarkdownErrorBoundaryProps = {
-  content: string;
-  children: React.ReactNode;
-};
-
-type MarkdownErrorBoundaryState = {
-  hasError: boolean;
-};
 
 class MarkdownErrorBoundary extends React.Component<
-  MarkdownErrorBoundaryProps,
-  MarkdownErrorBoundaryState
+  { content: string; children: React.ReactNode },
+  { hasError: boolean }
 > {
-  state: MarkdownErrorBoundaryState = { hasError: false };
+  state = { hasError: false };
 
-  static getDerivedStateFromError(): MarkdownErrorBoundaryState {
+  static getDerivedStateFromError() {
     return { hasError: true };
   }
-
-  // 🗑️ 直接把整個 componentDidUpdate 刪掉！
 
   render() {
     if (this.state.hasError) {
       return (
-        <div className="rounded-lg border border-red-400/30 bg-red-950/20 p-4">
-          <p className="mb-2 text-red-200 text-sm">Markdown 內容無法完整解析，已改為純文字顯示。</p>
-          <pre className="wrap-break-word whitespace-pre-wrap text-gray-300 text-sm">
+        <div className="rounded-lg border border-red-500/20 bg-red-500/10 p-4">
+          <p className="mb-2 text-sm text-red-300">Markdown 內容無法完整解析，已改為純文字顯示。</p>
+          <pre className="whitespace-pre-wrap break-words text-sm text-gray-300">
             {this.props.content}
           </pre>
         </div>
@@ -200,179 +208,126 @@ class MarkdownErrorBoundary extends React.Component<
 }
 
 // ==========================================
-// 4. 主渲染元件
+// 3. 主渲染元件
 // ==========================================
 
 export default function MarkdownRenderer({ content }: Props) {
   const normalizedContent =
-    typeof content.toWellFormed === "function" ? content.toWellFormed() : content;
+    typeof (content as any).toWellFormed === "function" ? (content as any).toWellFormed() : content;
+
+  // 定義 rehype-sanitize 允許的白名單（補上 checkbox 與 iframe 權限）
+  const sanitizeSchema = {
+    ...defaultSchema,
+    tagNames: [...(defaultSchema.tagNames || []), "iframe", "input"],
+    attributes: {
+      ...defaultSchema.attributes,
+      "*": ["className", "id", "style"],
+      a: [...(defaultSchema.attributes?.a || []), "target", "rel"],
+      iframe: ["src", "title", "width", "height", "allow", "loading", "data-perms"],
+      input: ["type", "checked", "disabled"],
+      li: [...(defaultSchema.attributes?.li || []), "className"],
+    },
+  };
 
   return (
-    <div className="whitespace-normal text-gray-300">
+    // 使用 Tailwind Typography (prose) 來接管大部分的排版，搭配 modifiers 微調深色模式細節
+    <div
+      className="
+        prose
+        prose-invert max-w-none text-base text-gray-300
+        prose-headings:scroll-mt-20 
+        prose-p:break-words prose-td:break-words prose-li:break-words
+        prose-pre:overflow-x-auto prose-pre:border prose-pre:border-white/10 prose-pre:bg-black/20
+        prose-code:rounded prose-code:bg-black/20 prose-code:px-1.5 prose-code:py-0.5 prose-code:font-mono prose-code:text-sm prose-code:font-normal prose-code:before:content-none prose-code:after:content-none
+      "
+    >
       <MarkdownErrorBoundary content={normalizedContent}>
         <ReactMarkdown
           remarkPlugins={[remarkGfm, remarkBreaks]}
           rehypePlugins={[
             rehypeRaw,
-            [
-              rehypeSanitize,
-              {
-                ...defaultSchema,
-                tagNames: [...(defaultSchema.tagNames || []), "iframe"],
-                // 2. 設定各個標籤允許的屬性
-                attributes: {
-                  ...defaultSchema.attributes,
-                  // 允許所有標籤帶有 className 和 id（供樣式與錨點使用）
-                  "*": ["className", "id", "style"],
-                  // 專門允許 iframe 擁有的安全屬性，這樣你的 SafeIframe 才能接到資料
-                  iframe: [
-                    "src",
-                    "title",
-                    "width",
-                    "height",
-                    "allow",
-                    "loading",
-                    "data-perms", // 你自訂的權限屬性
-                  ],
-                  // 允許超連結開啟新分頁
-                  a: [...(defaultSchema.attributes?.a || []), "target", "rel"],
-                },
-              },
-            ],
+            rehypeSlug,
+            [rehypeExternalLinks, { target: "_blank", rel: ["noopener", "noreferrer"] }],
+            [rehypeSanitize, sanitizeSchema],
           ]}
           components={{
             img: ({ node: _node, ...props }) => <SafeImage {...(props as SafeImageProps)} />,
-
             iframe: ({ node: _node, ...props }) => <SafeIframe {...(props as SafeIframeProps)} />,
-            h1: ({ children, ...props }) => (
-              <h1
-                id={customSlugify(extractText(children))}
-                className="mt-3 mb-1 font-bold text-2xl"
-                {...props}
-              >
-                {children}
-              </h1>
-            ),
-            h2: ({ children, ...props }) => (
-              <h2
-                id={customSlugify(extractText(children))}
-                className="mt-2 mb-1 font-semibold text-xl"
-                {...props}
-              >
-                {children}
-              </h2>
-            ),
-            h3: ({ children, ...props }) => (
-              <h3
-                id={customSlugify(extractText(children))}
-                className="mt-2 mb-1 font-medium text-lg"
-                {...props}
-              >
-                {children}
-              </h3>
-            ),
-            ul: ({ children, ...props }) => (
-              <ul className="my-2 list-disc space-y-1 pl-4" {...props}>
-                {children}
-              </ul>
-            ),
-            ol: ({ children, ...props }) => (
-              <ol className="my-2 list-decimal space-y-1 pl-4" {...props}>
-                {children}
-              </ol>
-            ),
-            li: ({ children, ...props }) => (
-              <li className="text-sm leading-normal" {...props}>
-                {children}
-              </li>
-            ),
-            p: ({ children, ...props }) => (
-              <p className="mb-2 leading-normal" {...props}>
-                {children}
-              </p>
-            ),
-            hr: ({ ...props }) => <hr className="my-3 border-gray-600" {...props} />,
-            a: ({ children, href, ...props }) => {
-              const safeHref =
-                href &&
-                (href.startsWith("http://") ||
-                  href.startsWith("https://") ||
-                  href.startsWith("mailto:") ||
-                  href.startsWith("#") ||
-                  href.startsWith("/"))
-                  ? href
-                  : "#";
 
+            a: ({ node: _node, children, ...props }) => (
+              <a
+                className="text-xl font-bold text-blue-400 underline decoration-blue-400/40 underline-offset-4 transition-colors hover:text-blue-300 hover:decoration-blue-300"
+                {...props}
+              >
+                {children}
+              </a>
+            ),
+
+            // 拷貝按鈕的程式碼區塊
+            pre: ({ children, ...props }) => <PreWithCopy {...props}>{children}</PreWithCopy>,
+
+            // 處理 GFM 任務清單的 li 排版
+            li: ({ className, children, ...props }) => {
+              const isTask = className?.includes("task-list-item");
               return (
-                <a
+                <li
+                  className={`${className || ""} ${isTask ? "list-none flex items-start gap-2 ml-[-1.5em]" : ""}`}
                   {...props}
-                  href={safeHref}
-                  className="text-blue-400 underline transition-colors duration-200 hover:text-blue-600"
-                  target={safeHref.startsWith("http") ? "_blank" : undefined}
-                  rel={safeHref.startsWith("http") ? "noopener noreferrer" : undefined}
                 >
                   {children}
-                </a>
+                </li>
               );
             },
-            pre: ({ children, ...props }) => (
-              <pre
-                className="my-2 overflow-hidden rounded-lg border border-gray-600 bg-gray-800 p-3"
-                {...props}
-              >
-                {children}
-              </pre>
-            ),
-            code: ({ className, children, ...props }) => {
-              const isInline = !className;
-              if (isInline) {
+
+            // 處理 GFM 任務清單的 checkbox 樣式 (融合 Discord 風格)
+            input: ({ type, className, ...props }) => {
+              if (type === "checkbox") {
                 return (
-                  <code
-                    className="rounded bg-gray-700 px-1.5 py-0.5 font-mono text-gray-200 text-sm"
+                  <input
+                    type="checkbox"
+                    className="mt-1.5 h-4 w-4 shrink-0 rounded border-white/20 bg-black/20 text-blue-500 focus:ring-blue-500 focus:ring-offset-transparent"
                     {...props}
-                  >
-                    {children}
-                  </code>
+                  />
                 );
               }
-              return (
-                <code className={`${className} font-mono text-gray-200 text-sm`} {...props}>
-                  {children}
-                </code>
-              );
+              return <input type={type} className={className} {...props} />;
             },
+
+            // =============== 專為 bg-[#2b2d31] 打造的絕佳表格樣式 ===============
             table: ({ children, ...props }) => (
-              <div className="my-2 overflow-hidden">
-                <table className="min-w-full border border-gray-600 bg-gray-800" {...props}>
+              <div className="not-prose my-6 w-full overflow-x-auto rounded-lg border border-white/10 bg-black/10 shadow-sm">
+                <table
+                  className="w-full min-w-[500px] border-collapse text-sm text-gray-300"
+                  {...props}
+                >
                   {children}
                 </table>
               </div>
             ),
+            thead: ({ children, ...props }) => (
+              <thead className="bg-black/20 text-gray-200" {...props}>
+                {children}
+              </thead>
+            ),
+            tbody: ({ children, ...props }) => (
+              <tbody className="divide-y divide-white/5" {...props}>
+                {children}
+              </tbody>
+            ),
+            tr: ({ children, ...props }) => (
+              <tr className="transition-colors hover:bg-white/[0.03]" {...props}>
+                {children}
+              </tr>
+            ),
             th: ({ children, ...props }) => (
-              <th
-                className="border border-gray-600 bg-gray-700 px-3 py-1.5 font-semibold"
-                {...props}
-              >
+              <th className="px-4 py-3 text-left font-semibold tracking-wide" {...props}>
                 {children}
               </th>
             ),
             td: ({ children, ...props }) => (
-              <td className="border border-gray-600 px-3 py-1.5" {...props}>
+              <td className="px-4 py-3 align-top leading-relaxed" {...props}>
                 {children}
               </td>
-            ),
-            blockquote: ({ children, ...props }) => (
-              <blockquote
-                className="my-2 border-gray-400 border-l-4 py-0.5 pl-3 text-gray-300"
-                {...props}
-              >
-                {children}
-              </blockquote>
-            ),
-            strong: ({ children, ...props }) => (
-              <strong className="font-bold text-white" {...props}>
-                {children}
-              </strong>
             ),
           }}
         >

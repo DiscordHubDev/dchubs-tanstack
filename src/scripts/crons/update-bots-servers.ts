@@ -5,7 +5,7 @@ import { client, db } from "#/drizzle/db";
 import { bot } from "#/drizzle/schema";
 
 const BOT_PROCESS_DELAY_MS = 3000;
-const PROCESS_LIMIT = 15; // 每次排程只處理 15 筆 (預估花費 45 秒)
+const PROCESS_LIMIT = 15;
 
 class BotUpdateError extends Data.TaggedError("BotUpdateError")<{
   readonly botId: string;
