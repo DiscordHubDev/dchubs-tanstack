@@ -141,6 +141,13 @@
       "when": 1782829019228,
       "tag": "0019_mushy_red_shift",
       "breakpoints": true
+    },
+    {
+      "idx": 20,
+      "version": "7",
+      "when": 1783352201674,
+      "tag": "0020_bright_firebird",
+      "breakpoints": true
     }
   ]
 }

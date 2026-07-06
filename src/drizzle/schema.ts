@@ -171,6 +171,9 @@ export const bot = pgTable(
     createdAt: timestamp({ precision: 3, mode: "string" })
       .default(sql`CURRENT_TIMESTAMP`)
       .notNull(),
+    updatedAt: timestamp({ precision: 3, mode: "string" })
+      .default(sql`CURRENT_TIMESTAMP`)
+      .notNull(),
     approvedAt: timestamp({ precision: 3, mode: "string" }),
     prefix: text(),
     website: text(),
