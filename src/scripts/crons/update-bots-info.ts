@@ -12,11 +12,18 @@ const FETCH_CONCURRENCY = 5;
 
 type BotRow = Pick<
   typeof bot.$inferSelect,
-  "id" | "name" | "icon" | "banner" | "verified" | "isAdmin"
+  | "id"
+  | "name"
+  | "icon"
+  | "banner"
+  | "verified"
+  | "isAdmin"
+  | "termsOfServiceUrl"
+  | "privacyPolicyUrl"
 >;
 type BotInfoUpdateSet = Pick<
   Partial<typeof bot.$inferInsert>,
-  "name" | "icon" | "banner" | "verified" | "isAdmin"
+  "name" | "icon" | "banner" | "verified" | "isAdmin" | "termsOfServiceUrl" | "privacyPolicyUrl"
 >;
 type PendingUpdate<T> = { id: string; data: T };
 
@@ -56,6 +63,8 @@ const fetchUpdatedBotInfoEffect = (botId: string) =>
       banner_url: memberData?.bannerUrl ?? null,
       verified: rpcData.is_verified ?? false,
       isAdmin: hasAdminPermission(rpcData.install_params?.permissions ?? 0),
+      termsOfServiceUrl: rpcData.terms_of_service_url ?? null,
+      privacyPolicyUrl: rpcData.privacy_policy_url ?? null,
     });
   }).pipe(
     Effect.catchAll((error) => {
@@ -73,6 +82,8 @@ const fetchUpdatedBotInfoEffect = (botId: string) =>
           banner_url: string | null;
           verified: boolean;
           isAdmin: boolean;
+          termsOfServiceUrl: string | null;
+          privacyPolicyUrl: string | null;
         }>(),
       );
     }),
@@ -110,6 +121,8 @@ const updateBotBasicInfoProgram = Effect.gen(function* () {
       banner: bot.banner,
       verified: bot.verified,
       isAdmin: bot.isAdmin,
+      termsOfServiceUrl: bot.termsOfServiceUrl,
+      privacyPolicyUrl: bot.privacyPolicyUrl,
     })
     .from(bot)
     .where(eq(bot.status, "approved"));
@@ -144,6 +157,8 @@ const updateBotBasicInfoProgram = Effect.gen(function* () {
           banner: infoOpt.value.banner_url ?? current.banner,
           verified: infoOpt.value.verified,
           isAdmin: infoOpt.value.isAdmin,
+          termsOfServiceUrl: infoOpt.value.termsOfServiceUrl ?? current.termsOfServiceUrl,
+          privacyPolicyUrl: infoOpt.value.privacyPolicyUrl ?? current.privacyPolicyUrl,
         };
         pendingUpdates.push({ id: current.id, data });
       } else {

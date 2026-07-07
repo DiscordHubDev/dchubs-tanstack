@@ -148,6 +148,13 @@
       "when": 1783352201674,
       "tag": "0020_bright_firebird",
       "breakpoints": true
+    },
+    {
+      "idx": 21,
+      "version": "7",
+      "when": 1783414894209,
+      "tag": "0021_slippery_zemo",
+      "breakpoints": true
     }
   ]
 }

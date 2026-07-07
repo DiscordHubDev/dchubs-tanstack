@@ -193,6 +193,8 @@ export const bot = pgTable(
     pinExpiry: timestamp({ precision: 3, mode: "string" }),
     nsfw: boolean().default(false).notNull(),
     customEmbed: jsonb("custom_field").$type<CustomEmbedData>(),
+    termsOfServiceUrl: text("terms_of_service_url"),
+    privacyPolicyUrl: text("privacy_policy_url"),
   },
   (table) => [
     index("Bot_approvedAt_idx").using(
