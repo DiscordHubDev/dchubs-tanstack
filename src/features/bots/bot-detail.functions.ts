@@ -36,6 +36,10 @@ export const reportBotFn = createServerFn({ method: "POST" })
   .handler(async ({ data, context }) => {
     return reportBotById({
       ...data,
+      user: {
+        name: context.user.name,
+        username: context.user.username,
+      },
       userId: context.user.discordId,
     });
   });

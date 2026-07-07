@@ -16,12 +16,15 @@ import {
   Flag,
   Globe,
   Heart,
+  ImagePlus,
+  Loader2,
   ShieldCheck,
   Star,
   Terminal,
   Users,
+  X,
 } from "lucide-react";
-import { memo, useCallback, useMemo, useState } from "react";
+import { memo, useCallback, useMemo, useRef, useState } from "react";
 import { FaCheck, FaDiscord } from "react-icons/fa6";
 import { toast } from "react-toastify";
 import LoadingPage from "#/components/loading";
@@ -237,7 +240,25 @@ function setFeedbackMessage(message: string) {
   toast.success(message);
 }
 
-// 將檢舉表單獨立抽離為 Memo 元件，避免在輸入打字時造成整個 BotDetailPage（包含 MarkdownRenderer）重新渲染
+const REPORT_REASONS = [
+  { id: "spam", label: "垃圾訊息" },
+  { id: "inappropriate", label: "不當內容" },
+  { id: "scam", label: "詐騙 / 惡意行為" },
+  { id: "impersonation", label: "冒充他人" },
+  { id: "copyright", label: "侵權 / 抄襲" },
+  { id: "invite_expired", label: "邀請連結已過期" },
+  { id: "other", label: "其他" },
+] as const;
+
+const MAX_IMAGES = 4;
+const MAX_FILE_SIZE = 2 * 1024 * 1024;
+
+type PendingImage = {
+  id: string;
+  file: File;
+  previewUrl: string;
+};
+
 const ReportBotForm = memo(
   ({
     botId,
@@ -252,13 +273,85 @@ const ReportBotForm = memo(
     onSignIn: () => void;
     onCancel: () => void;
   }) => {
+    const [selectedReasons, setSelectedReasons] = useState<string[]>([]);
     const [subject, setSubject] = useState("");
     const [content, setContent] = useState("");
+    const [images, setImages] = useState<PendingImage[]>([]);
+    const [imageError, setImageError] = useState<string | null>(null);
+    const fileInputRef = useRef<HTMLInputElement>(null);
+
+    const toggleReason = (id: string) => {
+      setSelectedReasons((prev) =>
+        prev.includes(id) ? prev.filter((r) => r !== id) : [...prev, id],
+      );
+    };
+
+    const reasonLabels = (ids: string[]) =>
+      REPORT_REASONS.filter((r) => ids.includes(r.id)).map((r) => r.label);
+
+    const handleFiles = useCallback(
+      (files: FileList | null) => {
+        if (!files) return;
+        setImageError(null);
+
+        const incoming = Array.from(files);
+        const remainingSlots = MAX_IMAGES - images.length;
+
+        if (incoming.length > remainingSlots) {
+          setImageError(`最多只能上傳 ${MAX_IMAGES} 張圖片`);
+        }
+
+        const accepted: PendingImage[] = [];
+        for (const file of incoming.slice(0, remainingSlots)) {
+          if (!file.type.startsWith("image/")) {
+            setImageError("僅支援圖片檔案");
+            continue;
+          }
+          if (file.size > MAX_FILE_SIZE) {
+            setImageError("圖片大小不可超過 2MB");
+            continue;
+          }
+          accepted.push({
+            id: crypto.randomUUID(),
+            file,
+            previewUrl: URL.createObjectURL(file),
+          });
+        }
+
+        if (accepted.length > 0) {
+          setImages((prev) => [...prev, ...accepted]);
+        }
+      },
+      [images.length],
+    );
+
+    const removeImage = (id: string) => {
+      setImages((prev) => {
+        const target = prev.find((img) => img.id === id);
+        if (target) URL.revokeObjectURL(target.previewUrl);
+        return prev.filter((img) => img.id !== id);
+      });
+    };
+
+    const fileToBase64 = (file: File): Promise<string> =>
+      new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = () => reject(new Error("圖片讀取失敗"));
+        reader.readAsDataURL(file);
+      });
 
     const reportMutation = useMutation({
       meta: { suppressErrorAlert: true },
-      mutationFn: (payload: { subject: string; content: string }) =>
-        runEffect(
+      mutationFn: async (payload: { subject: string; content: string; reasons: string[] }) => {
+        const attachments = await Promise.all(
+          images.map(async (img) => ({
+            dataUrl: await fileToBase64(img.file),
+            fileName: img.file.name,
+          })),
+        );
+
+        return runEffect(
           tryEffectPromise("Failed to submit report", () =>
             reportBotFn({
               data: {
@@ -266,10 +359,13 @@ const ReportBotForm = memo(
                 itemName,
                 subject: payload.subject,
                 content: payload.content,
+                reasons: payload.reasons,
+                attachments,
               },
             }),
           ),
-        ),
+        );
+      },
       onError: (error) => {
         showErrorAlert(error, "檢舉失敗");
       },
@@ -277,6 +373,9 @@ const ReportBotForm = memo(
         setFeedbackMessage(result.message);
         setSubject("");
         setContent("");
+        setSelectedReasons([]);
+        images.forEach((img) => URL.revokeObjectURL(img.previewUrl));
+        setImages([]);
         onCancel();
       },
     });
@@ -287,26 +386,61 @@ const ReportBotForm = memo(
         onSignIn();
         return;
       }
+
+      const finalSubject = subject.trim() || reasonLabels(selectedReasons).join("、") || "檢舉";
+
       reportMutation.mutate({
-        subject: subject.trim(),
+        subject: finalSubject,
         content: content.trim(),
+        reasons: reasonLabels(selectedReasons),
       });
     };
 
     return (
       <form
         onSubmit={handleSubmit}
-        className="mb-6 rounded-xl border border-white/10 bg-[#2b2d31] p-4"
+        className="mb-6 overflow-hidden rounded-xl border border-white/10 bg-[#2b2d31] shadow-lg"
       >
-        <div className="mb-3 text-gray-300 text-sm">提交機器人檢舉</div>
-        <div className="grid gap-3">
+        {/* Header */}
+        <div className="flex items-center gap-2 border-b border-white/10 bg-white/[0.03] px-4 py-3">
+          <AlertTriangle className="h-4 w-4 text-red-400" />
+          <span className="text-sm font-medium text-gray-200">提交機器人檢舉</span>
+        </div>
+
+        <div className="grid gap-4 p-4">
+          {/* 預設原因 */}
+          <div>
+            <div className="mb-2 text-xs font-medium text-gray-400">檢舉原因（可複選）</div>
+            <div className="flex flex-wrap gap-2">
+              {REPORT_REASONS.map((reason) => {
+                const active = selectedReasons.includes(reason.id);
+                return (
+                  <button
+                    key={reason.id}
+                    type="button"
+                    onClick={() => toggleReason(reason.id)}
+                    className={`rounded-full border px-3 py-1 text-xs transition-colors ${
+                      active
+                        ? "border-red-400/50 bg-red-400/10 text-red-300"
+                        : "border-white/10 bg-white/5 text-gray-400 hover:border-white/20 hover:text-gray-200"
+                    }`}
+                  >
+                    {reason.label}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* 主旨 */}
           <Input
             value={subject}
             onChange={(event) => setSubject(event.target.value)}
-            placeholder="檢舉主旨"
-            required
+            placeholder="檢舉主旨（選填，預設帶入所選原因）"
             maxLength={120}
           />
+
+          {/* 詳細內容 */}
           <Textarea
             value={content}
             onChange={(event) => setContent(event.target.value)}
@@ -315,11 +449,75 @@ const ReportBotForm = memo(
             maxLength={2000}
             className="min-h-28"
           />
-          <div className="flex justify-end gap-2">
+
+          {/* 圖片上傳 */}
+          <div>
+            <div className="mb-2 flex items-center justify-between text-xs font-medium text-gray-400">
+              <span>附加圖片（選填，最多 {MAX_IMAGES} 張）</span>
+              <span>
+                {images.length}/{MAX_IMAGES}
+              </span>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              {images.map((img) => (
+                <div
+                  key={img.id}
+                  className="group relative h-16 w-16 overflow-hidden rounded-lg border border-white/10"
+                >
+                  <img
+                    src={img.previewUrl}
+                    alt="附加圖片預覽"
+                    className="h-full w-full object-cover"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => removeImage(img.id)}
+                    className="absolute right-0.5 top-0.5 rounded-full bg-black/70 p-0.5 opacity-0 transition-opacity group-hover:opacity-100"
+                  >
+                    <X className="h-3 w-3 text-white" />
+                  </button>
+                </div>
+              ))}
+
+              {images.length < MAX_IMAGES && (
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="flex h-16 w-16 flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-white/15 text-gray-500 transition-colors hover:border-white/30 hover:text-gray-300"
+                >
+                  <ImagePlus className="h-4 w-4" />
+                  <span className="text-[10px]">上傳</span>
+                </button>
+              )}
+            </div>
+
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/*"
+              multiple
+              className="hidden"
+              onChange={(event) => {
+                handleFiles(event.target.files);
+                event.target.value = "";
+              }}
+            />
+
+            {imageError && <p className="mt-1.5 text-xs text-red-400">{imageError}</p>}
+          </div>
+
+          {/* 按鈕 */}
+          <div className="flex justify-end gap-2 pt-1">
             <Button type="button" variant="ghost" onClick={onCancel}>
               取消
             </Button>
-            <Button type="submit" disabled={reportMutation.isPending}>
+            <Button
+              type="submit"
+              disabled={reportMutation.isPending}
+              className="bg-discord hover:bg-discord-hover text-white"
+            >
+              {reportMutation.isPending && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
               送出檢舉
             </Button>
           </div>
@@ -705,34 +903,38 @@ function BotDetailPage() {
             邀請機器人
           </Button>
 
-          <Button
-            onClick={handleFavoriteClick}
-            disabled={favoriteMutation.isPending}
-            className={cn(
-              "flex transform cursor-pointer items-center gap-2 rounded-md px-6 py-5 font-medium text-sm",
-              "transition-all duration-150 hover:scale-105 text-white disabled:cursor-not-allowed",
-              detail.isFavorite
-                ? "bg-rose-500 hover:bg-rose-600"
-                : "bg-indigo-500 hover:bg-indigo-600",
-            )}
-          >
-            <Heart
-              size={18}
-              className={`h-4 w-4 transition-colors duration-150 ${
-                detail.isFavorite ? "fill-white stroke-white" : "stroke-white"
-              }`}
-            />
-            {detail.isFavorite ? "已收藏" : "收藏"}
-          </Button>
-
-          <Button
-            onClick={() => setIsReportOpen((prev) => !prev)}
-            size="lg"
-            className="flex w-full transform cursor-pointer items-center gap-2 bg-red-600 text-white transition-all duration-150 hover:scale-105 hover:bg-red-700 focus-visible:ring-2 focus-visible:ring-red-400 md:w-auto"
-          >
-            <Flag className="h-4 w-4" />
-            檢舉
-          </Button>
+          {session ? (
+            <>
+              {" "}
+              <Button
+                onClick={handleFavoriteClick}
+                disabled={favoriteMutation.isPending}
+                className={cn(
+                  "flex transform cursor-pointer items-center gap-2 rounded-md px-6 py-5 font-medium text-sm",
+                  "transition-all duration-150 hover:scale-105 text-white disabled:cursor-not-allowed",
+                  detail.isFavorite
+                    ? "bg-rose-500 hover:bg-rose-600"
+                    : "bg-indigo-500 hover:bg-indigo-600",
+                )}
+              >
+                <Heart
+                  size={18}
+                  className={`h-4 w-4 transition-colors duration-150 ${
+                    detail.isFavorite ? "fill-white stroke-white" : "stroke-white"
+                  }`}
+                />
+                {detail.isFavorite ? "已收藏" : "收藏"}
+              </Button>
+              <Button
+                onClick={() => setIsReportOpen((prev) => !prev)}
+                size="lg"
+                className="flex w-full transform cursor-pointer items-center gap-2 bg-red-600 text-white transition-all duration-150 hover:scale-105 hover:bg-red-700 focus-visible:ring-2 focus-visible:ring-red-400 md:w-auto"
+              >
+                <Flag className="h-4 w-4" />
+                檢舉
+              </Button>
+            </>
+          ) : null}
         </div>
 
         {isReportOpen ? (

@@ -61,9 +61,27 @@ export const ServerSchema = Schema.Struct({
   }),
 });
 
+export const ReportSchema = Schema.Struct({
+  _tag: Schema.Literal("report"),
+  data: Schema.Struct({
+    reportId: Schema.String,
+    itemId: Schema.String,
+    itemName: Schema.String,
+    reasons: Schema.Array(Schema.String),
+    attachments: Schema.Array(Schema.String),
+    targetType: Schema.String,
+    reportBy: Schema.Struct({
+      id: Schema.String,
+      name: Schema.Union(Schema.String, Schema.Null, Schema.Undefined),
+      username: Schema.Union(Schema.String),
+    }),
+  }),
+});
+
 export const WebhookPayloadSchema = Schema.Union(
   VoteSchema,
   ApprovedBotSchema,
   PendingBotSchema,
   ServerSchema,
+  ReportSchema,
 );

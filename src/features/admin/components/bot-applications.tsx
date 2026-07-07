@@ -22,8 +22,8 @@ import { useBotApplications } from "#/hooks/use-bot-applications";
 import { useDialog } from "#/hooks/use-dialog";
 import { showErrorAlert } from "#/lib/error-alert";
 import type { Bot as BotType } from "@/types/admin";
-import { sendNotification } from "../admin.functions";
 import RejectBotDialog from "./reject-bot-dialog";
+import { SendNotificationFn } from "../admin.functions";
 
 // ── Constants ──────────────────────────────────────────────
 
@@ -370,12 +370,14 @@ export default function BotApplications({ applications }: { applications: readon
 
       void Promise.all(
         app.developers.map((dev) =>
-          sendNotification({
-            subject: "您的機器人申請未通過 ❌",
-            teaser: `${app.name} 的申請未被接受`,
-            content: `您好，機器人「${app.name}」未通過審核。\n\n拒絕原因：${reason}`,
-            priority: "warning",
-            userIds: [dev.id],
+          SendNotificationFn({
+            data: {
+              subject: "您的機器人申請未通過 ❌",
+              teaser: `${app.name} 的申請未被接受`,
+              content: `您好，機器人「${app.name}」未通過審核。\n\n拒絕原因：${reason}`,
+              priority: "warning",
+              userIds: [dev.id],
+            },
           }),
         ),
       ).catch(() => {});

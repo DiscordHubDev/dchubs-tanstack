@@ -22,6 +22,13 @@ export const BotReportInputSchema = Schema.Struct({
   itemName: NonEmptyString,
   subject: NonEmptyString.pipe(Schema.maxLength(120)),
   content: NonEmptyString.pipe(Schema.maxLength(2000)),
+  reasons: Schema.Array(Schema.String), // 新增
+  attachments: Schema.Array(
+    Schema.Struct({
+      dataUrl: Schema.String,
+      fileName: Schema.String,
+    }),
+  ),
 });
 
 export const BotDetailSearchSchema = Schema.Struct({

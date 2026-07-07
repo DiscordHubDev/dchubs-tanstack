@@ -35,12 +35,29 @@ export function useReportInbox({ initial, onError }: UseReportInboxOptions) {
 
   const changeStatus = useCallback(
     async (reportId: string, status: ReportStatus) => {
+      // 紀錄舊狀態以供失敗時回滾
+      let oldStatus: ReportStatus | undefined;
+
+      // 1. 樂觀更新 (Optimistic Update)
+      setReports((prev) => {
+        const target = prev.find((r) => r.id === reportId);
+        if (target) oldStatus = target.status;
+        return prev.map((r) => (r.id === reportId ? { ...r, status } : r));
+      });
+
+      // 2. 發送請求
       const result = await updateReportFn({ data: { reportId, status } });
+
+      // 3. 處理失敗 (Rollback)
       if (!result.success) {
+        if (oldStatus) {
+          setReports((prev) =>
+            prev.map((r) => (r.id === reportId ? { ...r, status: oldStatus! } : r)),
+          );
+        }
         onError?.(result.error ?? "更新狀態失敗");
         return false;
       }
-      setReports((prev) => prev.map((r) => (r.id === reportId ? { ...r, status } : r)));
       return true;
     },
     [onError],
@@ -48,18 +65,40 @@ export function useReportInbox({ initial, onError }: UseReportInboxOptions) {
 
   const changeSeverity = useCallback(
     async (reportId: string, severity: ReportSeverity) => {
+      // 紀錄舊狀態以供失敗時回滾
+      let oldSeverity: ReportSeverity | undefined;
+
+      // 1. 樂觀更新 (Optimistic Update)
+      setReports((prev) => {
+        const target = prev.find((r) => r.id === reportId);
+        if (target) oldSeverity = target.severity;
+        return prev.map((r) => (r.id === reportId ? { ...r, severity } : r));
+      });
+
+      // 2. 發送請求
       const result = await updateReportFn({ data: { reportId, severity } });
+
+      // 3. 處理失敗 (Rollback)
       if (!result.success) {
+        if (oldSeverity) {
+          setReports((prev) =>
+            prev.map((r) => (r.id === reportId ? { ...r, severity: oldSeverity! } : r)),
+          );
+        }
         onError?.(result.error ?? "更新嚴重程度失敗");
         return false;
       }
-      setReports((prev) => prev.map((r) => (r.id === reportId ? { ...r, severity } : r)));
       return true;
     },
     [onError],
   );
 
+  const updateLocalStatus = useCallback((reportId: string, newStatus: ReportStatus) => {
+    setReports((prev) => prev.map((r) => (r.id === reportId ? { ...r, status: newStatus } : r)));
+  }, []);
+
   return {
+    reports, // 導出完整的 reports，以便在彈窗中獲取最新狀態
     filtered,
     pendingCount,
     search,
@@ -70,5 +109,6 @@ export function useReportInbox({ initial, onError }: UseReportInboxOptions) {
     setSeverityFilter,
     changeStatus,
     changeSeverity,
+    updateLocalStatus,
   } as const;
 }

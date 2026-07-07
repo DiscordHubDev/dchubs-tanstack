@@ -11,7 +11,6 @@ import { adminMiddleware } from "#/lib/auth-middleware";
 import {
   type ActionResult,
   effectInputValidator,
-  fetchJsonEffect,
   fromDrizzle,
   runEffect,
   toResult,
@@ -28,151 +27,8 @@ import {
   UpdateReportSchema,
 } from "./admin.schemas";
 import { fetchAndUpdateServerCount } from "./admin.server";
-
-export interface SendNotificationParams {
-  subject: string;
-  teaser?: string;
-  content: string;
-  priority?: "info" | "warning" | "error" | "success";
-  userIds: string[];
-  label?: string; // 新增可選參數，允許前端指定通知標籤
-}
-
-const DISCORD_BOT_TOKEN = process.env.DISCORD_BOT_TOKEN;
-
-/**
- * 步驟一：透過 User ID 獲取或建立 DM Channel ID
- */
-async function getDmChannelId(userId: string): Promise<string> {
-  try {
-    // 直接取得 JSON 格式並轉型
-    const data = (await runEffect(
-      fetchJsonEffect("https://discord.com/api/v10/users/@me/channels", {
-        method: "POST",
-        headers: {
-          Authorization: `Bot ${DISCORD_BOT_TOKEN}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({ recipient_id: userId }),
-      }),
-    )) as { id: string };
-
-    return data.id;
-  } catch (error) {
-    // 捕捉 fetchJsonEffect 拋出的錯誤並加上上下文
-    const errorMessage = error instanceof Error ? error.message : String(error);
-    throw new Error(`無法為用戶 ${userId} 建立私訊通道: ${errorMessage}`, { cause: error });
-  }
-}
-
-/**
- * 主函式：發送私訊通知
- */
-export async function sendNotification({
-  subject,
-  teaser,
-  content,
-  priority = "info",
-  userIds = [],
-  label, // 新增可選參數
-}: SendNotificationParams) {
-  if (!DISCORD_BOT_TOKEN) {
-    throw new Error("Missing DISCORD_BOT_TOKEN environment variable");
-  }
-
-  if (userIds.length === 0) {
-    return { success: true, message: "No users provided" };
-  }
-
-  // 定義各個層級的預設 Meta 資料
-  const priorityMeta = {
-    info: { color: 3447003, emoji: "ℹ️", defaultLabel: "系統資訊 (Info)" },
-    warning: {
-      color: 15105570,
-      emoji: "⚠️",
-      defaultLabel: "警告通知 (Warning)",
-    },
-    error: { color: 15158332, emoji: "🚨", defaultLabel: "錯誤警報 (Error)" },
-    success: {
-      color: 3066993,
-      emoji: "✅",
-      defaultLabel: "成功通知 (Success)",
-    },
-  };
-
-  const meta = priorityMeta[priority] || priorityMeta.info;
-
-  // 決定最終要顯示的 label：有傳入就用傳入的，沒有就用預設的
-  const displayLabel = label || meta.defaultLabel;
-
-  // 優化內文排版：使用引言區塊 (Blockquote) 來凸顯 teaser
-  let formattedDescription = "";
-  if (teaser) {
-    formattedDescription += `> **${teaser}**\n\n`;
-  }
-  formattedDescription += content;
-
-  const payload = {
-    embeds: [
-      {
-        // Author 區塊，顯示自訂或預設標籤
-        author: {
-          name: displayLabel,
-        },
-        title: `${meta.emoji} ${subject}`,
-        description: formattedDescription,
-        color: meta.color,
-        footer: {
-          text: "系統通知 - Powered by DcHubs",
-          icon_url: "https://dchubs.org/icon.png",
-        },
-        timestamp: new Date().toISOString(),
-      },
-    ],
-  };
-
-  const tasks = userIds.map(async (userId) => {
-    const dmChannelId = await getDmChannelId(userId);
-
-    try {
-      await runEffect(
-        fetchJsonEffect(`https://discord.com/api/v10/channels/${dmChannelId}/messages`, {
-          method: "POST",
-          headers: {
-            Authorization: `Bot ${DISCORD_BOT_TOKEN}`,
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify(payload),
-        }),
-      );
-
-      return userId;
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error);
-      throw new Error(`無法發送私訊給用戶 ${userId}: ${errorMessage}`, { cause: error });
-    }
-  });
-
-  const results = await Promise.allSettled(tasks);
-
-  const failures = results.filter((r) => r.status === "rejected") as PromiseRejectedResult[];
-
-  if (failures.length > 0) {
-    // biome-ignore lint/suspicious/useIterableCallbackReturn: 只需要 log 失敗
-    failures.forEach((f) => console.error("Discord DM Error:", f.reason));
-    if (failures.length === userIds.length) {
-      throw new Error("All Discord DM notification requests failed.", {
-        cause: new Error("Multiple failures occurred"),
-      });
-    }
-  }
-
-  return {
-    success: true,
-    totalSent: userIds.length - failures.length,
-    failedCount: failures.length,
-  };
-}
+import { sendNotificationEffect } from "../notifications/notifications.server";
+import { SendNotificationSchema } from "../notifications/notifications.schemas";
 
 export const updateBotServerCountBackgroundFn = createServerFn({
   method: "POST",
@@ -271,14 +127,16 @@ export const reviewBotFn = createServerFn({ method: "POST" })
       const devIds = developersList.map((d) => d.b);
 
       // A. 發送私訊通知 (使用 external function)
-      sendNotification({
-        subject: "您的機器人申請已通過 ✅",
-        teaser: `${app.name} 已通過審核`,
-        content: `您好！機器人「${app.name}」已核准上架，感謝您的耐心等待。`,
-        priority: "success",
-        label: "機器人審核通知",
-        userIds: devIds,
-      }).catch((e) => console.error(`[Discord 私訊通知失敗] BotID: ${app.id}, Error:`, e));
+      await SendNotificationFn({
+        data: {
+          subject: "您的機器人申請已通過 ✅",
+          teaser: `${app.name} 已通過審核`,
+          content: `您好！機器人「${app.name}」已核准上架，感謝您的耐心等待。`,
+          priority: "success",
+          label: "機器人審核通知",
+          userIds: devIds,
+        },
+      });
 
       sendDiscordWebhookFn({
         data: {
@@ -455,14 +313,16 @@ export const rejectBotServerFn = createServerFn({ method: "POST" })
     // 3. 觸發外部通知 (Non-blocking)
     const { botName, developerIds } = transactionResult;
 
-    sendNotification({
-      label: "機器人審核通知",
-      subject: `機器人申請已被拒絕： ${botName}`,
-      teaser: `您的機器人 "${botName}" 申請已被拒絕。`,
-      content: `拒絕原因：${reason}`,
-      priority: "error",
-      userIds: developerIds,
-    }).catch((e) => console.error("Failed to send rejection DMs:", e));
+    await SendNotificationFn({
+      data: {
+        label: "機器人審核通知",
+        subject: `機器人申請已被拒絕： ${botName}`,
+        teaser: `您的機器人 "${botName}" 申請已被拒絕。`,
+        content: `拒絕原因：${reason}`,
+        priority: "error",
+        userIds: developerIds,
+      },
+    });
 
     return { success: true };
   });
@@ -473,34 +333,42 @@ export const resolveReportServerFn = createServerFn({ method: "POST" })
     (data: { reportId: string; status: ReportStatus; resolutionNote: string }) => data,
   )
   .handler(async ({ data, context }) => {
-    const { reportId, status, resolutionNote } = data;
-    const handledById = context.user?.discordId;
+    try {
+      const { reportId, status, resolutionNote } = data;
+      const handledById = context.user?.discordId;
 
-    // 安全防護：確保管理者 ID 存在
-    if (!handledById) {
-      throw new Error("未授權的操作或讀取不到 Discord ID");
+      // 安全防護：確保管理者 ID 存在
+      if (!handledById) {
+        return { success: false, error: "未授權的操作或讀取不到 Discord ID" };
+      }
+
+      const [updated] = await db
+        .update(report)
+        .set({
+          status,
+          resolutionNote,
+          handledById,
+          handledAt: new Date().toISOString(),
+        })
+        .where(eq(report.id, reportId))
+        .returning();
+
+      if (!updated) {
+        return { success: false, error: "找不到該筆檢舉報告 (ReportNotFound)" };
+      }
+
+      return {
+        success: true,
+        ...updated,
+        attachments: updated.attachments as string[],
+        error: null,
+      };
+    } catch (e) {
+      return {
+        success: false,
+        error: e instanceof Error ? e.message : "伺服器發生未知錯誤",
+      };
     }
-
-    const [updated] = await db
-      .update(report)
-      .set({
-        status,
-        resolutionNote,
-        handledById,
-        handledAt: new Date().toISOString(),
-      })
-      .where(eq(report.id, reportId))
-      .returning();
-
-    // 核心修正：防止查無資料時，updated 為 undefined 導致程式崩潰
-    if (!updated) {
-      throw new Error("ReportNotFound");
-    }
-
-    return {
-      ...updated,
-      attachments: updated.attachments as string[],
-    };
   });
 
 // User Management Functions
@@ -622,4 +490,12 @@ export const toggleUserBanFn = createServerFn({ method: "POST" })
       console.error("[Admin Ban Toggle Error]:", error);
       throw new Error(error.message);
     });
+  });
+
+export const SendNotificationFn = createServerFn({ method: "POST" })
+  .middleware([adminMiddleware])
+  .inputValidator(effectInputValidator(SendNotificationSchema))
+  .handler(async ({ data }) => {
+    await runEffect(sendNotificationEffect(data));
+    return { success: true };
   });

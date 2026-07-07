@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useCallback, useState, useTransition } from "react";
+import { memo, useCallback, useState } from "react"; // [修改] 移除 useTransition
 import { toast } from "react-toastify";
 import { Button } from "#/components/ui/button";
 import {
@@ -12,8 +12,8 @@ import {
   DialogTitle,
 } from "#/components/ui/dialog";
 import { Textarea } from "#/components/ui/textarea";
-import type { Report } from "@/types/admin";
-import { resolveReportServerFn, sendNotification } from "../admin.functions";
+import type { Report, ReportStatus } from "@/types/admin";
+import { resolveReportServerFn, SendNotificationFn } from "../admin.functions";
 
 // --- 獨立的純函式 ---
 function getReviewResultMessage(isResolved: boolean): string {
@@ -28,38 +28,46 @@ function useResolveAction(
   status: "resolved" | "rejected" | "pending",
   onSuccess: () => void,
 ) {
-  const [isPending, startTransition] = useTransition();
+  // [修改] 使用 useState 來明確控制表單送出的載入狀態
+  const [isPending, setIsPending] = useState(false);
 
   const submitResolution = useCallback(
-    (note: string) => {
-      startTransition(async () => {
-        try {
-          const isResolved = status === "resolved";
+    async (note: string) => {
+      setIsPending(true);
+      try {
+        const isResolved = status === "resolved";
+        const notificationContent = `我們審查了您於 ${report.reportedAt} 提出的檢舉。\n\n檢舉標題為：${report.subject}\n檢舉內容為：${report.content}\n\n審查結果：${getReviewResultMessage(isResolved)}`;
 
-          const notificationContent = `我們審查了您於 ${report.reportedAt} 提出的檢舉。\n\n檢舉標題為：${report.subject}\n檢舉內容為：${report.content}\n\n審查結果：${getReviewResultMessage(isResolved)}`;
+        const result = await resolveReportServerFn({
+          data: {
+            reportId: report.id,
+            status,
+            resolutionNote: note,
+          },
+        });
 
-          await resolveReportServerFn({
-            data: {
-              reportId: report.id,
-              status,
-              resolutionNote: note,
-            },
-          });
-
-          await sendNotification({
-            subject: "您的檢舉已處理完畢",
-            teaser: "我們審查了您的檢舉...",
-            content: notificationContent,
-            priority: isResolved ? "success" : "warning",
-            userIds: [report.reportedBy.id],
-          });
-
-          onSuccess();
-        } catch (error) {
-          toast.error("處理檢舉時發生錯誤，請稍後再試");
-          console.error("Failed to resolve report:", error);
+        // [重要修改] 如果您的 Server Action 失敗是回傳 `{ success: false }`，需要手動攔截並中斷
+        if (result && result.success === false) {
+          toast.error(result.error ?? "處理檢舉失敗");
+          return;
         }
-      });
+
+        await SendNotificationFn({
+          data: {
+            subject: "您的檢舉已處理完畢",
+            content: notificationContent,
+            priority: isResolved ? "success" : "error",
+            userIds: [report.reportedBy.id],
+          },
+        });
+
+        onSuccess();
+      } catch (error) {
+        toast.error("處理檢舉時發生錯誤，請稍後再試");
+        console.error("Failed to resolve report:", error);
+      } finally {
+        setIsPending(false); // [修改] 結束載入狀態
+      }
     },
     [report, status, onSuccess],
   );
@@ -73,6 +81,7 @@ type Props = {
   onOpenChange: (open: boolean) => void;
   report: Report;
   status: "resolved" | "rejected" | "pending";
+  onSuccessUpdate?: (reportId: string, newStatus: ReportStatus) => void;
 };
 
 // --- UI 組件 ---
@@ -81,6 +90,7 @@ export const ResolveDialog = memo(function ResolveDialog({
   onOpenChange,
   report,
   status,
+  onSuccessUpdate,
 }: Props) {
   const [note, setNote] = useState("");
   const isResolved = status === "resolved";
@@ -88,7 +98,10 @@ export const ResolveDialog = memo(function ResolveDialog({
   const handleSuccess = useCallback(() => {
     setNote("");
     onOpenChange(false);
-  }, [onOpenChange]);
+    if (onSuccessUpdate) {
+      onSuccessUpdate(report.id, status);
+    }
+  }, [onOpenChange, onSuccessUpdate, report.id, status]);
 
   const { submitResolution, isPending } = useResolveAction(report, status, handleSuccess);
 
@@ -100,16 +113,7 @@ export const ResolveDialog = memo(function ResolveDialog({
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      {/* 【樣式調整】DialogContent
-              - 增加 `rounded-2xl` 與 `shadow-2xl` 提升現代感浮雕視覺。
-              - `p-6 sm:p-8` 讓手機與桌機有適當的呼吸空間。
-              - 遵循要求，不加入任何 bg- 類別以保留原始背景色。
-            */}
       <DialogContent className="gap-6 rounded-2xl border-muted/40 p-6 shadow-2xl sm:max-w-md sm:p-8">
-        {/* 【樣式調整】DialogHeader
-                  - 強制文字靠左 `text-left`，避免手機版預設置中造成的排版跳動。
-                  - Title 加入 `tracking-tight` 提升標題俐落感。
-                */}
         <DialogHeader className="space-y-2 text-left">
           <DialogTitle className="flex items-center gap-2 font-bold text-xl tracking-tight sm:text-2xl">
             {isResolved ? "接受檢舉" : "駁回檢舉"}
@@ -122,12 +126,6 @@ export const ResolveDialog = memo(function ResolveDialog({
           </DialogDescription>
         </DialogHeader>
 
-        {/* 【樣式調整】Textarea
-                  - `transition-all duration-300` 讓 hover 和 focus 時有滑順的過渡。
-                  - `hover:border-primary/50` 增加互動提示。
-                  - `focus-visible:ring-2 focus-visible:ring-primary/40` 增強無障礙與視覺焦點。
-                  - `rounded-xl` 呼應外部彈窗的圓角設定。
-                */}
         <Textarea
           placeholder="請填寫處理的說明..."
           rows={5}
@@ -137,14 +135,7 @@ export const ResolveDialog = memo(function ResolveDialog({
           className="resize-none rounded-xl border-muted bg-transparent p-4 text-base shadow-sm transition-all duration-300 ease-in-out hover:border-primary/50 focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-50"
         />
 
-        {/* 【樣式調整】DialogFooter
-                  - `flex-col sm:flex-row gap-3`：在手機版時按鈕上下排列並填滿寬度，平板/桌機時並排。
-                */}
         <DialogFooter className="mt-2 flex flex-col gap-3 sm:flex-row sm:gap-4">
-          {/* 【樣式調整】取消按鈕
-                      - `rounded-full` 膠囊按鈕設計。
-                      - `active:scale-95` 點擊時的微縮回饋感。
-                    */}
           <Button
             variant="ghost"
             onClick={() => onOpenChange(false)}
@@ -154,11 +145,6 @@ export const ResolveDialog = memo(function ResolveDialog({
             取消
           </Button>
 
-          {/* 【樣式調整】送出按鈕
-                      - 加入 `bg-gradient-to-r` 漸層效果，這裡使用 theme 的 primary 變數來維持 Shadcn 的動態主題兼容性。
-                      - `shadow-md hover:shadow-lg` 增加立體層次。
-                      - `active:scale-95` 物理按壓感。
-                    */}
           <Button
             disabled={isPending || !note.trim()}
             onClick={handleSubmit}

@@ -48,6 +48,8 @@ function mapRowToPublicBot(
     verified: boolean;
     isAdmin: boolean;
     nsfw: boolean;
+    termsOfServiceUrl: string | null;
+    privacyPolicyUrl: string | null;
   },
   favoriteIds: Set<string>,
 ): PublicBot {
@@ -71,6 +73,8 @@ function mapRowToPublicBot(
     isFavorite: favoriteIds.has(row.id),
     isAdmin: row.isAdmin,
     nsfw: row.nsfw,
+    termsOfServiceUrl: row.termsOfServiceUrl,
+    privacyPolicyUrl: row.privacyPolicyUrl,
   };
 }
 
@@ -103,7 +107,7 @@ function getListWhere(category: BotCategory) {
 
 function getListOrderBy(category: BotCategory) {
   if (category === "new") {
-    return [desc(bot.approvedAt), desc(bot.createdAt)] as const;
+    return [sql`${bot.approvedAt} DESC NULLS LAST`, desc(bot.createdAt)] as const;
   }
 
   if (category === "featured") {
@@ -111,11 +115,16 @@ function getListOrderBy(category: BotCategory) {
   }
 
   if (category === "verified") {
-    return [desc(bot.approvedAt), desc(bot.upvotes)] as const;
+    return [sql`${bot.approvedAt} DESC NULLS LAST`, desc(bot.verified)] as const;
   }
 
   if (category === "popular") {
-    return [desc(bot.pin), desc(bot.pinExpiry), desc(bot.upvotes)] as const;
+    const currentPin = sql<number>`CASE 
+      WHEN ${bot.pin} = true AND (${bot.pinExpiry} IS NULL OR ${bot.pinExpiry} > CURRENT_TIMESTAMP) THEN 1 
+      ELSE 0 
+    END DESC`;
+
+    return [currentPin, desc(bot.servers)] as const;
   }
 
   if (category === "voted") {
@@ -168,6 +177,8 @@ function listBotsPageEffect(
         verified: bot.verified,
         isAdmin: bot.isAdmin,
         nsfw: bot.nsfw,
+        termsOfServiceUrl: bot.termsOfServiceUrl,
+        privacyPolicyUrl: bot.privacyPolicyUrl,
       })
       .from(bot);
 
@@ -230,6 +241,8 @@ function listBotFilterBundleEffect(
           verified: bot.verified,
           isAdmin: bot.isAdmin,
           nsfw: bot.nsfw,
+          termsOfServiceUrl: bot.termsOfServiceUrl,
+          privacyPolicyUrl: bot.privacyPolicyUrl,
         })
         .from(bot)
         // 套用組合後的條件

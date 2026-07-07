@@ -22,6 +22,7 @@ import type {
   BotVoteResult,
 } from "./bot-detail.types";
 import type { PublicBot, RelatedBot } from "./bots.types";
+import { uploadReportAttachmentsEffect } from "#/lib/report";
 
 function dbEffect<A>(label: string, run: () => Promise<A>): Effect.Effect<A, Error> {
   return tryEffectPromise(label, run);
@@ -475,30 +476,69 @@ function rateBotEffect(
   });
 }
 
-function reportBotEffect(input: {
+export function reportBotEffect(input: {
   botId: string;
   itemName: string;
   subject: string;
   content: string;
-  userId: string; // ✅ 這裡現在是必填字串了
-}): Effect.Effect<BotReportResult, Error> {
+  userId: string;
+  // 擴充 user 物件，供 Discord Webhook 顯示舉報者詳細資訊
+  user?: {
+    name?: string | null;
+    username?: string | null;
+  };
+  reasons: readonly string[];
+  attachments: readonly { dataUrl: string; fileName: string }[];
+}): Effect.Effect<{ success: boolean; message: string }, Error> {
   return Effect.gen(function* () {
-    // ❌ 刪掉這段：const userId = yield* getSessionUserIdEffect();
-    // ❌ 刪掉這段：if (!userId) { return yield* Effect.fail(...) }
+    const reportId = crypto.randomUUID();
 
+    // 1. 上傳附件 (會阻塞，因為 DB 需要 URL)
+    const uploadedAttachments = yield* uploadReportAttachmentsEffect(
+      [...input.attachments],
+      reportId,
+    ).pipe(Effect.catchAll((error) => Effect.fail(new Error(`附件上傳失敗：${error.message}`))));
+
+    const attachmentUrls = uploadedAttachments.map((a) => a.url);
+
+    // 2. 寫入資料庫 (會阻塞，確保資料有存進去)
     yield* dbEffect("Failed to submit report", () =>
       db.insert(report).values({
-        id: crypto.randomUUID(),
+        id: reportId,
         subject: input.subject,
         content: input.content,
         type: "bot",
         itemId: input.botId,
         itemName: input.itemName,
-        reportedById: input.userId, // ✅ 直接使用外部傳進來的 input.userId
-        attachments: [],
+        reportedById: input.userId,
+        reasons: [...input.reasons],
+        attachments: attachmentUrls,
       }),
     );
 
+    // 3. 發送 Discord 系統通知 (背景執行，確保高效不阻塞)
+    yield* sendDiscordWebhookEffect({
+      _tag: "report",
+      data: {
+        reportId,
+        reportBy: {
+          id: input.userId,
+          name: input.user?.name || input.user?.username,
+          username: input.user?.username || "未知",
+        },
+        itemName: input.itemName,
+        itemId: input.botId,
+        targetType: "bot",
+        reasons: [...input.reasons],
+        attachments: attachmentUrls,
+      },
+    }).pipe(
+      // 捕捉 Webhook 的錯誤，只寫入 Log，避免影響到主流程
+      Effect.catchAllCause((cause) => Effect.logError("Discord Webhook (Report) 發送失敗", cause)),
+      Effect.forkDaemon,
+    );
+
+    // 4. 立即回傳結果給前端
     return {
       success: true,
       message: "檢舉已送出，我們會盡快審核",
@@ -527,6 +567,12 @@ export function reportBotById(input: {
   subject: string;
   content: string;
   userId: string;
+  user?: {
+    name?: string | null;
+    username?: string | null;
+  };
+  reasons: readonly string[]; // 加上 readonly
+  attachments: readonly { dataUrl: string; fileName: string }[]; // 加上 readonly
 }): Promise<BotReportResult> {
   return runEffect(reportBotEffect({ ...input }));
 }

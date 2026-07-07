@@ -42,5 +42,12 @@ export const reportServerFn = createServerFn({ method: "POST" })
   .middleware([protectedMiddleware])
   .inputValidator(effectInputValidator(ServerReportInputSchema))
   .handler(async ({ data, context }) => {
-    return reportServerById({ ...data, reporterId: context.user.discordId });
+    return reportServerById({
+      ...data,
+      user: {
+        name: context.user.name,
+        username: context.user.username,
+      },
+      userId: context.user.discordId,
+    });
   });

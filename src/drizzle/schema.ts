@@ -416,6 +416,7 @@ export const report = pgTable(
     handledAt: timestamp({ precision: 3, mode: "string" }),
     handledById: text(),
     resolutionNote: text(),
+    reasons: jsonb("reasons").$type<string[]>().notNull().default([]),
   },
   (table) => [
     index("Report_handledById_idx").using(

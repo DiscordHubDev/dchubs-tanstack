@@ -16,7 +16,7 @@ import {
   User,
   X,
 } from "lucide-react";
-import { memo, useCallback, useState } from "react";
+import { memo, useMemo, useState } from "react";
 import AttachmentPreview from "#/features/admin/components/ReportAttachmentPreview";
 import { ResolveDialog } from "#/features/admin/components/ReportResolveDialog";
 import { useDialog } from "#/hooks/use-dialog";
@@ -233,7 +233,7 @@ const ReportDetailDialog = memo(
     report: Report | null;
     isOpen: boolean;
     onClose: () => void;
-    onStatusChange: (id: string, status: ReportStatus) => void;
+    onStatusChange: (report: Report, status: ReportStatus) => void;
     onSeverityChange: (id: string, severity: ReportSeverity) => void;
   }) => {
     if (!report) return null;
@@ -386,16 +386,16 @@ const ReportDetailDialog = memo(
             {report.status === "pending" && (
               <div className="flex w-full gap-3 sm:w-auto">
                 <Button
-                  // [調整] 漸層效果、hover 提亮、按壓縮放
                   className="flex-1 border-none bg-gradient-to-r from-[#57F287] to-green-500 font-semibold text-black shadow-sm transition-all duration-200 hover:shadow-green-500/20 hover:brightness-110 active:scale-95 sm:flex-none"
-                  onClick={() => onStatusChange(report.id, "resolved")}
+                  // 【修改此處】傳入 report 物件
+                  onClick={() => onStatusChange(report, "resolved")}
                 >
                   <Check className="mr-1.5 h-4 w-4" /> 接受檢舉
                 </Button>
                 <Button
-                  // [調整] 漸層效果、hover 提亮、按壓縮放
                   className="flex-1 border-none bg-gradient-to-r from-[#ED4245] to-red-600 font-semibold text-white shadow-sm transition-all duration-200 hover:shadow-red-500/20 hover:brightness-110 active:scale-95 sm:flex-none"
-                  onClick={() => onStatusChange(report.id, "rejected")}
+                  // 【修改此處】傳入 report 物件
+                  onClick={() => onStatusChange(report, "rejected")}
                 >
                   <X className="mr-1.5 h-4 w-4" /> 駁回檢舉
                 </Button>
@@ -413,6 +413,7 @@ ReportDetailDialog.displayName = "ReportDetailDialog";
 
 export default function ReportInbox({ reports: initial }: { reports: readonly Report[] }) {
   const {
+    reports,
     filtered,
     pendingCount,
     search,
@@ -421,25 +422,21 @@ export default function ReportInbox({ reports: initial }: { reports: readonly Re
     setStatusFilter,
     severityFilter,
     setSeverityFilter,
-    changeStatus,
     changeSeverity,
+    updateLocalStatus,
   } = useReportInbox({ initial });
 
   const detailDialog = useDialog<Report>();
+
+  const activeReport = useMemo(() => {
+    if (!detailDialog.item) return null;
+    return reports.find((r) => r.id === detailDialog.item!.id) ?? detailDialog.item;
+  }, [reports, detailDialog.item]);
+
   const [resolveInfo, setResolveInfo] = useState<{
     report: Report;
     status: ReportStatus;
   } | null>(null);
-
-  const handleStatusChange = useCallback(
-    async (id: string, status: ReportStatus) => {
-      const report = filtered.find((r) => r.id === id) ?? detailDialog.item;
-      if (!report) return;
-      const ok = await changeStatus(id, status);
-      if (ok) setResolveInfo({ report: { ...report, status }, status });
-    },
-    [filtered, detailDialog.item, changeStatus],
-  );
 
   return (
     // [調整] 外層 Card 增加柔和的陰影效果
@@ -539,8 +536,8 @@ export default function ReportInbox({ reports: initial }: { reports: readonly Re
                   key={report.id}
                   report={report}
                   onView={detailDialog.open}
-                  onResolve={(r) => handleStatusChange(r.id, "resolved")}
-                  onReject={(r) => handleStatusChange(r.id, "rejected")}
+                  onResolve={(r) => setResolveInfo({ report: r, status: "resolved" })}
+                  onReject={(r) => setResolveInfo({ report: r, status: "rejected" })}
                 />
               ))
             )}
@@ -548,13 +545,15 @@ export default function ReportInbox({ reports: initial }: { reports: readonly Re
         </div>
       </CardContent>
 
-      <ReportDetailDialog
-        report={detailDialog.item}
-        isOpen={detailDialog.isOpen}
-        onClose={detailDialog.close}
-        onStatusChange={handleStatusChange}
-        onSeverityChange={changeSeverity}
-      />
+      {activeReport && (
+        <ReportDetailDialog
+          report={activeReport}
+          isOpen={detailDialog.isOpen}
+          onClose={detailDialog.close}
+          onStatusChange={(r, status) => setResolveInfo({ report: r, status })}
+          onSeverityChange={changeSeverity}
+        />
+      )}
 
       {resolveInfo && (
         <ResolveDialog
@@ -564,6 +563,9 @@ export default function ReportInbox({ reports: initial }: { reports: readonly Re
           }}
           report={resolveInfo.report}
           status={resolveInfo.status}
+          onSuccessUpdate={(id, status) => {
+            updateLocalStatus(id, status);
+          }}
         />
       )}
     </Card>

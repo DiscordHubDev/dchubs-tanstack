@@ -1,6 +1,6 @@
 {
-  "id": "ce449952-ff33-4d43-abdc-7e8503884f72",
-  "prevId": "c701c4d4-18dd-45c3-810d-3aa66f97fd14",
+  "id": "82553c24-8494-4df1-83bf-3450bea805a4",
+  "prevId": "8e0f2b8b-6d38-4f8a-8001-60ad71cddeb5",
   "version": "7",
   "dialect": "postgresql",
   "tables": {
@@ -754,6 +754,18 @@
         "custom_field": {
           "name": "custom_field",
           "type": "jsonb",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "terms_of_service_url": {
+          "name": "terms_of_service_url",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false
+        },
+        "privacy_policy_url": {
+          "name": "privacy_policy_url",
+          "type": "text",
           "primaryKey": false,
           "notNull": false
         }
@@ -1569,6 +1581,13 @@
           "type": "text",
           "primaryKey": false,
           "notNull": false
+        },
+        "reasons": {
+          "name": "reasons",
+          "type": "jsonb",
+          "primaryKey": false,
+          "notNull": true,
+          "default": "'[]'::jsonb"
         }
       },
       "indexes": {

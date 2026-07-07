@@ -1,0 +1,1 @@
+ALTER TABLE "Report" ADD COLUMN "reasons" jsonb DEFAULT '[]'::jsonb NOT NULL;

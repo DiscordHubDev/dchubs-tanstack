@@ -155,6 +155,13 @@
       "when": 1783414894209,
       "tag": "0021_slippery_zemo",
       "breakpoints": true
+    },
+    {
+      "idx": 22,
+      "version": "7",
+      "when": 1783425560451,
+      "tag": "0022_flippant_norman_osborn",
+      "breakpoints": true
     }
   ]
 }
