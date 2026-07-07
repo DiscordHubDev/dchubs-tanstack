@@ -1,4 +1,4 @@
-import type { PublicBot } from "./bots.types";
+import type { PublicBot, RelatedBot } from "./bots.types";
 
 export type BotDetailTab = "about" | "commands" | "screenshots";
 
@@ -41,7 +41,7 @@ export type BotDetail = PublicBot & {
   userRating: number;
   hasVotedRecently: boolean;
   nextVoteAt: string | null;
-  relatedBots: PublicBot[];
+  relatedBots: RelatedBot[];
 };
 
 export type BotVoteResult = {

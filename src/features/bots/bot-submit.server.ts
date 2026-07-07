@@ -68,6 +68,8 @@ type BotPayload = {
     customEmbed?: any; // 👉 新增 customEmbed，型別為 any，實際上會存入 JSON 物件
     isAdmin: boolean; // 👉 新增 isAdmin，型別為 boolean
     verified: boolean; // 👉 新增 verified，型別為 boolean
+    termsOfServiceUrl: string | null; // 👉 新增 termsOfServiceUrl，型別為 string | null
+    privacyPolicyUrl: string | null; // 👉 新增 privacyPolicyUrl，型別為 string | null
   };
   commands: NormalizedCommand[];
   developerNames: string[];
@@ -282,6 +284,8 @@ function buildBotPayload(
       customEmbed: formatCustomEmbedData(input.form.customEmbed),
       isAdmin: hasAdminPermission(rpc.install_params?.permissions ?? 0),
       verified: rpc.is_verified,
+      termsOfServiceUrl: normalizeOptionalString(rpc.terms_of_service_url),
+      privacyPolicyUrl: normalizeOptionalString(rpc.privacy_policy_url),
     },
     commands,
     developerNames,
@@ -334,6 +338,8 @@ function persistBotEffect(
             status: payload.botRow.status, // 👉 2. 這裡改用計算後的 finalStatus
             isAdmin: payload.botRow.isAdmin, // 👉 2. 更新 isAdmin 欄位
             verified: payload.botRow.verified, // 👉 2. 更新 verified 欄位
+            termsOfServiceUrl: payload.botRow.termsOfServiceUrl, // 👉 2. 更新 termsOfServiceUrl 欄位
+            privacyPolicyUrl: payload.botRow.privacyPolicyUrl, // 👉 2. 更新 privacyPolicyUrl 欄位
           })
           .where(eq(bot.id, payload.botId));
       } else {
@@ -361,6 +367,8 @@ function persistBotEffect(
           nsfw: payload.botRow.nsfw,
           isAdmin: payload.botRow.isAdmin, // 👉 3. 新增 isAdmin 欄位
           verified: payload.botRow.verified, // 👉 3. 新增 verified 欄位
+          termsOfServiceUrl: payload.botRow.termsOfServiceUrl, // 👉 3. 新增 termsOfServiceUrl 欄位
+          privacyPolicyUrl: payload.botRow.privacyPolicyUrl, // 👉 3. 新增 privacyPolicyUrl 欄位
         });
       }
 

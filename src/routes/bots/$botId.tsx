@@ -12,9 +12,11 @@ import {
   Bot,
   Calendar,
   Clock,
+  FileText,
   Flag,
   Globe,
   Heart,
+  ShieldCheck,
   Star,
   Terminal,
   Users,
@@ -811,7 +813,10 @@ function BotDetailPage() {
               </div>
 
               {/* 操作按鈕 */}
-              {(detail.website || detail.supportServer) && (
+              {(detail.website ||
+                detail.supportServer ||
+                detail.termsOfServiceUrl ||
+                detail.privacyPolicyUrl) && (
                 <div className="flex flex-wrap gap-2">
                   {detail.website ? (
                     <a
@@ -834,6 +839,30 @@ function BotDetailPage() {
                     >
                       <FaDiscord size={15} />
                       加入支援伺服器
+                    </a>
+                  ) : null}
+
+                  {detail.termsOfServiceUrl ? (
+                    <a
+                      href={detail.termsOfServiceUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex min-w-[160px] flex-1 items-center justify-center gap-1.5 rounded-[10px] border border-white/[0.08] px-3.5 py-2.5 text-sm font-medium text-[#dbdee1] transition-colors hover:bg-white/[0.05]"
+                    >
+                      <FileText size={15} className="text-[#5b9dff]" />
+                      服務條款
+                    </a>
+                  ) : null}
+
+                  {detail.privacyPolicyUrl ? (
+                    <a
+                      href={detail.privacyPolicyUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex min-w-[160px] flex-1 items-center justify-center gap-1.5 rounded-[10px] border border-white/[0.08] px-3.5 py-2.5 text-sm font-medium text-[#dbdee1] transition-colors hover:bg-white/[0.05]"
+                    >
+                      <ShieldCheck size={15} className="text-[#5b9dff]" />
+                      隱私政策
                     </a>
                   ) : null}
                 </div>

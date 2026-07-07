@@ -22,6 +22,8 @@ export type PublicBot = {
   isFavorite: boolean;
   isAdmin: boolean;
   nsfw: boolean;
+  termsOfServiceUrl: string | null;
+  privacyPolicyUrl: string | null;
 };
 
 export type BotListQueryInput = {
@@ -46,4 +48,11 @@ export type BotFilterBundle = {
     verifiedBots: number;
     totalTags: number;
   };
+};
+
+export type RelatedBot = {
+  id: string;
+  icon: string | null;
+  name: string;
+  servers: number;
 };

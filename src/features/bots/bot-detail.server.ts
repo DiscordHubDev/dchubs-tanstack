@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gte, ne, sql } from "drizzle-orm";
+import { and, arrayOverlaps, asc, desc, eq, gte, ne, sql } from "drizzle-orm";
 import { Effect } from "effect";
 import { db } from "#/drizzle/db";
 import {
@@ -21,7 +21,7 @@ import type {
   BotReview,
   BotVoteResult,
 } from "./bot-detail.types";
-import type { PublicBot } from "./bots.types";
+import type { PublicBot, RelatedBot } from "./bots.types";
 
 function dbEffect<A>(label: string, run: () => Promise<A>): Effect.Effect<A, Error> {
   return tryEffectPromise(label, run);
@@ -52,6 +52,8 @@ function mapRowToPublicBot(
     verified: boolean;
     isAdmin: boolean;
     nsfw: boolean;
+    termsOfServiceUrl: string | null;
+    privacyPolicyUrl: string | null;
   },
   favoriteIds: Set<string>,
 ): PublicBot {
@@ -75,6 +77,8 @@ function mapRowToPublicBot(
     isFavorite: favoriteIds.has(row.id),
     isAdmin: row.isAdmin,
     nsfw: row.nsfw,
+    termsOfServiceUrl: row.termsOfServiceUrl,
+    privacyPolicyUrl: row.privacyPolicyUrl,
   };
 }
 
@@ -163,6 +167,8 @@ function getBotDetailEffect(
           features: bot.features,
           screenshots: bot.screenshots,
           nsfw: bot.nsfw,
+          termsOfServiceUrl: bot.termsOfServiceUrl,
+          privacyPolicyUrl: bot.privacyPolicyUrl,
         })
         .from(bot)
         .where(and(eq(bot.id, botId), eq(bot.status, "approved")))
@@ -171,6 +177,8 @@ function getBotDetailEffect(
 
     const currentBot = botRows[0];
     if (!currentBot) return null;
+
+    const currentTags = normalizeTags(currentBot.tags);
 
     const [commandRows, developerRows, reviewRows, recentVoteCreatedAt, relatedRows] =
       yield* Effect.all([
@@ -219,28 +227,36 @@ function getBotDetailEffect(
           db
             .select({
               id: bot.id,
-              name: bot.name,
-              description: bot.description,
-              tags: bot.tags,
-              servers: bot.servers,
-              users: bot.users,
-              upvotes: bot.upvotes,
               icon: bot.icon,
-              banner: bot.banner,
-              inviteUrl: bot.inviteUrl,
-              website: bot.website,
-              supportServer: bot.supportServer,
-              approvedAt: bot.approvedAt,
-              pin: bot.pin,
-              pinExpiry: bot.pinExpiry,
-              verified: bot.verified,
-              isAdmin: bot.isAdmin,
-              nsfw: bot.nsfw,
+              name: bot.name,
+              servers: bot.servers,
+              overlapCount: sql<number>`cardinality(
+            ARRAY(
+              SELECT UNNEST(${bot.tags})
+              INTERSECT
+              SELECT UNNEST(${sql`ARRAY[${sql.join(currentTags, sql`, `)}]`}::text[])
+            )
+          )`,
             })
             .from(bot)
-            .where(and(eq(bot.status, "approved"), ne(bot.id, botId)))
-            .orderBy(desc(bot.upvotes))
-            .limit(40),
+            .where(
+              and(
+                eq(bot.status, "approved"),
+                ne(bot.id, botId),
+                arrayOverlaps(bot.tags, currentTags),
+              ),
+            )
+            .orderBy(
+              desc(sql`cardinality(
+            ARRAY(
+              SELECT UNNEST(${bot.tags})
+              INTERSECT
+              SELECT UNNEST(${sql`ARRAY[${sql.join(currentTags, sql`, `)}]`}::text[])
+            )
+          )`),
+              desc(bot.upvotes),
+            )
+            .limit(3),
         ),
       ]);
 
@@ -252,15 +268,12 @@ function getBotDetailEffect(
     const currentRating = calculateAvgRating(reviews);
     const userRating = reviews.find((item) => item.userId === userId)?.rating ?? 0;
 
-    const currentTags = normalizeTags(currentBot.tags);
-    const relatedBots = relatedRows
-      .filter((item) => {
-        const tags = normalizeTags(item.tags);
-        return tags.some((tag) => currentTags.includes(tag));
-      })
-      .slice(0, 3)
-      .map((item) => mapRowToPublicBot(item, favoriteIds));
-
+    const relatedBots: RelatedBot[] = relatedRows.map(({ id, icon, name, servers }) => ({
+      id,
+      icon,
+      name,
+      servers,
+    }));
     console.log("devs: ", developerRows);
 
     const detail: BotDetail = {
