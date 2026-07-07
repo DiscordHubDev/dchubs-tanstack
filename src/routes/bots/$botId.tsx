@@ -830,18 +830,6 @@ function BotDetailPage() {
                     </a>
                   ) : null}
 
-                  {detail.supportServer ? (
-                    <a
-                      href={detail.supportServer}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex min-w-[160px] flex-1 items-center justify-center gap-1.5 rounded-[10px] border border-[#5865f2]/35 bg-discord px-3.5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-discord-hover"
-                    >
-                      <FaDiscord size={15} />
-                      加入支援伺服器
-                    </a>
-                  ) : null}
-
                   {detail.termsOfServiceUrl ? (
                     <a
                       href={detail.termsOfServiceUrl}
@@ -863,6 +851,18 @@ function BotDetailPage() {
                     >
                       <ShieldCheck size={15} className="text-[#5b9dff]" />
                       隱私政策
+                    </a>
+                  ) : null}
+
+                  {detail.supportServer ? (
+                    <a
+                      href={detail.supportServer}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex min-w-[160px] flex-1 items-center justify-center gap-1.5 rounded-[10px] border border-[#5865f2]/35 bg-discord px-3.5 py-2.5 text-sm font-medium text-white transition-colors hover:bg-discord-hover"
+                    >
+                      <FaDiscord size={15} />
+                      加入支援伺服器
                     </a>
                   ) : null}
                 </div>
