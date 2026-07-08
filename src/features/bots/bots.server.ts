@@ -119,7 +119,7 @@ function getListOrderBy(category: BotCategory) {
   }
 
   if (category === "popular") {
-    const currentPin = sql<number>`CASE 
+    const currentPin = sql`CASE 
       WHEN ${bot.pin} = true AND (${bot.pinExpiry} IS NULL OR ${bot.pinExpiry} > CURRENT_TIMESTAMP) THEN 1 
       ELSE 0 
     END DESC`;
