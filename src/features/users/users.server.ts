@@ -739,26 +739,27 @@ export function updateUserSettingsForCurrentUser(
       if (input.bio !== undefined) updateData.bio = input.bio;
       if (input.nsfw !== undefined) updateData.nsfw = input.nsfw;
 
-      // 處理 JSON 局部更新，避免覆蓋掉沒傳入的社群 key
-      if (input.social && Object.keys(input.social).length > 0) {
-        // 使用 PostgreSQL 的 || 運算子合併 JSON
-        updateData.social = sql`COALESCE(${user.social}, '{}'::jsonb) || ${JSON.stringify(input.social)}::jsonb`;
-      }
-
-      // 如果完全沒有要更新的欄位，直接回傳
-      if (Object.keys(updateData).length === 0) {
+      // 如果完全沒有要更新的欄位（包含 social），直接回傳
+      const hasSocialUpdate = input.social && Object.keys(input.social).length > 0;
+      if (Object.keys(updateData).length === 0 && !hasSocialUpdate) {
         return { success: "沒有任何變更" };
       }
 
-      // 2. 直接執行更新，並用 returning 檢查是否有更新到資料
-      const result = yield* dbEffect(
-        "Failed to update user settings",
-        () =>
-          db
-            .update(user)
-            .set(updateData)
-            .where(eq(user.discordId, userId))
-            .returning({ discordId: user.discordId }), // 取得更新後的 ID
+      // 2. 執行更新，將動態物件與 SQL 欄位在 .set() 中合併
+      const result = yield* dbEffect("Failed to update user settings", () =>
+        db
+          .update(user)
+          .set({
+            ...updateData, // 展開動態欄位 (bio, nsfw)
+            ...(hasSocialUpdate
+              ? {
+                  // 只有在有傳入 social 時，才把這個 key 放進 set 中
+                  social: sql`COALESCE(${user.social}, '{}'::jsonb) || ${JSON.stringify(input.social)}::jsonb`,
+                }
+              : {}),
+          })
+          .where(eq(user.discordId, userId))
+          .returning({ discordId: user.discordId }),
       );
 
       // 如果回傳陣列長度為 0，代表該 userId 不存在
