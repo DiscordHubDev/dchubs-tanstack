@@ -26,7 +26,7 @@ export const deleteServerFn = createServerFn({
   .middleware([authMiddleware])
   .inputValidator(effectInputValidator(DeleteServerInputSchema))
   .handler(async ({ data, context }) => {
-    const userId = context.user?.discordId;
+    const userId = context.user?.betterAuthId;
 
     if (!userId) {
       throw new Error("UNAUTHORIZED");

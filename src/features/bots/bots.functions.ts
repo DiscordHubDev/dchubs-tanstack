@@ -43,7 +43,7 @@ export const deleteBotFn = createServerFn({
   .middleware([authMiddleware])
   .inputValidator((data: { botId: string }) => data)
   .handler(async ({ data, context }) => {
-    const userId = context.user?.discordId;
+    const userId = context.user?.betterAuthId;
 
     if (!userId) {
       throw new Error("UNAUTHORIZED");
