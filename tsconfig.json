@@ -1,24 +1,23 @@
 {
   "include": ["**/*.ts", "**/*.tsx"],
   "compilerOptions": {
-    "target": "ES2024",
+    "target": "ES2025",
     "jsx": "react-jsx",
     "module": "ESNext",
-    "baseUrl": ".",
     "paths": {
       "#/*": ["./src/*"],
       "@/*": ["./src/*"]
     },
-    "lib": ["ES2024", "DOM", "DOM.Iterable"],
+    "lib": ["ES2025", "DOM", "DOM.Iterable"],
     "types": ["vite/client"],
 
-    /* Bundler mode */
+    /* 打包工具模式 (Vite / Rolldown / Rspack) */
     "moduleResolution": "bundler",
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,
     "noEmit": true,
 
-    /* Linting */
+    /* 嚴格代碼檢查 */
     "skipLibCheck": true,
     "strict": true,
     "noUnusedLocals": true,

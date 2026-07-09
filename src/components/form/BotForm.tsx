@@ -697,6 +697,8 @@ function DeveloperListField({ field }: { field: AnyFieldApi }) {
 
   const removeDeveloper = useCallback(
     (index: number) => {
+      // 增加保護機制：防止移除索引為 0 的元素（即當前使用者）
+      if (index === 0) return;
       field.handleChange(developers.filter((_, i) => i !== index));
     },
     [field, developers],
@@ -731,10 +733,12 @@ function DeveloperListField({ field }: { field: AnyFieldApi }) {
         <div className="flex flex-wrap gap-2">
           {developers.map((developer, index) => {
             const displayName = developer._displayUsername || developer.name;
+            const isOwner = index === 0; // 判斷是否為第一個元素（自己）
+
             return (
               <div
                 key={developer.name}
-                className="flex items-center gap-2 rounded-md border border-white/10 bg-[#2b2d31] py-1 pr-1 pl-3"
+                className={`flex items-center gap-2 rounded-md border border-white/10 bg-[#2b2d31] py-1 pl-3 ${isOwner ? "pr-3" : "pr-1"}`}
               >
                 {developer.avatar ? (
                   <OptimizedImage
@@ -749,22 +753,31 @@ function DeveloperListField({ field }: { field: AnyFieldApi }) {
                     <Search className="h-3 w-3 text-muted-foreground" />
                   </div>
                 )}
-                <span className="font-medium text-sm">{displayName}</span>
-                <Button
-                  type="button"
-                  onClick={() => removeDeveloper(index)}
-                  variant="ghost"
-                  size="icon"
-                  className="h-6 w-6 rounded-full hover:bg-[#ed4245] hover:text-white"
-                >
-                  <X className="h-3 w-3" />
-                </Button>
+                <span className="font-medium text-sm">
+                  {displayName}
+                  {/* 可選：給自己加上一個小標籤來辨識 */}
+                  {isOwner && <span className="ml-2 text-xs text-muted-foreground">(擁有者)</span>}
+                </span>
+
+                {/* 只有非擁有者（index !== 0）才顯示刪除按鈕 */}
+                {!isOwner && (
+                  <Button
+                    type="button"
+                    onClick={() => removeDeveloper(index)}
+                    variant="ghost"
+                    size="icon"
+                    className="h-6 w-6 rounded-full hover:bg-[#ed4245] hover:text-white"
+                  >
+                    <X className="h-3 w-3" />
+                  </Button>
+                )}
               </div>
             );
           })}
         </div>
       )}
 
+      {/* 以下的 Dropdown 搜尋區塊保持不變 */}
       <div className="relative" ref={dropdownRef}>
         <div className="relative">
           <Search className="absolute top-1/2 left-3 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -914,7 +927,7 @@ export default function BotForm({ mode = "create", defaultValues }: BotFormProps
       },
       ...defaultValues,
       ...persistedValues,
-      developers: finalDevelopers,
+      developers: finalDevelopers as Schema.Schema.Type<typeof BotDevelopersSchema>,
     } as BotFormData,
     validators: {
       onChange: ({ value }) => {

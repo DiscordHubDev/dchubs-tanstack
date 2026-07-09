@@ -119,10 +119,16 @@ function getBotEditBundleEffect(
       botInvite: normalizeOptionalString(currentBot.inviteUrl),
       botWebsite: normalizeOptionalString(currentBot.website),
       botSupport: normalizeOptionalString(currentBot.supportServer),
-      developers: developerRows.map((dev) => ({
-        name: dev.username,
-        avatar: dev.avatar,
-      })),
+      developers:
+        developerRows.length > 0
+          ? (developerRows.map(
+              (dev) =>
+                ({
+                  name: dev.username,
+                  avatar: dev.avatar,
+                }) as const,
+            ) as any)
+          : undefined,
       commands: commandRows.map((cmd) => ({
         name: cmd.name,
         description: cmd.description,
