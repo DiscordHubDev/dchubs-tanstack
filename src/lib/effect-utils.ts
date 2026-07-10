@@ -87,26 +87,35 @@ export function fetchJsonEffect(
   input: RequestInfo | URL,
   init?: RequestInit,
 ): Effect.Effect<unknown, Error> {
-  // 1. 提取 URL 字串 (處理 string, URL 或 Request 物件)
   const urlString =
     typeof input === "string" ? input : input instanceof URL ? input.href : input.url;
 
-  // 2. 驗證 URL 協定是否為安全的 HTTPS
   try {
     const parsedUrl = new URL(urlString);
     if (parsedUrl.protocol !== "https:") {
       return Effect.fail(new Error("Insecure fetch usage: Only HTTPS requests are allowed"));
     }
   } catch (error) {
-    // 攔截無效的 URL 格式 (例如缺少協定的相對路徑等)
     return Effect.fail(toError(error, "Invalid URL format"));
   }
 
-  // 3. 執行原本的 fetch 流程
   return tryEffectPromise("Request failed", () => fetch(input, init)).pipe(
     Effect.flatMap((response) => {
       if (!response.ok) {
-        return Effect.fail(new Error(`Request failed with status ${response.status}`));
+        // 嘗試讀出 body 內容（Discord 錯誤通常是 JSON，但也可能是純文字）
+        return tryEffectPromise("Failed to read error body", () => response.text()).pipe(
+          Effect.flatMap((bodyText) =>
+            Effect.fail(
+              new Error(
+                `Request failed with status ${response.status}: ${bodyText || "(empty body)"}`,
+              ),
+            ),
+          ),
+          // 就算讀 body 本身失敗，也不要吞掉原本的 status code 錯誤
+          Effect.catchAll(() =>
+            Effect.fail(new Error(`Request failed with status ${response.status}`)),
+          ),
+        );
       }
 
       return tryEffectPromise("Failed to parse JSON body", () => response.json());

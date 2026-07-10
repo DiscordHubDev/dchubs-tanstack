@@ -799,7 +799,7 @@ function BotDetailPage() {
             <Avatar className="h-24 w-24 shrink-0 border-4 border-[#1e1f22] bg-[#36393f] shadow-md md:h-32 md:w-32">
               <OptimizedImage
                 src={detail.icon}
-                fallbackSrc="/placeholder.png"
+                fallbackSrc="https://cdn.discordapp.com/embed/avatars/0.png"
                 alt={detail.name}
                 width={128} // 配合 md:w-32 (128px) 設定基準尺寸
                 height={128}
