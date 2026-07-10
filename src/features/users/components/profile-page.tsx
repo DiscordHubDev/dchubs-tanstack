@@ -697,7 +697,7 @@ const ServerCard = memo(
               <Avatar className="h-10 w-10 flex-shrink-0 bg-[#36393f] shadow-sm sm:h-12 sm:w-12">
                 <OptimizedImage
                   src={server.icon}
-                  fallbackSrc="/placeholder.png"
+                  fallbackSrc="https://cdn.discordapp.com/embed/avatars/0.png"
                   alt={server.name}
                   width={48}
                   height={48}
@@ -919,7 +919,7 @@ const BotCard = memo(
               <Avatar className="h-10 w-10 flex-shrink-0 bg-[#36393f] shadow-sm sm:h-12 sm:w-12">
                 <OptimizedImage
                   src={bot.icon}
-                  fallbackSrc="/placeholder.png"
+                  fallbackSrc="https://cdn.discordapp.com/embed/avatars/0.png"
                   alt={bot.name}
                   width={48}
                   height={48}
@@ -1089,7 +1089,7 @@ const FavoriteServerCard = memo(({ server }: { server: UserDetail["favoriteServe
           <Avatar className="h-10 w-10 flex-shrink-0 bg-[#36393f] shadow-sm sm:h-12 sm:w-12">
             <OptimizedImage
               src={server.icon}
-              fallbackSrc="/placeholder.png"
+              fallbackSrc="https://cdn.discordapp.com/embed/avatars/0.png"
               alt={server.name}
               width={48} // 48px 足以應付 sm:h-12 (48px)
               height={48}
@@ -1128,7 +1128,7 @@ const FavoriteBotCard = memo(({ bot }: { bot: UserDetail["favoriteBots"][0] }) =
           <Avatar className="h-10 w-10 flex-shrink-0 bg-[#36393f] shadow-sm sm:h-12 sm:w-12">
             <OptimizedImage
               src={bot.icon}
-              fallbackSrc="/placeholder.png"
+              fallbackSrc="https://cdn.discordapp.com/embed/avatars/0.png"
               alt={bot.name}
               width={48}
               height={48}

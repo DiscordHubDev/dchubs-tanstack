@@ -151,8 +151,8 @@ const UserDetailsDialog = memo(
           <div className="grid gap-6 py-4">
             <div className="flex flex-col items-start gap-4 rounded-xl bg-[#2b2d31]/50 p-4 sm:flex-row sm:items-center">
               <OptimizedImage
-                src={user.image ?? user.avatar}
-                fallbackSrc="/placeholder.png"
+                src={user.avatar ?? user.image}
+                fallbackSrc="user.image ?? "
                 alt={user.name}
                 width={80}
                 height={80}
