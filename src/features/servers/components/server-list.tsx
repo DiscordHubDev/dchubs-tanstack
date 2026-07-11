@@ -81,12 +81,12 @@ function ServerList({ servers, isLoading, skeletonCount = 10 }: ServerListProps)
                   {item.members.toLocaleString()} 成員
                 </span>
                 <span className="inline-flex items-center gap-1">
-                  <ArrowUp className="h-4 w-4" />
-                  {item.upvotes.toLocaleString()} 票
-                </span>
-                <span className="inline-flex items-center gap-1">
                   <div className="mr-1 h-2 w-2 rounded-full bg-green-500" />
                   {item.online || "0"} 在線
+                </span>
+                <span className="inline-flex items-center gap-1">
+                  <ArrowUp className="h-4 w-4" />
+                  {item.upvotes.toLocaleString()} 票
                 </span>
                 <span className="inline-flex items-center gap-1">
                   <Clock className="h-4 w-4" />
