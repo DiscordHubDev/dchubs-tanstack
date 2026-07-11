@@ -16,7 +16,7 @@ export default function TermsPage() {
   const baseUrl =
     import.meta.env.VITE_SITE_URL ||
     process.env.SITE_URL ||
-    process.env.VITE_SITE_URL ||
+    process.import.meta.env.VITE_SITE_URL ||
     "http://localhost:3000";
 
   const jsonLd = useMemo(

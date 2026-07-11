@@ -3,7 +3,7 @@ import tailwindcss from "@tailwindcss/vite";
 import { devtools } from "@tanstack/devtools-vite";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import viteReact, { reactCompilerPreset } from "@vitejs/plugin-react";
-import { nitro } from "nitro/vite";
+import { cloudflare } from "@cloudflare/vite-plugin";
 import { visualizer } from "rollup-plugin-visualizer";
 import { defineConfig } from "vite";
 
@@ -76,12 +76,8 @@ export default defineConfig(({ mode }) => {
   //    may not be populated until after Vite has already consumed the config.
   const isProd = mode === "production";
   const isAnalyze = process.env.ANALYZE === "true";
-  const cdnOrigin = process.env.VITE_CDN_ORIGIN;
 
   return {
-    // Guard against an undefined CDN origin in non-prod environments
-    base: isProd && cdnOrigin ? `${cdnOrigin}/` : "/",
-
     experimental: {
       bundledDev: false,
       chunkImportMap: true,
@@ -144,32 +140,7 @@ export default defineConfig(({ mode }) => {
 
     // ─── SSR externals ─────────────────────────────────────────────────────
     ssr: {
-      external: [
-        // 1. Core runtime
-        "bun",
-        "bun:sqlite",
-        "node:crypto",
-
-        // 2. Database / ORM — must never be bundled into client
-        "drizzle-orm",
-        "drizzle-orm/bun-sql",
-        "pg",
-
-        // 3. Auth — contains key material & crypto
-        "better-auth",
-        "@better-auth/drizzle-adapter",
-
-        // 4. Cloud / storage SDKs — contain AWS credential logic
-        "@aws-sdk/client-s3",
-        "@aws-sdk/lib-storage",
-        "cloudinary",
-
-        // 5. Env validation & tooling
-        "@t3-oss/env-core",
-        "dotenv",
-        "mime-types",
-        "cloudflare:workers",
-      ],
+      external: [],
     },
 
     // ─── Plugins ───────────────────────────────────────────────────────────
@@ -189,6 +160,8 @@ export default defineConfig(({ mode }) => {
       // CSS — process early so other plugins see resolved class names
       tailwindcss(),
 
+      cloudflare({ viteEnvironment: { name: "ssr" } }),
+
       // TanStack Start (file-based routing, prerender, server functions)
       tanstackStart({
         importProtection: {
@@ -207,6 +180,8 @@ export default defineConfig(({ mode }) => {
 
               "@t3-oss/env-core",
               "dotenv",
+              "cloudflare:workers",
+              "cloudflare:sockets",
             ],
           },
         },
@@ -228,7 +203,7 @@ export default defineConfig(({ mode }) => {
           },
         },
       }),
-      nitro({ preset: "cloudflare_module" }),
+      // nitro({ preset: "cloudflare_module" }),
 
       // ✅ @vitejs/plugin-react v6 uses Oxc internally (not Babel) for
       // React Refresh. The React Compiler is a Babel preset and CANNOT be

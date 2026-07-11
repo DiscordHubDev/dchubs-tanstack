@@ -50,7 +50,7 @@ function buildDiscordBanner(profile: DiscordProfileLike): string | null {
 }
 
 export async function createAuth() {
-  const fallbackBaseUrl = import.meta.env.VITE_SITE_URL || "http://localhost:3000";
+  const fallbackBaseUrl = process.env.BETTER_AUTH_URL || "http://localhost:3000";
 
   const isProd = process.env.NODE_ENV === "production";
 

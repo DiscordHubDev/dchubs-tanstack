@@ -1,7 +1,7 @@
 name = "dchubs-tanstack"
 compatibility_date = "2026-07-11"
 
-main = ".output/server/index.mjs"
+main = "@tanstack/react-start/server-entry"
 
 compatibility_flags = ["nodejs_compat"]
 
@@ -26,8 +26,6 @@ id = "b8d0da99fb2a447193fa8a058f3ef839"
 preview_id = "087e0f8c0d3e4ae791f6be67d5a8dc1b"
 
 [vars]
-BETTER_AUTH_URL = "https://beta.dchubs.org"
-VITE_SITE_URL = "https://beta.dchubs.org"
 VITE_ADMIN_IDS = "857502876108193812,549056425943629825"
 
 # --- 以下保留你原有的監控設定 ---
