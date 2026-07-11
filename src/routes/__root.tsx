@@ -133,8 +133,6 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
 
     // 基礎的連結宣告
     const baseLinks = [
-      { rel: "preconnect", href: "https://assets.dchubs.org" },
-      { rel: "dns-prefetch", href: "https://assets.dchubs.org" },
       { rel: "stylesheet", href: appCss },
       { rel: "icon", href: "/favicon.ico" },
       { rel: "icon", type: "image/png", href: "/icon.png" },

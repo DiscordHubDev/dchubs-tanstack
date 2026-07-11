@@ -64,9 +64,7 @@ function parsePositiveIntLike(value: unknown): number | undefined {
   return parsed;
 }
 
-const siteUrl =
-  (typeof process !== "undefined" ? process.env.BETTER_AUTH_URL : undefined) ||
-  "https://dchubs.org";
+const siteUrl = import.meta.env.VITE_SITE_URL || "https://dchubs.org";
 
 function validateSearch(search: Record<string, unknown>): BotHomeSearch {
   const tab = parseBotCategory(search.tab);
@@ -136,8 +134,7 @@ export const Route = createFileRoute("/bots/")({
     const canonicalUrl = `${siteUrl}/bots${rawTab ? `?tab=${rawTab}` : ""}`;
     const hasQueryString = canonicalUrl.includes("?");
     const currentUrl = `${canonicalUrl}${page > 1 ? `${hasQueryString ? "&" : "?"}page=${page}` : ""}`;
-    const ogImage =
-      "https://gallery.dawngs.top/api/v1/buckets/image/objects/download?preview=true&prefix=nuo_dchub_2.png";
+    const ogImage = "/nuo_dchub_2.webp";
 
     return {
       meta: [
@@ -474,13 +471,15 @@ function BotsPage() {
             <div className="relative mt-6 h-32 overflow-hidden rounded-xl border border-white/10 bg-[#1e1f22] sm:h-48 md:h-70">
               <a href="https://nuorpg.com/" target="_blank" rel="noopener noreferrer">
                 <Image
-                  src="https://gallery.dawngs.top/api/v1/buckets/image/objects/download?preview=true&prefix=nuo_dchub_2.png"
+                  src="/nuo_dchub_2.webp"
                   alt="機器人活動宣傳"
                   width={1280}
-                  height={480}
+                  height={427}
                   className="h-full w-full object-cover"
                   loading="eager"
                   fetchPriority="high" /* 效能優化：提示瀏覽器優先載入 LCP 圖片 */
+                  sizes="(max-width: 640px) 100vw, (max-width: 768px) 100vw, 1280px"
+                  breakpoints={[640, 768, 1024, 1280]}
                 />
               </a>
             </div>

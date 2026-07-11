@@ -16,17 +16,30 @@ function toDisplayMessage(error: unknown): string {
 }
 
 function isIgnoredMessage(message: string): boolean {
-  const normalized = message.toLowerCase();
+  const normalized = message.toLowerCase().trim();
+
   return (
     normalized.includes("aborted") ||
     normalized.includes("cancelled") ||
     normalized.includes("canceled") ||
     normalized.includes("request error") ||
     normalized.includes("request failed with status 404") ||
-    normalized.includes("request failed with status code 404")
+    normalized.includes("request failed with status code 404") ||
+    // === 新增：資料庫相關錯誤 ===
+    normalized.includes("database") ||
+    normalized.includes("db error") ||
+    normalized.includes("connection") ||
+    normalized.includes("timeout") ||
+    normalized.includes("query failed") ||
+    normalized.includes("relation") || // "relation does not exist"
+    normalized.includes("syntax error") ||
+    normalized.includes("unique violation") ||
+    normalized.includes("foreign key") ||
+    normalized.includes("no such table") ||
+    normalized.includes("failed to fetch") || // 常見的 server fetch 包裝錯誤
+    normalized.includes("internal server error")
   );
 }
-
 function shouldIgnoreError(error: unknown): boolean {
   if (error instanceof DOMException && error.name === "AbortError") {
     return true;
@@ -139,7 +152,11 @@ async function preemptNormalAlert() {
   Swal.close();
 }
 
-export function showErrorAlert(error: unknown, title = "Error", options?: ErrorAlertOptions) {
+export function showErrorAlert(
+  error: unknown,
+  title = "Error",
+  options?: ErrorAlertOptions & { ignoreDbErrors?: boolean },
+) {
   if (typeof window === "undefined") return;
   if (shouldIgnoreError(error)) return;
 

@@ -1,11 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import TermsPage from "#/components/terms";
 
-const baseUrl =
-  process.env.BETTER_AUTH_URL ||
-  process.env.SITE_URL ||
-  process.env.VITE_SITE_URL ||
-  "http://localhost:3000";
+const baseUrl = import.meta.env.VITE_SITE_URL || "http://localhost:3000";
 
 export const Route = createFileRoute("/terms")({
   head: () => ({

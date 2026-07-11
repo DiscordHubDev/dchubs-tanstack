@@ -2,10 +2,10 @@
 import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
 import { Effect } from "effect";
-import { auth } from "./auth";
 import { edgeContextMiddleware } from "./edge-context";
 import { runEffect } from "./effect-utils";
 import { syncToCloudflareKV } from "./kv-sync";
+import { getAuth } from "./auth";
 
 interface BanUserPayload {
   targetUserId: string;
@@ -32,7 +32,8 @@ export type NormalizedSession = {
 export const getSession = createServerFn({ method: "GET" })
   .middleware([edgeContextMiddleware])
   .handler(async ({ context }) => {
-    if (!context.trusted || !context.user) {
+    if (!context.user) {
+      console.log("getSession: No user in context");
       return null;
     }
 
@@ -86,6 +87,8 @@ export const banUserFn = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     // 1. 取得原始 Request (以便將 headers 傳給 Better Auth 驗證管理員身分)
     const request = getRequest();
+
+    const auth = await getAuth();
 
     // 2. 定義更新資料庫的 Effect (呼叫 Better Auth API)
     const banDbEffect = Effect.tryPromise({

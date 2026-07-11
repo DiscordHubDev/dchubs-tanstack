@@ -1,9 +1,9 @@
 // scripts/update-bots.ts
 import { eq } from "drizzle-orm";
 import { Data, Effect, Array as EffectArray, Option, Fiber } from "effect";
-import { client, db } from "#/drizzle/db";
 import { bot } from "#/drizzle/schema";
 import { getDiscordRPCWithMember } from "#/features/api/api.function";
+import { getDb } from "#/drizzle/db";
 
 const BOT_PROCESS_DELAY_MS = 3000;
 const DB_BATCH_WRITE_SIZE = 20;
@@ -70,8 +70,17 @@ const fetchBotServerCountEffect = (botId: string) =>
       }
       const data = await res.json();
       const count = Array.isArray(data)
-        ? data.find((item) => typeof item.server_count === "number")?.server_count
-        : typeof data?.server_count === "number"
+        ? data.find(
+            (item): item is { server_count: number } =>
+              item !== null &&
+              typeof item === "object" &&
+              "server_count" in item &&
+              typeof item.server_count === "number",
+          )?.server_count
+        : data !== null &&
+            typeof data === "object" &&
+            "server_count" in data &&
+            typeof data.server_count === "number"
           ? data.server_count
           : null;
       return count != null ? Option.some(count) : Option.none();
@@ -91,6 +100,7 @@ const flushUpdatesEffect = <T extends Record<string, unknown>>(
   Effect.tryPromise({
     try: async () => {
       if (pending.length === 0) return;
+      const db = getDb();
       await db.transaction(async (tx) => {
         for (const { id, data } of pending) {
           await tx.update(bot).set(data).where(eq(bot.id, id));
@@ -103,6 +113,7 @@ const flushUpdatesEffect = <T extends Record<string, unknown>>(
 
 const fetchApprovedBots = Effect.gen(function* () {
   const isDev = process.env.NODE_ENV === "development";
+  const db = getDb();
   let query = db
     .select({
       id: bot.id,
@@ -205,7 +216,6 @@ const updateBotsProgram = Effect.gen(function* () {
 // ─── 執行進入點 ───
 Effect.runPromiseExit(updateBotsProgram).then((exit) => {
   console.log("🔌 正在關閉資料庫連線池...");
-  client.close();
   if (exit._tag === "Failure") {
     console.error("❌ 執行發生錯誤:", exit.cause);
     process.exit(1);

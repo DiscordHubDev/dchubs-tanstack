@@ -52,9 +52,7 @@ import { cn } from "#/lib/utils";
 
 const DEFAULT_BOT_ICON_URL = "https://cdn.discordapp.com/embed/avatars/0.png";
 const BOT_DETAIL_TABS: readonly BotDetailTab[] = ["about", "commands", "screenshots"];
-const siteUrl =
-  (typeof process !== "undefined" ? process.env.BETTER_AUTH_URL : undefined) ||
-  "https://dchubs.org";
+const siteUrl = import.meta.env.VITE_SITE_URL || "https://dchubs.org";
 
 const STAR_RATINGS = [1, 2, 3, 4, 5] as const;
 

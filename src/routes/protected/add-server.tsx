@@ -9,9 +9,7 @@ import type { DiscordGuild } from "#/features/servers/add-server.types";
 import { useGuilds } from "#/hooks/use-guilds";
 import { checkAuthServerFn } from "#/lib/auth.functions";
 
-const siteUrl =
-  (typeof process !== "undefined" ? process.env.BETTER_AUTH_URL : undefined) ||
-  "https://dchubs.org";
+const siteUrl = import.meta.env.VITE_SITE_URL || "https://dchubs.org";
 
 export const Route = createFileRoute("/protected/add-server")({
   validateSearch: (_search) => ({}),

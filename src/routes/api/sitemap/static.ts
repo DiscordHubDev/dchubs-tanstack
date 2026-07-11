@@ -1,9 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { buildSitemapXml, createSitemapResponse, type SitemapField } from "#/lib/sitemap";
 
-const siteUrl =
-  (typeof process !== "undefined" ? process.env.BETTER_AUTH_URL : undefined) ||
-  "https://dchubs.org";
+const siteUrl = import.meta.env.VITE_SITE_URL || "https://dchubs.org";
 
 export const Route = createFileRoute("/api/sitemap/static")({
   server: {

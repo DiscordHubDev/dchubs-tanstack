@@ -1,11 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import PrivacyPage from "#/components/privacy";
 
-const baseUrl =
-  process.env.BETTER_AUTH_URL ||
-  process.env.SITE_URL ||
-  process.env.VITE_SITE_URL ||
-  "http://localhost:3000";
+const baseUrl = import.meta.env.VITE_SITE_URL || "http://localhost:3000";
 
 export const Route = createFileRoute("/privacy")({
   head: () => {

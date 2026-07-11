@@ -3,8 +3,8 @@ import { drizzleAdapter } from "better-auth/adapters/drizzle";
 import { admin, jwt } from "better-auth/plugins";
 import { tanstackStartCookies } from "better-auth/tanstack-start";
 import { eq } from "drizzle-orm";
-import { db } from "#/drizzle/db";
 import * as schema from "#/drizzle/schema";
+import { getDb } from "#/drizzle/db";
 
 type DiscordProfileLike = {
   id: string;
@@ -50,11 +50,7 @@ function buildDiscordBanner(profile: DiscordProfileLike): string | null {
 }
 
 export async function createAuth() {
-  const fallbackBaseUrl =
-    process.env.BETTER_AUTH_URL ||
-    process.env.SITE_URL ||
-    process.env.VITE_SITE_URL ||
-    "http://localhost:3000";
+  const fallbackBaseUrl = import.meta.env.VITE_SITE_URL || "http://localhost:3000";
 
   const isProd = process.env.NODE_ENV === "production";
 
@@ -100,7 +96,7 @@ export async function createAuth() {
       },
     },
 
-    database: drizzleAdapter(db, {
+    database: drizzleAdapter(getDb(), {
       provider: "pg",
       schema: {
         // 關鍵在這裡：左邊是 Better Auth 內部的模型名，右邊是你 schema 檔案導出的變數
@@ -118,6 +114,7 @@ export async function createAuth() {
       modelName: "user",
       additionalFields: {
         discordId: { type: "string", required: true },
+        nsfw: { type: "boolean", required: true, default: false },
         username: { type: "string", required: false },
         avatar: { type: "string", required: false },
         banner: { type: "string", required: false },
@@ -172,6 +169,8 @@ export async function createAuth() {
           after: async (data) => {
             const session: any = data.session || data;
             if (!session || !session.userId) return;
+
+            const db = getDb();
 
             // 1. 取得該使用者的 Discord Account 紀錄（因為 updateAccountOnSignIn: true，這裡的 Token 是最新的）
             const account = await db.query.authAccount.findFirst({

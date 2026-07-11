@@ -1,10 +1,10 @@
 import { and, eq, inArray } from "drizzle-orm";
 import { Effect } from "effect";
-import { db } from "#/drizzle/db";
 import { authAccount, server } from "#/drizzle/schema";
 import { runEffect, tryEffectPromise } from "#/lib/effect-utils";
 import { fetchDiscordGuilds } from "./add-server.api";
 import type { DiscordGuild, GuildMembershipBundle } from "./add-server.types";
+import { getDb } from "#/drizzle/db";
 
 const FALLBACK_BOT_CLIENT_ID = "1324996138251583580";
 const DEFAULT_BOT_PERMISSIONS = "1126965059046400";
@@ -16,6 +16,7 @@ function sortGuildsByName(guilds: DiscordGuild[]): DiscordGuild[] {
 }
 
 function getDiscordAccessTokenEffect(userId: string): Effect.Effect<string, Error> {
+  const db = getDb();
   return Effect.gen(function* () {
     const account = yield* tryEffectPromise("Failed to load Discord account token", () =>
       db.query.authAccount.findFirst({
@@ -54,6 +55,7 @@ function getBotInviteClientId(): string {
 function getGuildMembershipBundleEffect(
   userId: string,
 ): Effect.Effect<GuildMembershipBundle, Error> {
+  const db = getDb();
   return Effect.gen(function* () {
     const [userAccessToken, botToken] = yield* Effect.all([
       getDiscordAccessTokenEffect(userId),

@@ -9,7 +9,7 @@
       "@/*": ["./src/*"]
     },
     "lib": ["ES2025", "DOM", "DOM.Iterable"],
-    "types": ["vite/client"],
+    "types": ["vite/client", "./worker-configuration.d.ts", "node"],
 
     /* 打包工具模式 (Vite / Rolldown / Rspack) */
     "moduleResolution": "bundler",

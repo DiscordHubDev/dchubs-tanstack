@@ -1,8 +1,8 @@
 // scripts/check-pins.ts
 import { and, eq, lt, sql } from "drizzle-orm";
 import { Data, Effect } from "effect";
-import { client, db } from "#/drizzle/db";
 import { bot, server } from "#/drizzle/schema";
+import { getDb } from "#/drizzle/db";
 
 // ─── 定義錯誤型別 ───
 class DbUpdateBotPinError extends Data.TaggedError("DbUpdateBotPinError")<{
@@ -18,6 +18,7 @@ class DbUpdateServerPinError extends Data.TaggedError("DbUpdateServerPinError")<
 const resetExpiredBotPinsEffect = () =>
   Effect.tryPromise({
     try: async () => {
+      const db = getDb();
       // 最高效作法：直接由資料庫篩選並一次性更新，不做無謂的 SELECT 撈取
       const updateResult = await db
         .update(bot)
@@ -43,6 +44,7 @@ const resetExpiredBotPinsEffect = () =>
 const resetExpiredServerPinsEffect = () =>
   Effect.tryPromise({
     try: async () => {
+      const db = getDb();
       const updateResult = await db
         .update(server)
         .set({
@@ -86,7 +88,6 @@ const checkAndResetPinsProgram = Effect.gen(function* () {
 Effect.runPromiseExit(checkAndResetPinsProgram).then((exit) => {
   // 💡 腳本準備結束，主動關閉連線池
   console.log("🔌 正在關閉資料庫連線池...");
-  client.close();
 
   if (exit._tag === "Success") {
     console.log("🎉 Pin 檢查與同步完成:", exit.value);

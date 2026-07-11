@@ -1,9 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { createSitemapResponse } from "#/lib/sitemap";
 
-const siteUrl =
-  (typeof process !== "undefined" ? process.env.BETTER_AUTH_URL : undefined) ||
-  "https://dchubs.org";
+const siteUrl = import.meta.env.VITE_SITE_URL || "https://dchubs.org";
 
 function buildSitemapIndexXml(urls: string[]): string {
   const body = urls.map((url) => `<sitemap><loc>${url}</loc></sitemap>`).join("");

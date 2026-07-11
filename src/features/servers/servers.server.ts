@@ -1,6 +1,5 @@
 import { and, desc, eq, gte, sql } from "drizzle-orm";
 import { Effect } from "effect";
-import { db } from "#/drizzle/db";
 import { server, userFavoriteServers } from "#/drizzle/schema";
 import { runEffect, tryEffectPromise } from "#/lib/effect-utils";
 import type { CategoryType } from "#/lib/types";
@@ -12,6 +11,7 @@ import type {
   ServerListQueryResult,
 } from "./servers.types";
 import { cacheAside, getCacheVersion } from "#/lib/redis";
+import { getDb } from "#/drizzle/db";
 
 const CACHE_NAMESPACE = "servers";
 const LIST_CACHE_TTL_SECONDS = 60; // 對應 client staleTime 30s
@@ -91,6 +91,8 @@ function mapRowToPublicServer(
 function getFavoriteIdsEffect(userId: string | null): Effect.Effect<Set<string>, Error> {
   if (!userId) return Effect.succeed(new Set<string>());
 
+  const db = getDb();
+
   return tryEffectPromise("Failed to fetch favorite servers", async () => {
     const rows = await db
       .select({ id: userFavoriteServers.a })
@@ -130,6 +132,7 @@ function getListOrderBy(category: ServerCategory) {
 }
 
 function baseServerRowsQuery() {
+  const db = getDb();
   return db.select(SERVER_ROW_COLUMNS).from(server);
 }
 type ServerRow = Awaited<ReturnType<typeof baseServerRowsQuery>>[number];
@@ -139,6 +142,7 @@ function listServersPageEffect(
   userId?: string | null,
   userNsfw?: boolean,
 ): Effect.Effect<ServerListQueryResult, Error> {
+  const db = getDb();
   return Effect.gen(function* () {
     const favoriteIds = yield* getFavoriteIdsEffect(userId ?? null);
 
@@ -166,7 +170,7 @@ function listServersPageEffect(
     const { total, rows } = yield* tryEffectPromise(
       "Failed to load server list",
       (): Promise<{ total: number; rows: ServerRow[] }> =>
-        cacheAside(cacheKey, LIST_CACHE_TTL_SECONDS, async () => {
+        cacheAside(CACHE_NAMESPACE, cacheKey, LIST_CACHE_TTL_SECONDS, async () => {
           const countQuery = db.select({ count: sql<number>`count(*)` }).from(server);
           const scopedCountQuery = whereClause ? countQuery.where(whereClause) : countQuery;
 
@@ -212,7 +216,7 @@ function listServerFilterBundleEffect(
     const rawServers = yield* tryEffectPromise(
       "Failed to load raw servers",
       (): Promise<ServerRow[]> =>
-        cacheAside(cacheKey, BUNDLE_CACHE_TTL_SECONDS, () => {
+        cacheAside(CACHE_NAMESPACE, cacheKey, BUNDLE_CACHE_TTL_SECONDS, async () => {
           const baseQuery = baseServerRowsQuery();
           const scopedQuery = userNsfw ? baseQuery.where(eq(server.nsfw, false)) : baseQuery;
           return scopedQuery;
@@ -277,6 +281,8 @@ export async function deleteServer(
   if (!userId) {
     return { success: false, reason: "UNAUTHORIZED" };
   }
+
+  const db = getDb();
 
   // 2. 一次性查出該伺服器是否存在，以及擁有者是誰
   const targetServer = await db

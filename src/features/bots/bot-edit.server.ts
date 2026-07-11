@@ -1,9 +1,9 @@
 import { asc, eq, sql } from "drizzle-orm";
 import { Data, Effect } from "effect";
-import { db } from "#/drizzle/db";
 import { bot, botCommand, botDevelopers, user } from "#/drizzle/schema";
 import { runEffect, toErrorMessage } from "#/lib/effect-utils";
 import type { BotEditDefaults, BotEditResult } from "./bot-edit.types";
+import { getDb } from "#/drizzle/db";
 
 class BotEditFailed extends Data.TaggedError("BotEditFailed")<{
   message: string;
@@ -39,6 +39,7 @@ function getBotEditBundleEffect(
   botId: string,
   userId: string,
 ): Effect.Effect<BotEditResult, BotEditFailed> {
+  const db = getDb();
   return Effect.gen(function* () {
     const botRows = yield* dbEffect("Failed to load bot", () =>
       db

@@ -1,6 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { and, desc, eq } from "drizzle-orm";
-import { db } from "#/drizzle/db";
 import { bot } from "#/drizzle/schema";
 import {
   buildSitemapXml,
@@ -8,6 +7,7 @@ import {
   createSitemapResponse,
   type SitemapField,
 } from "#/lib/sitemap";
+import { getDb } from "#/drizzle/db";
 
 const siteUrl =
   (typeof process !== "undefined" ? process.env.NEXT_PUBLIC_SITE_URL : undefined) ||
@@ -17,6 +17,7 @@ export const Route = createFileRoute("/api/sitemap/bots")({
   server: {
     handlers: {
       GET: async () => {
+        const db = getDb();
         const bots = await db
           .select({
             id: bot.id,

@@ -1,9 +1,9 @@
 // admin.server.ts
 
 import { eq } from "drizzle-orm";
-import { db } from "#/drizzle/db";
 import { bot } from "#/drizzle/schema";
 import { fetchJsonEffect, runEffect } from "#/lib/effect-utils";
+import { getDb } from "#/drizzle/db";
 
 /**
  * 將 Drizzle query 包裝為 Effect，並將捕捉到的錯誤轉換為 typed failures
@@ -29,6 +29,7 @@ export const fetchAndUpdateServerCount = async (botId: string) => {
     }
 
     if (serverCount !== null) {
+      const db = getDb();
       await db.update(bot).set({ servers: serverCount }).where(eq(bot.id, botId));
       console.log(`✅ 成功更新伺服器數量 (Bot: ${botId}): ${serverCount}`);
     } else {

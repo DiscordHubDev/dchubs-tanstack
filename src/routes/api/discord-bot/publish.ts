@@ -1,10 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { eq, inArray } from "drizzle-orm";
 import { Effect, ParseResult, Schema } from "effect";
-import { db } from "#/drizzle/db";
 import { server, serverAdmins, user } from "#/drizzle/schema"; // 確保引入正確的 table
-
-type DbTransaction = Parameters<Parameters<typeof db.transaction>[0]>[0];
+import { getDb, type DbTransaction } from "#/drizzle/db";
 
 const fetchDiscordUser = (discordId: string) =>
   Effect.tryPromise({
@@ -115,6 +113,8 @@ export const Route = createFileRoute("/api/discord-bot/publish")({
             try: () => request.json(),
             catch: () => new Error("無法解析 JSON 請求本體"),
           });
+
+          const db = getDb();
 
           const guild = yield* Schema.decodeUnknown(DiscordGuildSchema)(body);
 

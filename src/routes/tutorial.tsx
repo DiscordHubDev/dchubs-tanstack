@@ -1,11 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 import TutorialPage from "#/components/tutorial";
 
-const baseUrl =
-  process.env.BETTER_AUTH_URL ||
-  process.env.SITE_URL ||
-  process.env.VITE_SITE_URL ||
-  "http://localhost:3000";
+const baseUrl = import.meta.env.VITE_SITE_URL || "http://localhost:3000";
 
 const seoMeta = [
   { title: "使用教學 | DiscordHubs - 探索優質 Discord 伺服器與機器人" },

@@ -1,6 +1,5 @@
 import { and, desc, eq, gte, ne, sql } from "drizzle-orm";
 import { Effect } from "effect";
-import { db } from "#/drizzle/db";
 import { report, review, server, user, userFavoriteServers, vote } from "#/drizzle/schema";
 import { ServerNotFoundError } from "#/errors/server-error";
 import { runEffect, tryEffectPromise } from "#/lib/effect-utils";
@@ -15,6 +14,7 @@ import type {
 } from "./server-detail.types";
 import type { PublicServer } from "./servers.types";
 import { uploadReportAttachmentsEffect } from "#/lib/report";
+import { getDb } from "#/drizzle/db";
 
 // 提取：處理陣列型別的輔助函式，避免重複的 filter(Boolean) 邏輯
 const cleanStringArray = (arr: unknown): string[] =>
@@ -75,6 +75,8 @@ function getFavoriteIdsEffect(userId: string | null): Effect.Effect<Set<string>,
     return Effect.succeed(new Set<string>());
   }
 
+  const db = getDb();
+
   return dbEffect("Failed to fetch favorite server ids", async () => {
     const rows = await db
       .select({ id: userFavoriteServers.a })
@@ -92,6 +94,8 @@ function getRecentVoteCreatedAtEffect(
   if (!userId) {
     return Effect.succeed(null);
   }
+
+  const db = getDb();
 
   const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString();
 
@@ -124,6 +128,7 @@ function getServerDetailEffect(
   serverId: string,
   userId: string | null = null,
 ): Effect.Effect<ServerDetail | null, Error> {
+  const db = getDb();
   return Effect.gen(function* () {
     const [favoriteIds, serverRows] = yield* Effect.all(
       [
@@ -275,6 +280,7 @@ function voteServerEffect(
   userId: string,
 ): Effect.Effect<ServerVoteResult, ServerNotFoundError | Error> {
   return Effect.gen(function* () {
+    const db = getDb();
     // 1. 平行執行查詢：同時獲取「伺服器資訊」與「最後投票時間」來降低 I/O 延遲
     const [targetRows, recentVoteCreatedAt] = yield* Effect.all(
       [
@@ -390,6 +396,7 @@ function rateServerEffect(
   rating: number,
   userId: string,
 ): Effect.Effect<ServerRateResult, ServerNotFoundError | Error> {
+  const db = getDb();
   return Effect.gen(function* () {
     // 1. 確認伺服器是否存在
     const targetRows = yield* dbEffect("Failed to find server for rating", () =>
@@ -450,6 +457,7 @@ function reportServerEffect(input: {
   reasons: readonly string[];
   attachments: readonly { dataUrl: string; fileName: string }[];
 }): Effect.Effect<ServerReportResult, Error> {
+  const db = getDb();
   return Effect.gen(function* () {
     const reportId = crypto.randomUUID();
 

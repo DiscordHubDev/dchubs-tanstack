@@ -29,8 +29,11 @@ export const protectedMiddleware = createMiddleware()
   .middleware([authMiddleware])
   .server(async ({ next, context }) => {
     if (!context.user) {
-      // 根據你的應用需求，這裡可以拋錯或拋出 HTTP Response (例如轉址)
       throw new Error("Unauthorized: 未登入");
+    }
+
+    if (context.isBanned) {
+      throw new Error("Account is banned");
     }
 
     // ✅ 解構後 TypeScript 能正確收窄 user 的型別為 DomainUser（非 null）
@@ -46,6 +49,10 @@ export const adminMiddleware = createMiddleware()
   .server(async ({ next, context }) => {
     if (!context.edgeContext.isAdmin) {
       throw new Error("Forbidden: 權限不足");
+    }
+
+    if (context.isBanned) {
+      throw new Error("Account is banned");
     }
 
     // 驗證過後直接將前面的 context 原封不動傳下去

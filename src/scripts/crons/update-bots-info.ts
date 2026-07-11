@@ -1,10 +1,10 @@
 // scripts/update-bots-info.ts
 import { eq } from "drizzle-orm";
 import { Effect, Array as EffectArray, Option, Schema, Either } from "effect";
-import { client, db } from "#/drizzle/db";
 import { bot } from "#/drizzle/schema";
 import { fetchBotRpcEffect, fetchUserEffect } from "#/utils/fetch-rpc";
 import { DiscordBotRPCInfoSchema } from "#/features/bots/bot-submit.schemas";
+import { getDb } from "#/drizzle/db";
 
 const DB_BATCH_WRITE_SIZE = 20;
 // Discord API 有速率限制，這裡限制同時處理的 bot 數量，避免 429
@@ -96,6 +96,7 @@ const flushUpdatesEffect = <T extends Record<string, unknown>>(
   Effect.tryPromise({
     try: async () => {
       if (pending.length === 0) return;
+      const db = getDb();
       await db.transaction(async (tx) => {
         for (const { id, data } of pending) {
           await tx.update(bot).set(data).where(eq(bot.id, id));
@@ -112,6 +113,7 @@ const flushUpdatesEffect = <T extends Record<string, unknown>>(
 const updateBotBasicInfoProgram = Effect.gen(function* () {
   console.log("🚀 開始更新 Bot 基本資訊...");
   const isDev = process.env.NODE_ENV === "development";
+  const db = getDb();
 
   let query = db
     .select({
@@ -174,7 +176,6 @@ const updateBotBasicInfoProgram = Effect.gen(function* () {
 
 Effect.runPromiseExit(updateBotBasicInfoProgram).then((exit) => {
   console.log("🔌 正在關閉資料庫連線池...");
-  client.close();
   if (exit._tag === "Failure") {
     console.error("❌ 執行發生錯誤:", exit.cause);
     process.exit(1);

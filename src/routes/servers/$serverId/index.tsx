@@ -6,9 +6,7 @@ import type { ServerDetail, ServerDetailTab } from "#/features/servers/server-de
 
 const DEFAULT_SERVER_ICON_URL = "https://cdn.discordapp.com/embed/avatars/0.png";
 const SERVER_DETAIL_TABS: readonly ServerDetailTab[] = ["about", "rules", "screenshots"];
-const siteUrl =
-  (typeof process !== "undefined" ? process.env.BETTER_AUTH_URL : undefined) ||
-  "https://dchubs.org";
+const siteUrl = import.meta.env.VITE_SITE_URL || "https://dchubs.org";
 
 function createServerMetaTitle(detail: ServerDetail): string {
   const tagLabel = detail.tags.slice(0, 2).join(" / ");

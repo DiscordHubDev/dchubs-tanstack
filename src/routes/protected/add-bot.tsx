@@ -3,9 +3,7 @@ import BotForm from "#/components/form/BotForm";
 import LoadingPage from "#/components/loading";
 import { checkAuthServerFn } from "#/lib/auth.functions";
 
-const siteUrl =
-  (typeof process !== "undefined" ? process.env.BETTER_AUTH_URL : undefined) ||
-  "https://dchubs.org";
+const siteUrl = import.meta.env.VITE_SITE_URL || "https://dchubs.org";
 
 export const Route = createFileRoute("/protected/add-bot")({
   preload: false,

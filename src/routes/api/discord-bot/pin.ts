@@ -1,8 +1,8 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { eq } from "drizzle-orm";
 import { Either, ParseResult, Schema } from "effect";
-import { db } from "#/drizzle/db";
 import { server } from "#/drizzle/schema";
+import { getDb } from "#/drizzle/db";
 
 // 只需要接收伺服器 ID 即可
 const PinRequestSchema = Schema.Struct({
@@ -14,7 +14,7 @@ export const Route = createFileRoute("/api/discord-bot/pin")({
     handlers: {
       POST: async ({ request }) => {
         try {
-          // 🔒 1. 驗證 Authorization Header，
+          const db = getDb();
           const authHeader = request.headers.get("Authorization");
           const expectedToken = process.env.API_CRON_TOKEN;
 

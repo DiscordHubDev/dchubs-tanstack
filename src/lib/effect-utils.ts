@@ -67,7 +67,14 @@ export function tryEffectPromise<A>(
 ): Effect.Effect<A, Error> {
   return Effect.tryPromise({
     try: run,
-    catch: (error) => toError(error, fallback),
+    catch: (e) => {
+      console.error(fallback, e); // ← Add this
+      // Also log if it's a Drizzle error
+      if (e instanceof Error) {
+        console.error("Raw error:", e.message, (e as any).stack);
+      }
+      return toError(e, fallback);
+    },
   });
 }
 

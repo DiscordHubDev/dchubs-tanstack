@@ -576,12 +576,15 @@ function HomePage() {
           <div className="relative mt-6 h-32 overflow-hidden rounded-xl border border-white/10 bg-[#1e1f22] sm:h-48 md:h-70">
             <a href="https://nuorpg.com/" target="_blank" rel="noopener noreferrer">
               <Image
-                src="https://gallery.dawngs.top/api/v1/buckets/image/objects/download?preview=true&prefix=nuo_dchub_2.png"
+                src="/nuo_dchub_2.webp"
                 alt="熱門伺服器活動"
                 width={1280}
-                height={480}
+                height={427}
                 className="h-full w-full object-cover"
                 loading="eager"
+                fetchPriority="high"
+                sizes="(max-width: 640px) 100vw, (max-width: 768px) 100vw, 1280px"
+                breakpoints={[640, 768, 1024, 1280]}
               />
             </a>
           </div>

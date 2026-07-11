@@ -1,8 +1,8 @@
 // scripts/update-bots-servers.ts
 import { eq, asc, sql } from "drizzle-orm";
 import { Data, Effect, Option } from "effect";
-import { client, db } from "#/drizzle/db";
 import { bot } from "#/drizzle/schema";
+import { getDb } from "#/drizzle/db";
 
 const BOT_PROCESS_DELAY_MS = 3000;
 const PROCESS_LIMIT = 15;
@@ -26,8 +26,17 @@ const fetchBotServerCountEffect = (botId: string) =>
       }
       const data = await res.json();
       const count = Array.isArray(data)
-        ? data.find((item) => typeof item.server_count === "number")?.server_count
-        : typeof data?.server_count === "number"
+        ? data.find(
+            (item): item is { server_count: number } =>
+              item !== null &&
+              typeof item === "object" &&
+              "server_count" in item &&
+              typeof item.server_count === "number",
+          )?.server_count
+        : data !== null &&
+            typeof data === "object" &&
+            "server_count" in data &&
+            typeof data.server_count === "number"
           ? data.server_count
           : null;
       return count != null ? Option.some(count) : Option.none();
@@ -42,6 +51,8 @@ const fetchBotServerCountEffect = (botId: string) =>
 
 const updateBotServerCountProgram = Effect.gen(function* () {
   console.log("🔢 開始排程更新伺服器數量...");
+
+  const db = getDb();
 
   // 每次只撈取最久沒有被更新過的 N 筆資料
   const bots = yield* Effect.tryPromise(() =>
@@ -89,7 +100,6 @@ const updateBotServerCountProgram = Effect.gen(function* () {
 
 Effect.runPromiseExit(updateBotServerCountProgram).then((exit) => {
   console.log("🔌 正在關閉資料庫連線池...");
-  client.close();
   if (exit._tag === "Failure") {
     console.error("❌ 執行發生錯誤:", exit.cause);
     process.exit(1);

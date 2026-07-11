@@ -168,6 +168,7 @@ export default defineConfig(({ mode }) => {
         "@t3-oss/env-core",
         "dotenv",
         "mime-types",
+        "cloudflare:workers",
       ],
     },
 
@@ -227,9 +228,7 @@ export default defineConfig(({ mode }) => {
           },
         },
       }),
-
-      // Bun-flavoured Nitro server
-      nitro({ preset: "bun" }),
+      nitro({ preset: "cloudflare_module" }),
 
       // ✅ @vitejs/plugin-react v6 uses Oxc internally (not Babel) for
       // React Refresh. The React Compiler is a Babel preset and CANNOT be
@@ -264,7 +263,7 @@ export default defineConfig(({ mode }) => {
 
       // ─── Rolldown options (replaces rollupOptions in Vite 8) ───────────
       rolldownOptions: {
-        external: ["bun", "bun:sqlite"],
+        external: ["bun", "bun:sqlite", "cloudflare:workers"],
 
         output: {
           // ✅ advancedChunks replaces the deprecated manualChunks function.

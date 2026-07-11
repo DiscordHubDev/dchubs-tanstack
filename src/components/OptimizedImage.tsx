@@ -1,6 +1,6 @@
+import { getProxyImageUrl } from "#/utils/image";
 import { Image } from "@unpic/react";
 import type { ImgHTMLAttributes, ReactNode } from "react";
-import { getProxyImageUrl } from "#/utils/image";
 
 interface OptimizedImageProps extends Omit<
   ImgHTMLAttributes<HTMLImageElement>,
@@ -18,10 +18,11 @@ interface OptimizedImageProps extends Omit<
 
 // 輔助函式：將 width 轉換為符合 Discord 規範的尺寸（1024 的倍數，最低 1024）
 function calculateDiscordSize(targetWidth: number): number {
-  const base = 1024;
-  // 使用 Math.ceil 向上取整，確保解析度足夠；若寬度小於 1024 則保底 1024
-  if (targetWidth <= base) return base;
-  return Math.ceil(targetWidth / base) * base;
+  // Discord 支援的 size 參數通常是 2 的冪次方 (16, 32, 64, 128, 256, 512, 1024, 2048, 4096)
+  const sizes = [16, 32, 64, 128, 256, 512, 1024, 2048, 4096];
+
+  // 找到第一個大於等於目標寬度的尺寸
+  return sizes.find((s) => s >= targetWidth) || 1024;
 }
 
 export function OptimizedImage({
@@ -38,26 +39,25 @@ export function OptimizedImage({
   const actualSrc = src || fallbackSrc;
 
   if (!actualSrc) {
-    if (fallbackNode) return fallbackNode;
-    return null;
+    return fallbackNode || null;
   }
 
-  // 檢查是否為瀏覽器本地的 blob: 網址
   const isBlob = actualSrc.startsWith("blob:");
+  const isDiscord = actualSrc.includes("cdn.discordapp.com");
 
   let finalSrc = actualSrc;
 
-  if (!isBlob) {
-    // 只有非 Blob 網址才進行 Proxy 與 Discord 最佳化
-    const isDiscord = actualSrc.includes("cdn.discordapp.com");
+  if (isBlob) {
+    // Blob 保持原樣
+    finalSrc = actualSrc;
+  } else if (isDiscord) {
+    // Discord 圖片：處理 size 參數
     const cleanUrl = actualSrc.split("?")[0];
-
-    // 這裡套用 1024 倍數的計算（考量到 Retina 螢幕，傳入 width * 2 去計算最接近的倍數）
     const discordSize = calculateDiscordSize(width * 2);
-
-    const optimizedUrl = isDiscord ? `${cleanUrl}?size=${discordSize}` : actualSrc;
-
-    finalSrc = getProxyImageUrl(optimizedUrl);
+    finalSrc = `${cleanUrl}?size=${discordSize}`;
+  } else {
+    // 其他外部圖片：透過您現有的 Proxy 進行優化
+    finalSrc = getProxyImageUrl(actualSrc);
   }
 
   return (
@@ -69,7 +69,7 @@ export function OptimizedImage({
       height={height}
       layout={layout}
       className={className}
-      background={isBlob ? "none" : "auto"} // Blob 通常是本地暫存，關閉背景預載避免閃爍或報錯
+      background={isBlob ? "none" : "auto"}
     />
   );
 }

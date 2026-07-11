@@ -1,8 +1,8 @@
 // scripts/check-server.ts
 import { inArray } from "drizzle-orm";
 import { Data, Duration, Effect } from "effect";
-import { client, db } from "#/drizzle/db";
 import { server, user } from "#/drizzle/schema";
+import { getDb } from "#/drizzle/db";
 
 class DiscordApiError extends Data.TaggedError("DiscordApiError")<{
   readonly message: string;
@@ -38,6 +38,12 @@ interface DiscordUserGuild {
   owner: boolean;
   permissions: string;
   features: string[];
+}
+
+interface DiscordRateLimitResponse {
+  retry_after?: number;
+  message?: string;
+  code?: number;
 }
 
 // ─── new Discord API shapes ───
@@ -92,6 +98,7 @@ const getBotGuildIdsEffect = (botToken: string) =>
 const getAllServerIdsChunkedEffect = () =>
   Effect.tryPromise({
     try: async () => {
+      const db = getDb();
       const result = await db.select({ id: server.id }).from(server);
       return result.map((row) => row.id);
     },
@@ -104,6 +111,7 @@ const getAllServerIdsChunkedEffect = () =>
 const deleteServersEffect = (toDeleteIds: string[]) =>
   Effect.tryPromise({
     try: async () => {
+      const db = getDb();
       const deleteResult = await db.delete(server).where(inArray(server.id, toDeleteIds));
 
       return (
@@ -132,7 +140,10 @@ const fetchDiscordJson = (url: string, botToken: string, attempt = 1): Effect.Ef
         return yield* Effect.fail(new Error(`Rate limited too many times: ${url}`));
       }
       const body = yield* Effect.tryPromise({
-        try: () => res.json().catch(() => ({}) as any),
+        try: async () => {
+          const json = await res.json().catch(() => ({}));
+          return json as DiscordRateLimitResponse; // 明確轉型
+        },
         catch: () => new Error("Failed to parse rate limit body"),
       });
       const retryAfterSeconds = Number(res.headers.get("retry-after")) || body?.retry_after || 1;
@@ -201,6 +212,7 @@ const upsertOwnerProfileEffect = (discordUser: DiscordUser) =>
       const avatarUrl = buildAvatarUrl(discordUser);
       const bannerUrl = buildBannerUrl(discordUser);
 
+      const db = getDb();
       await db
         .insert(user)
         .values({
@@ -290,7 +302,6 @@ if (!botToken) {
 Effect.runPromiseExit(syncServersProgram(botToken)).then((exit) => {
   // 💡 腳本準備結束，主動關閉連線池
   console.log("🔌 正在關閉資料庫連線池...");
-  client.close();
 
   if (exit._tag === "Success") {
     console.log("🎉 同步完成:", exit.value);

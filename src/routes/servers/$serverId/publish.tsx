@@ -3,9 +3,7 @@ import { createFileRoute, redirect } from "@tanstack/react-router";
 import { ServerPublishPage } from "#/features/servers/components/ServerPublishPage";
 import { serverPublishQueryOptions } from "#/features/servers/server-publish.query";
 
-const siteUrl =
-  (typeof process !== "undefined" ? process.env.BETTER_AUTH_URL : undefined) ||
-  "https://dchubs.org";
+const siteUrl = import.meta.env.VITE_SITE_URL || "https://dchubs.org";
 
 export const Route = createFileRoute("/servers/$serverId/publish")({
   validateSearch: () => ({}),

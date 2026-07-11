@@ -1,7 +1,6 @@
 import { and, eq, ilike, inArray, or } from "drizzle-orm";
 import { Effect, Either, Schema } from "effect";
 import { SignJWT } from "jose";
-import { db } from "#/drizzle/db";
 import {
   apiToken,
   bot,
@@ -252,6 +251,8 @@ export function getUserBaseProfileEffect(id: string): Effect.Effect<UserBaseProf
   return Effect.gen(function* () {
     if (!id) return null;
 
+    const db = getDb();
+
     const currentUser = yield* dbEffect("Failed to load user profile", () =>
       db.query.user.findFirst({
         where: eq(user.id, id),
@@ -281,6 +282,8 @@ export function getUserBaseProfileEffect(id: string): Effect.Effect<UserBaseProf
 export function getUserServersEffect(id: string) {
   return Effect.gen(function* () {
     if (!id) return { owned: [], adminIn: [] };
+
+    const db = getDb();
 
     const [ownedServersRaw, adminInRaw] = yield* Effect.all([
       dbEffect("Failed to load owned servers", () =>
@@ -324,6 +327,8 @@ export function getUserServersEffect(id: string) {
 export function getUserBotsEffect(id: string) {
   return Effect.gen(function* () {
     if (!id) return { developedBots: [] };
+
+    const db = getDb();
 
     const developedBotsRaw = yield* dbEffect("Failed to load developed bots", () =>
       db
@@ -385,6 +390,8 @@ export function getUserFavoritesEffect(id: string) {
   return Effect.gen(function* () {
     if (!id) return { favoriteServers: [], favoriteBots: [] };
 
+    const db = getDb();
+
     const [favoriteServersRaw, favoriteBotsRaw] = yield* Effect.all([
       dbEffect("Failed to load favorite servers", () =>
         db
@@ -433,6 +440,8 @@ export function getUserSettingsEffect(id: string) {
       return yield* Effect.fail(new Error("User ID is required"));
     }
 
+    const db = getDb();
+
     const settingsData = yield* dbEffect("Failed to load user settings", () =>
       db.query.user.findFirst({
         where: eq(user.discordId, id),
@@ -461,9 +470,10 @@ export function getUserSettingsEffect(id: string) {
 }
 
 export function getUserByIdOrNameEffect(query: string): Effect.Effect<DevUser[], Error> {
-  // 💡 將回傳型別從 DevUser | null 改為 DevUser[]
   return Effect.gen(function* () {
-    if (!query) return []; // 💡 找不到時回傳空陣列
+    if (!query) return [];
+
+    const db = getDb();
 
     const whereClause = or(
       eq(user.discordId, query),
@@ -487,6 +497,8 @@ export function getUserByIdOrNameEffect(query: string): Effect.Effect<DevUser[],
 function getUserByIdEffect(id: string): Effect.Effect<UserDetail | null, Error> {
   return Effect.gen(function* () {
     if (!id) return null;
+
+    const db = getDb();
 
     const currentUser = yield* dbEffect("Failed to load user", () =>
       db.query.user.findFirst({
@@ -647,6 +659,8 @@ function upsertUserFromSessionEffect(
   return Effect.gen(function* () {
     if (!profile?.id) return null;
 
+    const db = getDb();
+
     const nextUsername = profile.name ?? profile.username ?? "";
     const nextAvatar = profile.image_url ?? getFallbackAvatar();
     const nextBanner = profile.banner_url ?? null;
@@ -726,6 +740,7 @@ export function getCurrentUser(discordId?: string): Promise<UserDetail | null> {
 }
 
 import { sql } from "drizzle-orm";
+import { getDb } from "#/drizzle/db";
 
 export function updateUserSettingsForCurrentUser(
   input: UpdateUserSettingsInput,
@@ -744,6 +759,8 @@ export function updateUserSettingsForCurrentUser(
       if (Object.keys(updateData).length === 0 && !hasSocialUpdate) {
         return { success: "沒有任何變更" };
       }
+
+      const db = getDb();
 
       // 2. 執行更新，將動態物件與 SQL 欄位在 .set() 中合併
       const result = yield* dbEffect("Failed to update user settings", () =>
@@ -785,6 +802,7 @@ export function toggleFavoriteForCurrentUser(
 ): Promise<ToggleFavoriteResult> {
   return runEffect(
     Effect.gen(function* () {
+      const db = getDb();
       if (input.target === "server") {
         const exists = yield* dbEffect("Failed to check server favorite", () =>
           db.query.userFavoriteServers.findFirst({
@@ -873,6 +891,8 @@ export function createOrRegenerateApiTokenForCurrentUser(userId: string): Promis
         } satisfies ApiTokenPair;
       });
 
+      const db = getDb();
+
       yield* dbEffect("Failed to create API token", () =>
         db
           .insert(apiToken)
@@ -904,6 +924,8 @@ function verifyStoredApiJwtEffect(
       verifyJwtAndDecodeClaims(token, type),
     );
 
+    const db = getDb();
+
     const stored = yield* dbEffect("Failed to read stored API token", () =>
       db.query.apiToken.findFirst({
         where: eq(apiToken.userId, claims.sub),
@@ -930,6 +952,8 @@ function verifyStoredApiJwtEffect(
 export const pinItemLogicEffect = (id: string, type: "bot" | "server") =>
   Effect.gen(function* (_) {
     const table = type === "bot" ? bot : server;
+
+    const db = getDb();
 
     // 1. 從資料庫取得項目狀態
     const [item] = yield* _(

@@ -1,6 +1,36 @@
 name = "dchubs-tanstack"
-compatibility_date = "2026-04-11"
-main = "@tanstack/react-start/server-entry"
+compatibility_date = "2026-07-11"
+
+main = ".output/server/index.mjs"
+
+compatibility_flags = ["nodejs_compat"]
+
+routes = [{ pattern = "beta.dchubs.org/*", zone_name = "dchubs.org" }]
+
+[assets]
+directory = ".output/public"
+binding = "ASSETS"
+
+[[hyperdrive]]
+binding = "dchubs-db"
+id = "ff15613734924d059d98b4e10bc98766"
+localConnectionString = "postgresql://directus:dawngs_181_database@100.99.177.51:5434/directus"
+
+[[kv_namespaces]]
+binding = "DCHUBS_CACHE"
+id = "188a0fa976004201a76a64ca97d85a39"
+
+[[kv_namespaces]]
+binding = "BANNED_USERS"
+id = "b8d0da99fb2a447193fa8a058f3ef839"
+preview_id = "087e0f8c0d3e4ae791f6be67d5a8dc1b"
+
+[vars]
+BETTER_AUTH_URL = "https://beta.dchubs.org"
+VITE_SITE_URL = "https://beta.dchubs.org"
+VITE_ADMIN_IDS = "857502876108193812,549056425943629825"
+
+# --- 以下保留你原有的監控設定 ---
 
 [observability]
 enabled = false

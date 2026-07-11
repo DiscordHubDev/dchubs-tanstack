@@ -14,7 +14,7 @@ const TABLE_OF_CONTENTS = [
 
 export default function TermsPage() {
   const baseUrl =
-    process.env.BETTER_AUTH_URL ||
+    import.meta.env.VITE_SITE_URL ||
     process.env.SITE_URL ||
     process.env.VITE_SITE_URL ||
     "http://localhost:3000";

@@ -56,7 +56,7 @@ interface DiscordWebhookPayload {
 const joinLines = (...lines: string[]) => lines.join("\n");
 
 // 統一的「連結」欄位格式，避免每個 case 重複拼字串
-const linkField = (label: string, url: string) => `[點擊前往](${url})`;
+const linkField = (_label: string, url: string) => `[點擊前往](${url})`;
 
 export function sendDiscordWebhookEffect(
   payload: WebhookPayload,

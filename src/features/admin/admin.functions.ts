@@ -4,9 +4,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { getRequest } from "@tanstack/react-start/server";
 import { desc, eq, ilike, or } from "drizzle-orm";
 import { Effect, pipe } from "effect";
-import { db } from "#/drizzle/db";
 import { bot, notification, report, server, user } from "#/drizzle/schema";
-import { auth } from "#/lib/auth";
 import { adminMiddleware } from "#/lib/auth-middleware";
 import {
   type ActionResult,
@@ -30,6 +28,8 @@ import { fetchAndUpdateServerCount } from "./admin.server";
 import { sendNotificationEffect } from "../notifications/notifications.server";
 import { SendNotificationSchema } from "../notifications/notifications.schemas";
 import { bumpBotsCacheVersion, bumpCacheVersion } from "#/lib/redis";
+import { globalDBMiddleware } from "#/start";
+import { getAuth } from "#/lib/auth";
 
 export const updateBotServerCountBackgroundFn = createServerFn({
   method: "POST",
@@ -42,11 +42,11 @@ export const updateBotServerCountBackgroundFn = createServerFn({
   });
 
 export const adminGetAllBotsFn = createServerFn({ method: "GET" })
-  .middleware([adminMiddleware])
-  .handler(() =>
+  .middleware([adminMiddleware, globalDBMiddleware])
+  .handler(({ context }) =>
     toResult(
       fromDrizzle(() =>
-        db.query.bot.findMany({
+        context.db.query.bot.findMany({
           with: { developers: { with: { user: true } } },
           orderBy: [desc(bot.createdAt)],
         }),
@@ -56,11 +56,11 @@ export const adminGetAllBotsFn = createServerFn({ method: "GET" })
 
 /** Fetch all servers */
 export const adminGetAllServersFn = createServerFn({ method: "GET" })
-  .middleware([adminMiddleware])
-  .handler(() =>
+  .middleware([adminMiddleware, globalDBMiddleware])
+  .handler(({ context }) =>
     toResult(
       fromDrizzle(() =>
-        db.query.server.findMany({
+        context.db.query.server.findMany({
           with: { owner: true, admins: { with: { user: true } } },
           orderBy: [desc(server.createdAt)],
         }),
@@ -70,11 +70,11 @@ export const adminGetAllServersFn = createServerFn({ method: "GET" })
 
 /** Fetch all reports */
 export const getReportsFn = createServerFn({ method: "GET" })
-  .middleware([adminMiddleware])
-  .handler(() =>
+  .middleware([adminMiddleware, globalDBMiddleware])
+  .handler(({ context }) =>
     toResult(
       fromDrizzle(() =>
-        db.query.report.findMany({
+        context.db.query.report.findMany({
           with: {
             reportedBy: true,
             handledBy: true,
@@ -87,12 +87,12 @@ export const getReportsFn = createServerFn({ method: "GET" })
 
 /** Approve or reject a bot application */
 export const reviewBotFn = createServerFn({ method: "POST" })
-  .middleware([adminMiddleware])
+  .middleware([adminMiddleware, globalDBMiddleware])
   .inputValidator(effectInputValidator(ReviewBotSchema))
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
     const result = await toResult(
       fromDrizzle(async () => {
-        await db
+        await context.db
           .update(bot)
           .set({
             status: data.status,
@@ -102,7 +102,7 @@ export const reviewBotFn = createServerFn({ method: "POST" })
           .where(eq(bot.id, data.id));
 
         // 統一在這邊撈出最新狀態，並同時 join 開發者資訊
-        return await db.query.bot.findFirst({
+        return await context.db.query.bot.findFirst({
           where: eq(bot.id, data.id),
           with: {
             developers: {
@@ -175,63 +175,80 @@ export const reviewBotFn = createServerFn({ method: "POST" })
 
 /** Delete a bot by id */
 export const deleteBotFn = createServerFn({ method: "POST" })
-  .middleware([adminMiddleware])
+  .middleware([adminMiddleware, globalDBMiddleware])
   .inputValidator(effectInputValidator(BotIdSchema))
-  .handler(async ({ data }): Promise<ActionResult> => {
+  .handler(async ({ data, context }): Promise<ActionResult> => {
     await bumpBotsCacheVersion();
-    return toResult(fromDrizzle(() => db.delete(bot).where(eq(bot.id, data.id))));
+    return toResult(
+      fromDrizzle(async () => {
+        await context.db.delete(bot).where(eq(bot.id, data.id));
+      }),
+    );
   });
 
 /** Delete a server by guild id */
 export const deleteServerFn = createServerFn({ method: "POST" })
-  .middleware([adminMiddleware])
+  .middleware([adminMiddleware, globalDBMiddleware])
   .inputValidator(effectInputValidator(ServerGuildIdSchema))
-  .handler(async ({ data }): Promise<ActionResult> => {
+  .handler(async ({ data, context }): Promise<ActionResult> => {
     await bumpCacheVersion("servers");
-    return toResult(fromDrizzle(() => db.delete(server).where(eq(server.id, data.guildId))));
+    return toResult(
+      fromDrizzle(async () => {
+        await context.db.delete(server).where(eq(server.id, data.guildId));
+      }),
+    );
   });
 
 /** Update a report */
 export const updateReportFn = createServerFn({ method: "POST" })
-  .middleware([adminMiddleware])
+  .middleware([adminMiddleware, globalDBMiddleware])
   .inputValidator(effectInputValidator(UpdateReportSchema))
   .handler(
-    ({ data }): Promise<ActionResult> =>
-      toResult(
-        fromDrizzle(() =>
-          db
+    // 1. 將 handler 標記為 async（與內部的 Promise 對齊）
+    async ({ data, context }): Promise<ActionResult> => {
+      // 2. 在乾淨的區域建立要更新的欄位
+      const updateData: Record<string, any> = {};
+
+      if (data.status) {
+        updateData.status = data.status;
+        updateData.handledAt = data.status !== "pending" ? new Date().toISOString() : null;
+      }
+
+      if (data.severity) {
+        updateData.severity = data.severity;
+      }
+
+      // 3. 回傳標準的 toResult
+      return toResult(
+        fromDrizzle(async () => {
+          await context.db
             .update(report)
-            .set({
-              ...(data.status && {
-                status: data.status,
-                handledAt: data.status !== "pending" ? new Date().toISOString() : null,
-              }),
-              ...(data.severity && { severity: data.severity }),
-            })
-            .where(eq(report.id, data.reportId)),
-        ),
-      ),
+            .set(updateData) // 傳入乾淨的物件
+            .where(eq(report.id, data.reportId));
+        }),
+      );
+    },
   );
 
 /** Fetch pending bots count + reports count — used for SSR badge hydration */
 export const adminGetDashboardCountsFn = createServerFn({
   method: "GET",
 })
-  .middleware([adminMiddleware])
+  .middleware([adminMiddleware, globalDBMiddleware])
   .handler(
-    async (): Promise<ActionResult<{ pendingBots: number; pendingReports: number }>> =>
+    async ({ context }): Promise<ActionResult<{ pendingBots: number; pendingReports: number }>> =>
       toResult(
         pipe(
           Effect.all({
             pendingBots: fromDrizzle(async () => {
-              const rows = await db.query.bot.findMany({
+              const rows = await context.db.query.bot.findMany({
                 where: eq(bot.status, "pending"),
                 columns: { id: true },
               });
               return rows.length;
             }),
             pendingReports: fromDrizzle(async () => {
-              const rows = await db.query.report.findMany({
+              const rows = await context.db.query.report.findMany({
                 where: eq(report.status, "pending"),
                 columns: { id: true },
               });
@@ -246,7 +263,7 @@ export const adminGetDashboardCountsFn = createServerFn({
  * 拒絕機器人申請 (Server Function)
  */
 export const rejectBotServerFn = createServerFn({ method: "POST" })
-  .middleware([adminMiddleware])
+  .middleware([adminMiddleware, globalDBMiddleware])
   .inputValidator(effectInputValidator(RejectBotSchema))
   .handler(async ({ data, context }) => {
     const { botId, reason } = data;
@@ -258,7 +275,7 @@ export const rejectBotServerFn = createServerFn({ method: "POST" })
     }
 
     // 2. 執行資料庫 Transaction (使用純 async/await，更簡潔且自帶回滾機制)
-    const transactionResult = await db
+    const transactionResult = await context.db
       .transaction(async (tx) => {
         // A. 獲取 Bot 與其關聯的開發者
         const botRecord = await tx.query.bot.findFirst({
@@ -330,7 +347,7 @@ export const rejectBotServerFn = createServerFn({ method: "POST" })
   });
 
 export const resolveReportServerFn = createServerFn({ method: "POST" })
-  .middleware([adminMiddleware])
+  .middleware([adminMiddleware, globalDBMiddleware])
   .inputValidator(
     (data: { reportId: string; status: ReportStatus; resolutionNote: string }) => data,
   )
@@ -344,7 +361,7 @@ export const resolveReportServerFn = createServerFn({ method: "POST" })
         return { success: false, error: "未授權的操作或讀取不到 Discord ID" };
       }
 
-      const [updated] = await db
+      const [updated] = await context.db
         .update(report)
         .set({
           status,
@@ -375,9 +392,9 @@ export const resolveReportServerFn = createServerFn({ method: "POST" })
 
 // User Management Functions
 export const getUsersFn = createServerFn({ method: "GET" })
-  .middleware([adminMiddleware])
+  .middleware([adminMiddleware, globalDBMiddleware])
   .inputValidator(effectInputValidator(QuerySchema))
-  .handler(async ({ data }) => {
+  .handler(async ({ data, context }) => {
     const { search, page, limit } = data;
     const offset = (page - 1) * limit;
 
@@ -393,7 +410,7 @@ export const getUsersFn = createServerFn({ method: "GET" })
           : undefined;
 
         // 3. 執行 Drizzle 查詢 (撈取 limit + 1 筆來判斷是否有下一頁)
-        const items = await db
+        const items = await context.db
           .select()
           .from(user)
           .where(searchCondition)
@@ -434,6 +451,8 @@ export const toggleUserBanFn = createServerFn({ method: "POST" })
   .inputValidator((data: ToggleBanPayload) => data)
   .handler(async ({ data }) => {
     const request = getRequest();
+
+    const auth = await getAuth();
 
     const cookieHeader = request.headers.get("cookie") ?? "";
 

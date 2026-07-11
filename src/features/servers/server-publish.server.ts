@@ -1,7 +1,5 @@
-import { v2 as cloudinary } from "cloudinary";
 import { and, eq } from "drizzle-orm";
 import { Effect } from "effect";
-import { db } from "#/drizzle/db";
 import { authAccount, server } from "#/drizzle/schema";
 import { type DomainUser, getSessionUserIdEffect } from "#/lib/edge-context";
 import { runEffect, tryEffectPromise } from "#/lib/effect-utils";
@@ -16,11 +14,18 @@ import type {
   ServerPublishResult,
   ServerPublishSubmitInput,
 } from "./server-publish.types";
-import { getCloudinaryCredentialsEffect, getCloudinaryErrorDetails } from "#/lib/cloudinary";
+import {
+  getCloudinaryCredentialsEffect,
+  getCloudinaryErrorDetails,
+  getExistingCloudinaryResource,
+  uploadImageToCloudinary,
+} from "#/lib/cloudinary";
+import { getDb } from "#/drizzle/db";
 
 const GUILD_ADMINISTRATOR_PERMISSION = 1n << 3n;
 
 function getDiscordAccessTokenEffect(userId: string): Effect.Effect<string, Error> {
+  const db = getDb();
   return Effect.gen(function* () {
     // 優化：改用底層 Select builder 提升效能
     const rows = yield* tryEffectPromise("Failed to load Discord account token", () =>
@@ -197,6 +202,7 @@ export function getServerPublishBundleEffect(
   serverId: string,
   user: DomainUser | null,
 ): Effect.Effect<ServerPublishBundle, Error> {
+  const db = getDb();
   return Effect.gen(function* () {
     // 🚀 平行執行：Discord 權限驗證 與 資料庫查詢
     const [accessResult, rows] = yield* Effect.all(
@@ -276,6 +282,7 @@ function upsertServerPublishEffect(
   input: ServerPublishSubmitInput,
   user: DomainUser | null,
 ): Effect.Effect<ServerPublishResult, Error> {
+  const db = getDb();
   return Effect.gen(function* () {
     const { userId, guild } = yield* getAccessibleGuildEffect(input.serverId, user);
 
@@ -380,33 +387,17 @@ function uploadServerBannerEffect(
   return Effect.gen(function* () {
     yield* getAccessibleGuildEffect(input.serverId, user);
 
-    const { cloudName, apiKey, apiSecret, uploadPreset } = yield* getCloudinaryCredentialsEffect();
-
-    cloudinary.config({
-      cloud_name: cloudName,
-      api_key: apiKey,
-      api_secret: apiSecret,
-      secure: true,
-    });
-
+    const credentials = yield* getCloudinaryCredentialsEffect();
     const publicId = getServerBannerPublicId(input.serverId);
     const normalizedFingerprint = input.fingerprint.toLowerCase();
 
-    const existingResource = yield* Effect.tryPromise({
-      try: () =>
-        cloudinary.api.resource(publicId, {
-          resource_type: "image",
-          type: "upload",
-          context: true,
-        }),
-      catch: (error) => {
-        if (isCloudinaryNotFoundError(error)) {
-          return null;
-        }
-        const details = getCloudinaryErrorDetails(error);
-        throw new Error(`Failed to inspect existing Cloudinary banner: ${details.message}`);
-      },
-    }).pipe(Effect.catchAll(() => Effect.succeed(null)));
+    // === 檢查現有 Banner（保留你原本的檢查邏輯）===
+    const existingResource = yield* getExistingCloudinaryResource(publicId, credentials).pipe(
+      Effect.catchAll((e) => {
+        if (isCloudinaryNotFoundError(e)) return Effect.succeed(null);
+        return Effect.fail(e);
+      }),
+    );
 
     const existingFingerprint = getExistingBannerFingerprint(existingResource);
     const existingBannerUrl = getExistingBannerUrl(existingResource);
@@ -420,25 +411,17 @@ function uploadServerBannerEffect(
       };
     }
 
-    const uploadResult = yield* Effect.tryPromise({
-      try: () =>
-        cloudinary.uploader.upload(input.dataUrl, {
-          resource_type: "image",
-          public_id: publicId,
-          overwrite: true,
-          invalidate: true,
-          unique_filename: false,
-          use_filename: false,
-          ...(uploadPreset ? { upload_preset: uploadPreset } : {}),
-          context: {
-            fingerprint: normalizedFingerprint,
-            server_id: input.serverId,
-            file_name: input.fileName,
-          },
-        }),
-      catch: (error) => {
-        const details = getCloudinaryErrorDetails(error);
-        return new Error(`Failed to upload banner image to Cloudinary: ${details.message}`);
+    // === 上傳新圖 ===
+    const uploadResult = yield* uploadImageToCloudinary(input.dataUrl, credentials.cloudName, {
+      public_id: publicId,
+      overwrite: true,
+      invalidate: true,
+      unique_filename: false,
+      ...(credentials.uploadPreset && { upload_preset: credentials.uploadPreset }),
+      context: {
+        fingerprint: normalizedFingerprint,
+        server_id: input.serverId,
+        file_name: input.fileName,
       },
     });
 
@@ -475,6 +458,7 @@ const checkIsOwnerFromApiEffect = (serverId: string, userId: string) =>
 
 const checkIsServerOwnerEffect = (serverId: string, userId: string) =>
   Effect.gen(function* () {
+    const db = getDb();
     const rows = yield* Effect.tryPromise({
       try: () =>
         db.select({ ownerId: server.ownerId }).from(server).where(eq(server.id, serverId)).limit(1),

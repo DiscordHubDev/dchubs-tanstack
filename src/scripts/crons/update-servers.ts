@@ -1,7 +1,7 @@
 // scripts/update-servers.ts
 import { Data, Effect, Exit } from "effect";
-import { client, db } from "#/drizzle/db";
 import { server, user } from "#/drizzle/schema";
+import { getDb } from "#/drizzle/db";
 
 class DiscordApiError extends Data.TaggedError("DiscordApiError")<{
   message: string;
@@ -48,6 +48,7 @@ const getAllServersFromDb = () =>
   Effect.tryPromise({
     /* 同你原本的實作 */
     try: async () => {
+      const db = getDb();
       const query = db.select({ id: server.id, ownerId: server.ownerId }).from(server);
       if (process.env.NODE_ENV === "development") return await query.limit(5);
       return await query;
@@ -102,6 +103,7 @@ const upsertServerDb = (guild: DiscordGuildWithCounts, ownerId: string) =>
   Effect.tryPromise({
     /* 同你原本的實作 */
     try: async () => {
+      const db = getDb();
       const iconUrl = guild.icon
         ? `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.webp`
         : null;
@@ -144,6 +146,7 @@ const upsertUserDb = (member: DiscordGuildMember) =>
   Effect.tryPromise({
     /* 同你原本的實作 */
     try: async () => {
+      const db = getDb();
       const discordUser = member.user;
       const avatarUrl = discordUser.avatar
         ? `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.webp`
@@ -219,7 +222,6 @@ const syncAllServersProgram = Effect.gen(function* () {
 // ─── 執行進入點 ───
 Effect.runPromiseExit(syncAllServersProgram).then((exit) => {
   console.log("🔌 正在關閉資料庫連線池...");
-  client.close();
   if (Exit.isSuccess(exit)) {
     console.log("🎉 所有伺服器與擁有人資料同步完成:", exit.value);
     process.exit(0);

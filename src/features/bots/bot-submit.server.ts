@@ -1,7 +1,5 @@
-import { v2 as cloudinary } from "cloudinary";
 import { and, eq, inArray, or } from "drizzle-orm";
 import { Effect } from "effect";
-import { db } from "#/drizzle/db";
 import { bot, botCommand, botDevelopers, user } from "#/drizzle/schema";
 import {
   BotAlreadyExists,
@@ -32,7 +30,12 @@ import type {
   SubmitBotResult,
   UploadBotImagesResult,
 } from "./bot-submit.types";
-import { getCloudinaryCredentialsEffect } from "#/lib/cloudinary";
+import {
+  destroyCloudinaryImage,
+  getCloudinaryCredentialsEffect,
+  uploadImageToCloudinary,
+} from "#/lib/cloudinary";
+import { getDb } from "#/drizzle/db";
 
 const SUBMIT_SUCCESS_MESSAGE =
   "✅ 機器人已成功提交，請等待審核人員審核，審核結果將會通過 Discord 私訊和官方群組的通知中出現。";
@@ -225,6 +228,7 @@ function getExistingBotEffect(
   { id: string; status: "pending" | "approved" | "rejected" } | undefined,
   SubmitBotFailed
 > {
+  const db = getDb();
   return dbEffect("Failed to inspect existing bot", () =>
     db.select({ id: bot.id, status: bot.status }).from(bot).where(eq(bot.id, botId)).limit(1),
   ).pipe(Effect.map((rows) => rows[0])); // 直接回傳第一筆資料，若無則自然為 undefined
@@ -302,6 +306,8 @@ function resolveDeveloperIdsEffect(
     return Effect.succeed([]);
   }
 
+  const db = getDb();
+
   return dbEffect("Failed to resolve developer accounts", () =>
     db
       .select({ id: user.discordId })
@@ -314,6 +320,7 @@ function persistBotEffect(
   payload: BotPayload,
   developerIds: readonly string[],
 ): Effect.Effect<void, SubmitBotFailed> {
+  const db = getDb();
   return dbEffect("Failed to persist bot", () =>
     db.transaction(async (tx) => {
       if (payload.exists) {
@@ -590,29 +597,20 @@ function uploadBotImagesEffect(
 ): Effect.Effect<UploadBotImagesResult, never> {
   return Effect.gen(function* () {
     const credentials = yield* getCloudinaryCredentialsEffect();
-    cloudinary.config({
-      cloud_name: credentials.cloudName,
-      api_key: credentials.apiKey,
-      api_secret: credentials.apiSecret,
-      secure: true,
-    });
 
     const results = yield* Effect.forEach(input.files, (file) =>
-      Effect.tryPromise({
-        try: () =>
-          cloudinary.uploader.upload(file.dataUrl, {
-            resource_type: "image",
-            folder: "bots/screenshots",
-            use_filename: false,
-            unique_filename: true,
-            invalidate: true,
-            ...(credentials.uploadPreset ? { upload_preset: credentials.uploadPreset } : {}),
-            context: {
-              file_name: file.fileName,
-            },
-          }),
-        catch: () => new ImageUploadFailed({ filename: file.fileName }),
-      }),
+      uploadImageToCloudinary(file.dataUrl, credentials.cloudName, {
+        resource_type: "image", // 雖然 fetch 這邊沒用，但保留給未來
+        folder: "bots/screenshots",
+        unique_filename: true,
+        invalidate: true,
+        ...(credentials.uploadPreset && { upload_preset: credentials.uploadPreset }),
+        context: {
+          file_name: file.fileName,
+        },
+      }).pipe(
+        Effect.catchAll(() => Effect.fail(new ImageUploadFailed({ filename: file.fileName }))),
+      ),
     );
 
     const items = yield* Effect.forEach(results, (result, index) => {
@@ -623,7 +621,6 @@ function uploadBotImagesEffect(
           }),
         );
       }
-
       return Effect.succeed({
         url: result.secure_url,
         public_id: result.public_id,
@@ -646,21 +643,8 @@ function deleteBotImageEffect(
 ): Effect.Effect<DeleteBotImageResult, never> {
   return Effect.gen(function* () {
     const credentials = yield* getCloudinaryCredentialsEffect();
-    cloudinary.config({
-      cloud_name: credentials.cloudName,
-      api_key: credentials.apiKey,
-      api_secret: credentials.apiSecret,
-      secure: true,
-    });
 
-    yield* Effect.tryPromise({
-      try: () =>
-        cloudinary.uploader.destroy(input.publicId, {
-          resource_type: "image",
-          invalidate: true,
-        }),
-      catch: () => new SubmitBotFailed({ message: "圖片刪除失敗" }),
-    });
+    yield* destroyCloudinaryImage(input.publicId, credentials);
 
     return { success: true as const };
   }).pipe(
@@ -688,6 +672,7 @@ function sendPendingWebhookResultEffect(
 }
 function enforceBotDeveloperEffect(botId: string, userId: string) {
   return Effect.gen(function* () {
+    const db = getDb();
     // 1. 將 Drizzle 的 Promise 轉換為 Effect
     const developerRecord = yield* Effect.promise(() =>
       db.query.botDevelopers.findFirst({

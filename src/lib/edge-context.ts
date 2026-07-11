@@ -1,11 +1,9 @@
+// src/lib/edge-context.ts
 import { createMiddleware } from "@tanstack/react-start";
-import { getRequest } from "@tanstack/react-start/server";
-import { and, eq, or } from "drizzle-orm";
-import { Effect } from "effect";
-import { db } from "#/drizzle/db";
-import * as schema from "#/drizzle/schema";
 
-const GATEWAY_SECRET = process.env.GATEWAY_SECRET;
+import { getAuth } from "./auth";
+import { env } from "cloudflare:workers";
+import { Effect } from "effect";
 
 export type DomainUser = {
   betterAuthId: string;
@@ -18,115 +16,83 @@ export type DomainUser = {
   nsfw: boolean;
 };
 
-type RawEdgeContext = {
-  userId: string | null;
-  sessionId: string | null;
-  isAdmin: boolean;
-  trusted: boolean;
-};
-
-function getRawEdgeContext(): RawEdgeContext {
-  const req = getRequest();
-  const gatewaySecret = req.headers.get("x-gateway-secret");
-
-  if (gatewaySecret !== GATEWAY_SECRET) {
-    return { userId: null, sessionId: null, isAdmin: false, trusted: false };
-  }
-
-  return {
-    userId: req.headers.get("x-edge-user-id") || null,
-    sessionId: req.headers.get("x-edge-session-id") || null,
-    isAdmin: req.headers.get("x-edge-is-admin") === "true",
-    trusted: true,
-  };
-}
-
-async function fetchDomainUser(edgeUserId: string): Promise<DomainUser | null> {
-  if (!edgeUserId) return null;
-
-  const isDiscordId = /^\d+$/.test(edgeUserId);
-  const result = await db
-    .select({
-      id: schema.user.id,
-      discordId: schema.user.discordId,
-      accountId: schema.authAccount.accountId,
-      username: schema.user.username,
-      name: schema.user.name,
-      avatar: schema.user.avatar,
-      image: schema.user.image,
-      banner: schema.user.banner,
-      bannerColor: schema.user.bannerColor,
-      nsfw: schema.user.nsfw,
-    })
-    .from(schema.user)
-    .leftJoin(
-      schema.authAccount,
-      and(
-        eq(schema.authAccount.userId, schema.user.id),
-        eq(schema.authAccount.providerId, "discord"),
-      ),
-    )
-    .where(
-      isDiscordId
-        ? or(eq(schema.user.discordId, edgeUserId), eq(schema.authAccount.accountId, edgeUserId))
-        : eq(schema.user.id, edgeUserId),
-    )
-    .limit(1);
-
-  const userRow = result[0] ?? null;
-  const actualDiscordId = userRow?.discordId || userRow?.accountId;
-
-  if (!userRow || !actualDiscordId) return null;
-
-  const username = userRow.username ?? userRow.name ?? "Unknown User";
-  const avatar =
-    userRow.avatar ?? userRow.image ?? "https://cdn.discordapp.com/embed/avatars/0.png";
-
-  return {
-    betterAuthId: userRow.id,
-    discordId: actualDiscordId,
-    username,
-    avatar,
-    banner: userRow.banner ?? null,
-    bannerColor: userRow.bannerColor ?? null,
-    name: userRow.name ?? username,
-    nsfw: userRow.nsfw,
-  };
-}
-
-// ✅ 將 EdgeContext 匯出，讓 auth-middleware 能夠使用
 export type EdgeContext = {
   trusted: boolean;
   isAdmin: boolean;
   sessionId: string | null;
   userId: string | null;
   user: DomainUser | null;
+  isBanned?: boolean; // 新增
 };
 
-// 建立 Middleware
-export const edgeContextMiddleware = createMiddleware().server(async ({ next }) => {
-  const raw = getRawEdgeContext();
+const ADMIN_IDS = (import.meta.env.VITE_ADMIN_IDS || process.env.VITE_ADMIN_IDS || "")
+  .split(/[\s,]+/)
+  .map((id) => id.trim())
+  .filter(Boolean);
 
-  if (!raw.trusted || !raw.userId) {
-    const context: EdgeContext = {
-      trusted: false,
-      isAdmin: raw.isAdmin,
-      sessionId: raw.sessionId,
-      userId: null,
-      user: null,
+export const edgeContextMiddleware = createMiddleware().server(async ({ next, request }) => {
+  const auth = await getAuth();
+
+  const sessionData = await auth.api.getSession({
+    headers: request.headers,
+  });
+
+  const baUser = sessionData?.user ?? null;
+
+  let isAdmin = false;
+  let isBanned = false;
+  let domainUser: DomainUser | null = null;
+
+  if (baUser) {
+    const userId = baUser.id || baUser.discordId;
+
+    domainUser = {
+      betterAuthId: baUser.id,
+      discordId: baUser.discordId,
+      username: baUser.username || null,
+      avatar: baUser.avatar || null,
+      banner: baUser.banner || null,
+      bannerColor: baUser.bannerColor || null,
+      name: baUser.name || null,
+      nsfw: baUser.nsfw ?? false,
     };
-    return next({ context });
-  }
 
-  const user = await fetchDomainUser(raw.userId);
+    // === Admin 判斷 ===
+    isAdmin = ADMIN_IDS.includes(userId) || ADMIN_IDS.includes(baUser.discordId);
+
+    // === Banned User 檢查 ===
+    if (env.BANNED_USERS && userId) {
+      const banned = await env.BANNED_USERS.get(`banned:${userId}`);
+      if (banned) {
+        isBanned = true;
+        console.log(`🚫 Banned user detected: ${userId}`);
+      }
+    }
+  }
 
   const context: EdgeContext = {
     trusted: true,
-    isAdmin: raw.isAdmin,
-    sessionId: raw.sessionId,
-    userId: user?.discordId ?? null,
-    user,
+    isAdmin,
+    isBanned,
+    sessionId: sessionData?.session?.id ?? null,
+    userId: baUser?.id ?? null,
+    user: domainUser,
   };
+
+  console.log("🔍 [EdgeContext] Built:", {
+    hasUser: !!baUser,
+    isAdmin,
+    isBanned,
+    userId: baUser?.id,
+  });
+
+  // 如果被 ban，直接拒絕（可依需求調整）
+  if (isBanned) {
+    return new Response(JSON.stringify({ error: "Forbidden: Account is banned." }), {
+      status: 403,
+      headers: { "Content-Type": "application/json" },
+    });
+  }
 
   return next({ context });
 });

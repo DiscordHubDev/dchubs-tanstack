@@ -1,6 +1,5 @@
 import { and, arrayOverlaps, asc, desc, eq, gte, ne, sql } from "drizzle-orm";
 import { Effect } from "effect";
-import { db } from "#/drizzle/db";
 import {
   bot,
   botCommand,
@@ -23,6 +22,7 @@ import type {
 } from "./bot-detail.types";
 import type { PublicBot, RelatedBot } from "./bots.types";
 import { uploadReportAttachmentsEffect } from "#/lib/report";
+import { getDb } from "#/drizzle/db";
 
 function dbEffect<A>(label: string, run: () => Promise<A>): Effect.Effect<A, Error> {
   return tryEffectPromise(label, run);
@@ -90,6 +90,8 @@ function getFavoriteIdsEffect(
     return Effect.succeed(new Set<string>());
   }
 
+  const db = getDb();
+
   return dbEffect("Failed to fetch favorite bot ids", async () => {
     const rows = await db
       .select({ id: userFavoriteBots.a })
@@ -108,6 +110,8 @@ function getRecentVoteCreatedAtEffect(
   if (!userId) {
     return Effect.succeed(null);
   }
+
+  const db = getDb();
 
   const twelveHoursAgo = new Date(Date.now() - 12 * 60 * 60 * 1000).toISOString();
 
@@ -141,6 +145,7 @@ function getBotDetailEffect(
   userId: string | null | undefined,
 ): Effect.Effect<BotDetail | null, Error> {
   return Effect.gen(function* () {
+    const db = getDb();
     const favoriteIds = yield* getFavoriteIdsEffect(userId);
 
     const botRows = yield* dbEffect("Failed to fetch bot detail", () =>
@@ -303,6 +308,7 @@ function getBotDetailEffect(
 }
 
 function voteBotEffect(botId: string, userId: string): Effect.Effect<BotVoteResult, Error> {
+  const db = getDb();
   return Effect.gen(function* () {
     // 1. 平行執行查詢：同時獲取「機器人資訊」與「最後投票時間」降低 I/O 延遲
     const [targetRows, recentVoteCreatedAt] = yield* Effect.all(
@@ -418,6 +424,7 @@ function rateBotEffect(
   rating: number,
   userId: string,
 ): Effect.Effect<BotRateResult, Error> {
+  const db = getDb();
   return Effect.gen(function* () {
     const targetRows = yield* dbEffect("Failed to find bot for rating", () =>
       db
@@ -490,6 +497,7 @@ export function reportBotEffect(input: {
   reasons: readonly string[];
   attachments: readonly { dataUrl: string; fileName: string }[];
 }): Effect.Effect<{ success: boolean; message: string }, Error> {
+  const db = getDb();
   return Effect.gen(function* () {
     const reportId = crypto.randomUUID();
 

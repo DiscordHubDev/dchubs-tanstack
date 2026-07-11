@@ -1,6 +1,5 @@
 import { and, desc, eq, exists, gte, sql } from "drizzle-orm";
 import { Effect } from "effect";
-import { db } from "#/drizzle/db";
 import { bot, botDevelopers, userFavoriteBots } from "#/drizzle/schema";
 import { runEffect, tryEffectPromise } from "#/lib/effect-utils";
 import { bumpBotsCacheVersion, cacheAside, getBotsCacheVersion } from "#/lib/redis";
@@ -12,6 +11,7 @@ import type {
   BotListQueryResult,
   PublicBot,
 } from "./bots.types";
+import { getDb } from "#/drizzle/db";
 
 const TAG_COLORS = [
   "bg-blue-500",
@@ -76,6 +76,8 @@ const BOT_ROW_COLUMNS = {
   privacyPolicyUrl: bot.privacyPolicyUrl,
 } as const;
 
+const CACHE_NAMESPACE = "bots";
+
 function normalizeTags(tags: string[] | null): string[] {
   if (!Array.isArray(tags)) return [];
   return tags.filter(Boolean);
@@ -114,6 +116,8 @@ function mapRowToPublicBot(row: BotRow, favoriteIds: Set<string>): PublicBot {
 // fetch it fresh every request and merge it onto the cached bot rows.
 function getFavoriteIdsEffect(userId: string | null): Effect.Effect<Set<string>, Error> {
   if (!userId) return Effect.succeed(new Set<string>());
+
+  const db = getDb();
 
   return tryEffectPromise("Failed to fetch favorite bots", async () => {
     const rows = await db
@@ -173,6 +177,7 @@ function listBotsPageEffect(
   userId: string | null,
   userNsfw?: boolean, // 👉 新增判斷參數
 ): Effect.Effect<BotListQueryResult, Error> {
+  const db = getDb();
   return Effect.gen(function* () {
     const favoriteIds = yield* getFavoriteIdsEffect(userId);
 
@@ -201,7 +206,7 @@ function listBotsPageEffect(
     const { total, rows } = yield* tryEffectPromise(
       "Failed to load bot list",
       (): Promise<{ total: number; rows: BotRow[] }> =>
-        cacheAside(cacheKey, LIST_CACHE_TTL_SECONDS, async () => {
+        cacheAside(CACHE_NAMESPACE, cacheKey, LIST_CACHE_TTL_SECONDS, async () => {
           const countQuery = db.select({ count: sql<number>`count(*)` }).from(bot);
           const scopedCountQuery = whereClause ? countQuery.where(whereClause) : countQuery;
 
@@ -237,6 +242,7 @@ function listBotFilterBundleEffect(
   userId: string | null,
   userNsfw?: boolean, // 👉 新增判斷參數
 ): Effect.Effect<BotFilterBundle, Error> {
+  const db = getDb();
   return Effect.gen(function* () {
     const favoriteIds = yield* getFavoriteIdsEffect(userId);
 
@@ -256,7 +262,7 @@ function listBotFilterBundleEffect(
     const rows = yield* tryEffectPromise(
       "Failed to load all bots",
       (): Promise<BotRow[]> =>
-        cacheAside(cacheKey, FILTER_BUNDLE_CACHE_TTL_SECONDS, () =>
+        cacheAside(CACHE_NAMESPACE, cacheKey, FILTER_BUNDLE_CACHE_TTL_SECONDS, () =>
           db.select(BOT_ROW_COLUMNS).from(bot).where(whereClause),
         ),
     );
@@ -312,6 +318,7 @@ export async function listBotFilterBundle(
 }
 
 export function isDeveloperEffect(botId: string, discordId: string) {
+  const db = getDb();
   return Effect.tryPromise({
     try: async () => {
       const record = await db
@@ -330,6 +337,8 @@ export async function deleteBot(
   userId: string,
 ): Promise<{ success: boolean; reason?: string }> {
   if (!userId) return { success: false, reason: "UNAUTHORIZED" };
+
+  const db = getDb();
 
   const botCheck = await db
     .select({

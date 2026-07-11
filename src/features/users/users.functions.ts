@@ -25,9 +25,9 @@ import {
   updateUserSettingsForCurrentUser,
   upsertUserFromSession,
 } from "./users.server";
-import { db } from "#/drizzle/db";
 import { user } from "#/drizzle/schema";
 import { eq } from "drizzle-orm";
+import { globalDBMiddleware } from "#/start";
 
 const emptySchema = Schema.Struct({});
 const strictValidator = (input: any) => {
@@ -133,10 +133,10 @@ export const pinItemFn = createServerFn({ method: "POST" })
   });
 
 export const getUserIdByDiscordIdFn = createServerFn({ method: "GET" })
-  .middleware([protectedMiddleware])
+  .middleware([protectedMiddleware, globalDBMiddleware])
   .inputValidator((data: { discordId: string }) => data)
-  .handler(async ({ data }) => {
-    const result = await db
+  .handler(async ({ data, context }) => {
+    const result = await context.db
       .select({ id: user.id })
       .from(user)
       .where(eq(user.discordId, data.discordId))

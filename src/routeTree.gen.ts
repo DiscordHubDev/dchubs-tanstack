@@ -21,6 +21,7 @@ import { Route as ProtectedAdminRouteImport } from './routes/protected/admin'
 import { Route as ProtectedAddServerRouteImport } from './routes/protected/add-server'
 import { Route as ProtectedAddBotRouteImport } from './routes/protected/add-bot'
 import { Route as BotsBotIdRouteImport } from './routes/bots/$botId'
+import { Route as ApiProxyRouteImport } from './routes/api/proxy'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as ServersServerIdRouteRouteImport } from './routes/servers/$serverId/route'
 import { Route as ServersServerIdIndexRouteImport } from './routes/servers/$serverId/index'
@@ -30,6 +31,12 @@ import { Route as ApiSitemapServersRouteImport } from './routes/api/sitemap/serv
 import { Route as ApiSitemapBotsRouteImport } from './routes/api/sitemap/bots'
 import { Route as ApiDiscordBotPublishRouteImport } from './routes/api/discord-bot/publish'
 import { Route as ApiDiscordBotPinRouteImport } from './routes/api/discord-bot/pin'
+import { Route as ApiCronUpdateServersRouteImport } from './routes/api/cron/update-servers'
+import { Route as ApiCronUpdateBotsServersRouteImport } from './routes/api/cron/update-bots-servers'
+import { Route as ApiCronUpdateBotsInfoRouteImport } from './routes/api/cron/update-bots-info'
+import { Route as ApiCronUpdateBotsRouteImport } from './routes/api/cron/update-bots'
+import { Route as ApiCronCheckServerRouteImport } from './routes/api/cron/check-server'
+import { Route as ApiCronCheckPinsRouteImport } from './routes/api/cron/check-pins'
 import { Route as ApiAuthSplatRouteImport } from './routes/api/auth/$'
 import { Route as ProtectedBotsBotIdEditRouteImport } from './routes/protected/bots/$botId.edit'
 
@@ -93,6 +100,11 @@ const BotsBotIdRoute = BotsBotIdRouteImport.update({
   path: '/bots/$botId',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiProxyRoute = ApiProxyRouteImport.update({
+  id: '/api/proxy',
+  path: '/api/proxy',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiHealthRoute = ApiHealthRouteImport.update({
   id: '/api/health',
   path: '/api/health',
@@ -138,6 +150,37 @@ const ApiDiscordBotPinRoute = ApiDiscordBotPinRouteImport.update({
   path: '/api/discord-bot/pin',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiCronUpdateServersRoute = ApiCronUpdateServersRouteImport.update({
+  id: '/api/cron/update-servers',
+  path: '/api/cron/update-servers',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiCronUpdateBotsServersRoute =
+  ApiCronUpdateBotsServersRouteImport.update({
+    id: '/api/cron/update-bots-servers',
+    path: '/api/cron/update-bots-servers',
+    getParentRoute: () => rootRouteImport,
+  } as any)
+const ApiCronUpdateBotsInfoRoute = ApiCronUpdateBotsInfoRouteImport.update({
+  id: '/api/cron/update-bots-info',
+  path: '/api/cron/update-bots-info',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiCronUpdateBotsRoute = ApiCronUpdateBotsRouteImport.update({
+  id: '/api/cron/update-bots',
+  path: '/api/cron/update-bots',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiCronCheckServerRoute = ApiCronCheckServerRouteImport.update({
+  id: '/api/cron/check-server',
+  path: '/api/cron/check-server',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiCronCheckPinsRoute = ApiCronCheckPinsRouteImport.update({
+  id: '/api/cron/check-pins',
+  path: '/api/cron/check-pins',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiAuthSplatRoute = ApiAuthSplatRouteImport.update({
   id: '/api/auth/$',
   path: '/api/auth/$',
@@ -157,6 +200,7 @@ export interface FileRoutesByFullPath {
   '/tutorial': typeof TutorialRoute
   '/servers/$serverId': typeof ServersServerIdRouteRouteWithChildren
   '/api/health': typeof ApiHealthRoute
+  '/api/proxy': typeof ApiProxyRoute
   '/bots/$botId': typeof BotsBotIdRoute
   '/protected/add-bot': typeof ProtectedAddBotRoute
   '/protected/add-server': typeof ProtectedAddServerRoute
@@ -165,6 +209,12 @@ export interface FileRoutesByFullPath {
   '/users/$userId': typeof UsersUserIdRoute
   '/bots/': typeof BotsIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/cron/check-pins': typeof ApiCronCheckPinsRoute
+  '/api/cron/check-server': typeof ApiCronCheckServerRoute
+  '/api/cron/update-bots': typeof ApiCronUpdateBotsRoute
+  '/api/cron/update-bots-info': typeof ApiCronUpdateBotsInfoRoute
+  '/api/cron/update-bots-servers': typeof ApiCronUpdateBotsServersRoute
+  '/api/cron/update-servers': typeof ApiCronUpdateServersRoute
   '/api/discord-bot/pin': typeof ApiDiscordBotPinRoute
   '/api/discord-bot/publish': typeof ApiDiscordBotPublishRoute
   '/api/sitemap/bots': typeof ApiSitemapBotsRoute
@@ -181,6 +231,7 @@ export interface FileRoutesByTo {
   '/terms': typeof TermsRoute
   '/tutorial': typeof TutorialRoute
   '/api/health': typeof ApiHealthRoute
+  '/api/proxy': typeof ApiProxyRoute
   '/bots/$botId': typeof BotsBotIdRoute
   '/protected/add-bot': typeof ProtectedAddBotRoute
   '/protected/add-server': typeof ProtectedAddServerRoute
@@ -189,6 +240,12 @@ export interface FileRoutesByTo {
   '/users/$userId': typeof UsersUserIdRoute
   '/bots': typeof BotsIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/cron/check-pins': typeof ApiCronCheckPinsRoute
+  '/api/cron/check-server': typeof ApiCronCheckServerRoute
+  '/api/cron/update-bots': typeof ApiCronUpdateBotsRoute
+  '/api/cron/update-bots-info': typeof ApiCronUpdateBotsInfoRoute
+  '/api/cron/update-bots-servers': typeof ApiCronUpdateBotsServersRoute
+  '/api/cron/update-servers': typeof ApiCronUpdateServersRoute
   '/api/discord-bot/pin': typeof ApiDiscordBotPinRoute
   '/api/discord-bot/publish': typeof ApiDiscordBotPublishRoute
   '/api/sitemap/bots': typeof ApiSitemapBotsRoute
@@ -207,6 +264,7 @@ export interface FileRoutesById {
   '/tutorial': typeof TutorialRoute
   '/servers/$serverId': typeof ServersServerIdRouteRouteWithChildren
   '/api/health': typeof ApiHealthRoute
+  '/api/proxy': typeof ApiProxyRoute
   '/bots/$botId': typeof BotsBotIdRoute
   '/protected/add-bot': typeof ProtectedAddBotRoute
   '/protected/add-server': typeof ProtectedAddServerRoute
@@ -215,6 +273,12 @@ export interface FileRoutesById {
   '/users/$userId': typeof UsersUserIdRoute
   '/bots/': typeof BotsIndexRoute
   '/api/auth/$': typeof ApiAuthSplatRoute
+  '/api/cron/check-pins': typeof ApiCronCheckPinsRoute
+  '/api/cron/check-server': typeof ApiCronCheckServerRoute
+  '/api/cron/update-bots': typeof ApiCronUpdateBotsRoute
+  '/api/cron/update-bots-info': typeof ApiCronUpdateBotsInfoRoute
+  '/api/cron/update-bots-servers': typeof ApiCronUpdateBotsServersRoute
+  '/api/cron/update-servers': typeof ApiCronUpdateServersRoute
   '/api/discord-bot/pin': typeof ApiDiscordBotPinRoute
   '/api/discord-bot/publish': typeof ApiDiscordBotPublishRoute
   '/api/sitemap/bots': typeof ApiSitemapBotsRoute
@@ -234,6 +298,7 @@ export interface FileRouteTypes {
     | '/tutorial'
     | '/servers/$serverId'
     | '/api/health'
+    | '/api/proxy'
     | '/bots/$botId'
     | '/protected/add-bot'
     | '/protected/add-server'
@@ -242,6 +307,12 @@ export interface FileRouteTypes {
     | '/users/$userId'
     | '/bots/'
     | '/api/auth/$'
+    | '/api/cron/check-pins'
+    | '/api/cron/check-server'
+    | '/api/cron/update-bots'
+    | '/api/cron/update-bots-info'
+    | '/api/cron/update-bots-servers'
+    | '/api/cron/update-servers'
     | '/api/discord-bot/pin'
     | '/api/discord-bot/publish'
     | '/api/sitemap/bots'
@@ -258,6 +329,7 @@ export interface FileRouteTypes {
     | '/terms'
     | '/tutorial'
     | '/api/health'
+    | '/api/proxy'
     | '/bots/$botId'
     | '/protected/add-bot'
     | '/protected/add-server'
@@ -266,6 +338,12 @@ export interface FileRouteTypes {
     | '/users/$userId'
     | '/bots'
     | '/api/auth/$'
+    | '/api/cron/check-pins'
+    | '/api/cron/check-server'
+    | '/api/cron/update-bots'
+    | '/api/cron/update-bots-info'
+    | '/api/cron/update-bots-servers'
+    | '/api/cron/update-servers'
     | '/api/discord-bot/pin'
     | '/api/discord-bot/publish'
     | '/api/sitemap/bots'
@@ -283,6 +361,7 @@ export interface FileRouteTypes {
     | '/tutorial'
     | '/servers/$serverId'
     | '/api/health'
+    | '/api/proxy'
     | '/bots/$botId'
     | '/protected/add-bot'
     | '/protected/add-server'
@@ -291,6 +370,12 @@ export interface FileRouteTypes {
     | '/users/$userId'
     | '/bots/'
     | '/api/auth/$'
+    | '/api/cron/check-pins'
+    | '/api/cron/check-server'
+    | '/api/cron/update-bots'
+    | '/api/cron/update-bots-info'
+    | '/api/cron/update-bots-servers'
+    | '/api/cron/update-servers'
     | '/api/discord-bot/pin'
     | '/api/discord-bot/publish'
     | '/api/sitemap/bots'
@@ -309,6 +394,7 @@ export interface RootRouteChildren {
   TutorialRoute: typeof TutorialRoute
   ServersServerIdRouteRoute: typeof ServersServerIdRouteRouteWithChildren
   ApiHealthRoute: typeof ApiHealthRoute
+  ApiProxyRoute: typeof ApiProxyRoute
   BotsBotIdRoute: typeof BotsBotIdRoute
   ProtectedAddBotRoute: typeof ProtectedAddBotRoute
   ProtectedAddServerRoute: typeof ProtectedAddServerRoute
@@ -317,6 +403,12 @@ export interface RootRouteChildren {
   UsersUserIdRoute: typeof UsersUserIdRoute
   BotsIndexRoute: typeof BotsIndexRoute
   ApiAuthSplatRoute: typeof ApiAuthSplatRoute
+  ApiCronCheckPinsRoute: typeof ApiCronCheckPinsRoute
+  ApiCronCheckServerRoute: typeof ApiCronCheckServerRoute
+  ApiCronUpdateBotsRoute: typeof ApiCronUpdateBotsRoute
+  ApiCronUpdateBotsInfoRoute: typeof ApiCronUpdateBotsInfoRoute
+  ApiCronUpdateBotsServersRoute: typeof ApiCronUpdateBotsServersRoute
+  ApiCronUpdateServersRoute: typeof ApiCronUpdateServersRoute
   ApiDiscordBotPinRoute: typeof ApiDiscordBotPinRoute
   ApiDiscordBotPublishRoute: typeof ApiDiscordBotPublishRoute
   ApiSitemapBotsRoute: typeof ApiSitemapBotsRoute
@@ -411,6 +503,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof BotsBotIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/proxy': {
+      id: '/api/proxy'
+      path: '/api/proxy'
+      fullPath: '/api/proxy'
+      preLoaderRoute: typeof ApiProxyRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/health': {
       id: '/api/health'
       path: '/api/health'
@@ -474,6 +573,48 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiDiscordBotPinRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/cron/update-servers': {
+      id: '/api/cron/update-servers'
+      path: '/api/cron/update-servers'
+      fullPath: '/api/cron/update-servers'
+      preLoaderRoute: typeof ApiCronUpdateServersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/cron/update-bots-servers': {
+      id: '/api/cron/update-bots-servers'
+      path: '/api/cron/update-bots-servers'
+      fullPath: '/api/cron/update-bots-servers'
+      preLoaderRoute: typeof ApiCronUpdateBotsServersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/cron/update-bots-info': {
+      id: '/api/cron/update-bots-info'
+      path: '/api/cron/update-bots-info'
+      fullPath: '/api/cron/update-bots-info'
+      preLoaderRoute: typeof ApiCronUpdateBotsInfoRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/cron/update-bots': {
+      id: '/api/cron/update-bots'
+      path: '/api/cron/update-bots'
+      fullPath: '/api/cron/update-bots'
+      preLoaderRoute: typeof ApiCronUpdateBotsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/cron/check-server': {
+      id: '/api/cron/check-server'
+      path: '/api/cron/check-server'
+      fullPath: '/api/cron/check-server'
+      preLoaderRoute: typeof ApiCronCheckServerRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/cron/check-pins': {
+      id: '/api/cron/check-pins'
+      path: '/api/cron/check-pins'
+      fullPath: '/api/cron/check-pins'
+      preLoaderRoute: typeof ApiCronCheckPinsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/auth/$': {
       id: '/api/auth/$'
       path: '/api/auth/$'
@@ -512,6 +653,7 @@ const rootRouteChildren: RootRouteChildren = {
   TutorialRoute: TutorialRoute,
   ServersServerIdRouteRoute: ServersServerIdRouteRouteWithChildren,
   ApiHealthRoute: ApiHealthRoute,
+  ApiProxyRoute: ApiProxyRoute,
   BotsBotIdRoute: BotsBotIdRoute,
   ProtectedAddBotRoute: ProtectedAddBotRoute,
   ProtectedAddServerRoute: ProtectedAddServerRoute,
@@ -520,6 +662,12 @@ const rootRouteChildren: RootRouteChildren = {
   UsersUserIdRoute: UsersUserIdRoute,
   BotsIndexRoute: BotsIndexRoute,
   ApiAuthSplatRoute: ApiAuthSplatRoute,
+  ApiCronCheckPinsRoute: ApiCronCheckPinsRoute,
+  ApiCronCheckServerRoute: ApiCronCheckServerRoute,
+  ApiCronUpdateBotsRoute: ApiCronUpdateBotsRoute,
+  ApiCronUpdateBotsInfoRoute: ApiCronUpdateBotsInfoRoute,
+  ApiCronUpdateBotsServersRoute: ApiCronUpdateBotsServersRoute,
+  ApiCronUpdateServersRoute: ApiCronUpdateServersRoute,
   ApiDiscordBotPinRoute: ApiDiscordBotPinRoute,
   ApiDiscordBotPublishRoute: ApiDiscordBotPublishRoute,
   ApiSitemapBotsRoute: ApiSitemapBotsRoute,

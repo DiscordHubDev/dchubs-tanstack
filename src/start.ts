@@ -1,9 +1,11 @@
-import crypto from "node:crypto";
 import { createCsrfMiddleware, createMiddleware, createStart } from "@tanstack/react-start";
+import { getDb } from "./drizzle/db";
 
 const securityHeadersMiddleware = createMiddleware().server(async ({ next }) => {
   // 1. 生成這次專屬的隨機 Nonce
-  const nonce = crypto.randomBytes(16).toString("base64");
+  const array = new Uint8Array(16);
+  crypto.getRandomValues(array);
+  const nonce = btoa(String.fromCharCode(...array));
 
   // 2. 注入 nonce 到 context
   const result = await next({
@@ -74,8 +76,23 @@ const csrfMiddleware = createCsrfMiddleware({
   },
 });
 
+export const globalDBMiddleware = createMiddleware().server(async ({ next }) => {
+  const db = getDb();
+  try {
+    return next({
+      context: {
+        db,
+      },
+    });
+  } catch (error) {
+    console.error({ msg: "Error in root context middleware", error });
+    throw error;
+  }
+});
+
 export const startInstance = createStart(() => {
   return {
-    requestMiddleware: [securityHeadersMiddleware, csrfMiddleware],
+    requestMiddleware: [securityHeadersMiddleware, csrfMiddleware, globalDBMiddleware],
+    functionMiddleware: [],
   };
 });
