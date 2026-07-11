@@ -4,6 +4,7 @@ import { authMiddleware } from "#/lib/auth-middleware";
 import { effectInputValidator } from "#/lib/effect-utils";
 import { BotListInputSchema } from "./bots.schemas";
 import { deleteBot, isDeveloperEffect, listBotFilterBundle, listBotsPage } from "./bots.server";
+import { bumpBotsCacheVersion } from "#/lib/redis";
 
 export const getBotsListFn = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
@@ -50,6 +51,7 @@ export const deleteBotFn = createServerFn({
     }
 
     const result = await deleteBot(data.botId, userId);
+    await bumpBotsCacheVersion();
 
     if (!result.success) {
       throw new Error(result.reason);

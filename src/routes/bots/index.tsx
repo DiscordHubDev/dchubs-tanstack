@@ -250,7 +250,6 @@ function BotsPage() {
   const { data: filterBundleData } = useSuspenseQuery(botFilterBundleQueryOptions());
 
   const mergedCategories = useMemo(() => {
-    // ... (保持原本邏輯，無更動)
     const map = new Map<string, CategoryType>();
     const nameSet = new Set<string>();
 

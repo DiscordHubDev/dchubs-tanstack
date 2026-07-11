@@ -28,8 +28,15 @@ export const BotCommandsSchema = Schema.Array(BotCommandSchema);
 
 export const BotTagSchema = NonEmptyString.pipe(Schema.maxLength(24));
 export const BotTagsSchema = Schema.Array(BotTagSchema).pipe(
-  Schema.minItems(1, { message: () => "請至少新增一個標籤" }),
-  Schema.maxItems(8, { message: () => "最多只能新增 8 個標籤" }),
+  Schema.minItems(1, { message: () => "至少需要 1 個標籤" }),
+  Schema.maxItems(8, { message: () => "標籤最多 8 個" }),
+  Schema.filter(
+    (tags) => {
+      const seen = new Set(tags.map((t) => t.toLowerCase()));
+      return seen.size === tags.length;
+    },
+    { message: () => "標籤不可重複" },
+  ),
 );
 
 export const BotSecretSchema = Schema.optional(Schema.String);

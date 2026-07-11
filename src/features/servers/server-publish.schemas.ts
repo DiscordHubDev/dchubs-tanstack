@@ -1,3 +1,5 @@
+// src/features/servers/server-publish.schemas.ts
+
 import { Schema } from "effect";
 
 const NonEmptyString = Schema.String.pipe(Schema.minLength(1));
@@ -88,7 +90,17 @@ export const RuleSchema = NonEmptyString.pipe(Schema.maxLength(300));
 export const TagSchema = NonEmptyString.pipe(Schema.maxLength(24));
 
 export const RulesSchema = Schema.Array(RuleSchema);
-export const TagsSchema = Schema.Array(TagSchema);
+export const TagsSchema = Schema.Array(TagSchema).pipe(
+  Schema.minItems(1, { message: () => "至少需要 1 個標籤" }),
+  Schema.maxItems(8, { message: () => "標籤最多 8 個" }),
+  Schema.filter(
+    (tags) => {
+      const seen = new Set(tags.map((t) => t.toLowerCase()));
+      return seen.size === tags.length;
+    },
+    { message: () => "標籤不可重複" },
+  ),
+);
 
 export const ServerFormSchema = Schema.Struct({
   serverName: ServerNameSchema,

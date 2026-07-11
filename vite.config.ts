@@ -1,18 +1,3 @@
-// ─── Vite 8 config (Rolldown + Oxc) ──────────────────────────────────────────
-//
-// Migration summary from original:
-//   • rollupOptions  → rolldownOptions   (Vite 8 / Rolldown)
-//   • manualChunks   → advancedChunks    (function form deprecated in Vite 8)
-//   • `isProd` now derived from `mode` parameter, not process.env.NODE_ENV
-//   • devtools() gated to dev-only
-//   • server.warmup added (pre-warms HMR on hot routes)
-//   • modulePreload.polyfill disabled (unnecessary at target: esnext)
-//   • @rolldown/plugin-babel KEPT — @vitejs/plugin-react v6 now uses Oxc
-//     internally, so Babel is the only correct path for the React Compiler preset
-//   • base now guards against undefined VITE_CDN_ORIGIN
-//   • prerender filter simplified (single-element array → direct comparison)
-//   • optimizeDeps.rolldownOptions used for Rolldown-native dep optimisation
-
 import babel from "@rolldown/plugin-babel";
 import tailwindcss from "@tailwindcss/vite";
 import { devtools } from "@tanstack/devtools-vite";
@@ -116,8 +101,6 @@ export default defineConfig(({ mode }) => {
       //   "react",
       //   "react-dom",
       //   "@tanstack/react-router",
-      //   // Force-prebundle Radix UI primitives to avoid hundreds of
-      //   // individual file requests in dev mode.
       //   "@radix-ui/react-accordion",
       //   "@radix-ui/react-alert-dialog",
       //   "@radix-ui/react-aspect-ratio",

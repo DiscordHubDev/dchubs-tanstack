@@ -3,6 +3,7 @@ import { Effect } from "effect";
 import { db } from "#/drizzle/db";
 import { bot, botDevelopers, userFavoriteBots } from "#/drizzle/schema";
 import { runEffect, tryEffectPromise } from "#/lib/effect-utils";
+import { bumpBotsCacheVersion, cacheAside, getBotsCacheVersion } from "#/lib/redis";
 import type { CategoryType } from "#/lib/types";
 import type {
   BotCategory,
@@ -23,36 +24,64 @@ const TAG_COLORS = [
   "bg-fuchsia-500",
 ] as const;
 
+// Redis TTLs are set slightly *longer* than the matching TanStack Query
+// staleTime on the client, so the server-side cache stays warm for at least
+// as long as the client considers its own copy fresh.
+const LIST_CACHE_TTL_SECONDS = 60; // client staleTime: 30s
+const FILTER_BUNDLE_CACHE_TTL_SECONDS = 10 * 60; // client staleTime: 5min
+
+type BotRow = {
+  id: string;
+  name: string;
+  description: string;
+  tags: string[] | null;
+  servers: number;
+  users: number;
+  upvotes: number;
+  icon: string | null;
+  banner: string | null;
+  inviteUrl: string | null;
+  website: string | null;
+  supportServer: string | null;
+  approvedAt: string | null;
+  pin: boolean;
+  pinExpiry: string | null;
+  verified: boolean;
+  isAdmin: boolean;
+  nsfw: boolean;
+  termsOfServiceUrl: string | null;
+  privacyPolicyUrl: string | null;
+};
+
+const BOT_ROW_COLUMNS = {
+  id: bot.id,
+  name: bot.name,
+  description: bot.description,
+  tags: bot.tags,
+  servers: bot.servers,
+  users: bot.users,
+  upvotes: bot.upvotes,
+  icon: bot.icon,
+  banner: bot.banner,
+  inviteUrl: bot.inviteUrl,
+  website: bot.website,
+  supportServer: bot.supportServer,
+  approvedAt: bot.approvedAt,
+  pin: bot.pin,
+  pinExpiry: bot.pinExpiry,
+  verified: bot.verified,
+  isAdmin: bot.isAdmin,
+  nsfw: bot.nsfw,
+  termsOfServiceUrl: bot.termsOfServiceUrl,
+  privacyPolicyUrl: bot.privacyPolicyUrl,
+} as const;
+
 function normalizeTags(tags: string[] | null): string[] {
   if (!Array.isArray(tags)) return [];
   return tags.filter(Boolean);
 }
 
-function mapRowToPublicBot(
-  row: {
-    id: string;
-    name: string;
-    description: string;
-    tags: string[] | null;
-    servers: number;
-    users: number;
-    upvotes: number;
-    icon: string | null;
-    banner: string | null;
-    inviteUrl: string | null;
-    website: string | null;
-    supportServer: string | null;
-    approvedAt: string | null;
-    pin: boolean;
-    pinExpiry: string | null;
-    verified: boolean;
-    isAdmin: boolean;
-    nsfw: boolean;
-    termsOfServiceUrl: string | null;
-    privacyPolicyUrl: string | null;
-  },
-  favoriteIds: Set<string>,
-): PublicBot {
+function mapRowToPublicBot(row: BotRow, favoriteIds: Set<string>): PublicBot {
   return {
     id: row.id,
     name: row.name,
@@ -78,6 +107,11 @@ function mapRowToPublicBot(
   };
 }
 
+// NOTE: favorites are intentionally *never* cached in Redis. isFavorite is
+// per-user, so baking it into a shared cache entry would either explode key
+// cardinality (one entry per user) or force a full cache bust on every single
+// favorite/unfavorite click. It's already a cheap, indexed lookup, so we just
+// fetch it fresh every request and merge it onto the cached bot rows.
 function getFavoriteIdsEffect(userId: string | null): Effect.Effect<Set<string>, Error> {
   if (!userId) return Effect.succeed(new Set<string>());
 
@@ -153,51 +187,43 @@ function listBotsPageEffect(
         : eq(bot.nsfw, false)
       : baseWhereClause;
 
-    // 將基礎查詢抽離，讓代碼更易讀且好維護
-    const countQuery = db.select({ count: sql<number>`count(*)` }).from(bot);
-    const scopedCountQuery = whereClause ? countQuery.where(whereClause) : countQuery;
+    // Cache key is a function of everything that changes the result set:
+    // category / page / limit / nsfw flag, plus a global version so any
+    // write (delete/approve/edit/upvote) can invalidate everything at once
+    // via bumpBotsCacheVersion() instead of pattern-deleting keys.
+    const version = yield* tryEffectPromise("Failed to read bots cache version", () =>
+      getBotsCacheVersion(),
+    );
+    const cacheKey = `bots:list:v${version}:${input.category}:${input.page}:${input.limit}:${
+      userNsfw ? "sfw" : "all"
+    }`;
 
-    const rowsQuery = db
-      .select({
-        id: bot.id,
-        name: bot.name,
-        description: bot.description,
-        tags: bot.tags,
-        servers: bot.servers,
-        users: bot.users,
-        upvotes: bot.upvotes,
-        icon: bot.icon,
-        banner: bot.banner,
-        inviteUrl: bot.inviteUrl,
-        website: bot.website,
-        supportServer: bot.supportServer,
-        approvedAt: bot.approvedAt,
-        pin: bot.pin,
-        pinExpiry: bot.pinExpiry,
-        verified: bot.verified,
-        isAdmin: bot.isAdmin,
-        nsfw: bot.nsfw,
-        termsOfServiceUrl: bot.termsOfServiceUrl,
-        privacyPolicyUrl: bot.privacyPolicyUrl,
-      })
-      .from(bot);
+    const { total, rows } = yield* tryEffectPromise(
+      "Failed to load bot list",
+      (): Promise<{ total: number; rows: BotRow[] }> =>
+        cacheAside(cacheKey, LIST_CACHE_TTL_SECONDS, async () => {
+          const countQuery = db.select({ count: sql<number>`count(*)` }).from(bot);
+          const scopedCountQuery = whereClause ? countQuery.where(whereClause) : countQuery;
 
-    const scopedRowsQuery = whereClause ? rowsQuery.where(whereClause) : rowsQuery;
+          const rowsQuery = db.select(BOT_ROW_COLUMNS).from(bot);
+          const scopedRowsQuery = whereClause ? rowsQuery.where(whereClause) : rowsQuery;
 
-    const [countRows, rows] = yield* Effect.all([
-      tryEffectPromise("Failed to count bots", () => scopedCountQuery),
-      tryEffectPromise("Failed to load bot list", () =>
-        scopedRowsQuery
-          .orderBy(...orderBy)
-          .limit(input.limit)
-          .offset(offset),
-      ),
-    ]);
+          const [countRows, rows] = await Promise.all([
+            scopedCountQuery,
+            scopedRowsQuery
+              .orderBy(...orderBy)
+              .limit(input.limit)
+              .offset(offset),
+          ]);
 
-    const total = Number(countRows[0]?.count ?? 0);
+          return { total: Number(countRows[0]?.count ?? 0), rows };
+        }),
+    );
+
     const totalPages = Math.max(1, Math.ceil(total / input.limit));
 
     return {
+      // Favorites are merged *after* the cache read, never inside it.
       bots: rows.map((row) => mapRowToPublicBot(row, favoriteIds)),
       total,
       totalPages,
@@ -220,33 +246,19 @@ function listBotFilterBundleEffect(
     // 👉 組合條件：如果開啟過濾，則加上 nsfw === false 的限制
     const whereClause = userNsfw ? and(baseCondition, eq(bot.nsfw, false)) : baseCondition;
 
-    const rows = yield* tryEffectPromise("Failed to load all bots", () =>
-      db
-        .select({
-          id: bot.id,
-          name: bot.name,
-          description: bot.description,
-          tags: bot.tags,
-          servers: bot.servers,
-          users: bot.users,
-          upvotes: bot.upvotes,
-          icon: bot.icon,
-          banner: bot.banner,
-          inviteUrl: bot.inviteUrl,
-          website: bot.website,
-          supportServer: bot.supportServer,
-          approvedAt: bot.approvedAt,
-          pin: bot.pin,
-          pinExpiry: bot.pinExpiry,
-          verified: bot.verified,
-          isAdmin: bot.isAdmin,
-          nsfw: bot.nsfw,
-          termsOfServiceUrl: bot.termsOfServiceUrl,
-          privacyPolicyUrl: bot.privacyPolicyUrl,
-        })
-        .from(bot)
-        // 套用組合後的條件
-        .where(whereClause),
+    const version = yield* tryEffectPromise("Failed to read bots cache version", () =>
+      getBotsCacheVersion(),
+    );
+    const cacheKey = `bots:filterBundle:v${version}:${userNsfw ? "sfw" : "all"}`;
+
+    // This is the expensive full-table scan used to build tag stats, so it
+    // gets the longest TTL of the two cached queries.
+    const rows = yield* tryEffectPromise(
+      "Failed to load all bots",
+      (): Promise<BotRow[]> =>
+        cacheAside(cacheKey, FILTER_BUNDLE_CACHE_TTL_SECONDS, () =>
+          db.select(BOT_ROW_COLUMNS).from(bot).where(whereClause),
+        ),
     );
 
     const allBots = rows.map((row) => mapRowToPublicBot(row, favoriteIds));
@@ -319,7 +331,6 @@ export async function deleteBot(
 ): Promise<{ success: boolean; reason?: string }> {
   if (!userId) return { success: false, reason: "UNAUTHORIZED" };
 
-  // 1. 一次性查出這個 Bot 是否存在，以及當前使用者是否為開發者
   const botCheck = await db
     .select({
       isDeveloper: exists(
@@ -331,20 +342,19 @@ export async function deleteBot(
     })
     .from(bot)
     .where(eq(bot.id, botId))
-    .then((res) => res[0]); // 取出第一筆
+    .then((res) => res[0]);
 
-  // 2. 如果連 botCheck 都沒有，代表 Bot 根本不存在
   if (!botCheck) {
     return { success: false, reason: "BOT_NOT_FOUND" };
   }
 
-  // 3. 如果 Bot 存在，但當前使用者不是開發者
   if (!botCheck.isDeveloper) {
     return { success: false, reason: "NOT_THE_DEVELOPER" };
   }
 
-  // 4. 通過驗證，執行刪除
   await db.delete(bot).where(eq(bot.id, botId));
+
+  await bumpBotsCacheVersion();
 
   return { success: true };
 }

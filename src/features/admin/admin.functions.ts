@@ -29,6 +29,7 @@ import {
 import { fetchAndUpdateServerCount } from "./admin.server";
 import { sendNotificationEffect } from "../notifications/notifications.server";
 import { SendNotificationSchema } from "../notifications/notifications.schemas";
+import { bumpBotsCacheVersion, bumpCacheVersion } from "#/lib/redis";
 
 export const updateBotServerCountBackgroundFn = createServerFn({
   method: "POST",
@@ -91,7 +92,6 @@ export const reviewBotFn = createServerFn({ method: "POST" })
   .handler(async ({ data }) => {
     const result = await toResult(
       fromDrizzle(async () => {
-        // 先執行更新動作
         await db
           .update(bot)
           .set({
@@ -125,6 +125,8 @@ export const reviewBotFn = createServerFn({ method: "POST" })
     if (data.status === "approved") {
       const developersList = app.developers || [];
       const devIds = developersList.map((d) => d.b);
+
+      await bumpBotsCacheVersion();
 
       // A. 發送私訊通知 (使用 external function)
       await SendNotificationFn({
@@ -175,19 +177,19 @@ export const reviewBotFn = createServerFn({ method: "POST" })
 export const deleteBotFn = createServerFn({ method: "POST" })
   .middleware([adminMiddleware])
   .inputValidator(effectInputValidator(BotIdSchema))
-  .handler(
-    ({ data }): Promise<ActionResult> =>
-      toResult(fromDrizzle(() => db.delete(bot).where(eq(bot.id, data.id)))),
-  );
+  .handler(async ({ data }): Promise<ActionResult> => {
+    await bumpBotsCacheVersion();
+    return toResult(fromDrizzle(() => db.delete(bot).where(eq(bot.id, data.id))));
+  });
 
 /** Delete a server by guild id */
 export const deleteServerFn = createServerFn({ method: "POST" })
   .middleware([adminMiddleware])
   .inputValidator(effectInputValidator(ServerGuildIdSchema))
-  .handler(
-    ({ data }): Promise<ActionResult> =>
-      toResult(fromDrizzle(() => db.delete(server).where(eq(server.id, data.guildId)))),
-  );
+  .handler(async ({ data }): Promise<ActionResult> => {
+    await bumpCacheVersion("servers");
+    return toResult(fromDrizzle(() => db.delete(server).where(eq(server.id, data.guildId))));
+  });
 
 /** Update a report */
 export const updateReportFn = createServerFn({ method: "POST" })

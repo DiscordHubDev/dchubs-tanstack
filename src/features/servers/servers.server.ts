@@ -11,6 +11,28 @@ import type {
   ServerListQueryInput,
   ServerListQueryResult,
 } from "./servers.types";
+import { cacheAside, getCacheVersion } from "#/lib/redis";
+
+const CACHE_NAMESPACE = "servers";
+const LIST_CACHE_TTL_SECONDS = 60; // 對應 client staleTime 30s
+const BUNDLE_CACHE_TTL_SECONDS = 10 * 60; // 對應 client staleTime 5min
+
+const SERVER_ROW_COLUMNS = {
+  id: server.id,
+  name: server.name,
+  description: server.description,
+  tags: server.tags,
+  members: server.members,
+  online: server.online,
+  upvotes: server.upvotes,
+  icon: server.icon,
+  banner: server.banner,
+  inviteUrl: server.inviteUrl,
+  createdAt: server.createdAt,
+  pin: server.pin,
+  pinExpiry: server.pinExpiry,
+  nsfw: server.nsfw,
+} as const;
 
 const TAG_COLORS = [
   "bg-blue-500",
@@ -107,65 +129,66 @@ function getListOrderBy(category: ServerCategory) {
   return [desc(server.upvotes)] as const;
 }
 
+function baseServerRowsQuery() {
+  return db.select(SERVER_ROW_COLUMNS).from(server);
+}
+type ServerRow = Awaited<ReturnType<typeof baseServerRowsQuery>>[number];
+
 function listServersPageEffect(
   input: ServerListQueryInput,
   userId?: string | null,
-  userNsfw?: boolean, // 新增參數：代表使用者是否開啟「隱藏/過濾 NSFW」的設定
+  userNsfw?: boolean,
 ): Effect.Effect<ServerListQueryResult, Error> {
   return Effect.gen(function* () {
     const favoriteIds = yield* getFavoriteIdsEffect(userId ?? null);
 
-    // 取得原本的過濾條件
     const baseWhereClause = getListWhere(input.category);
     const orderBy = getListOrderBy(input.category);
     const offset = (input.page - 1) * input.limit;
 
-    // 核心修改：如果 userNsfw 為 true，則加上過濾條件：伺服器的 nsfw 必須為 false
     const whereClause = userNsfw
       ? baseWhereClause
         ? and(baseWhereClause, eq(server.nsfw, false))
         : eq(server.nsfw, false)
       : baseWhereClause;
 
-    const countQuery = db.select({ count: sql<number>`count(*)` }).from(server);
-    const rowsQuery = db
-      .select({
-        id: server.id,
-        name: server.name,
-        description: server.description,
-        tags: server.tags,
-        members: server.members,
-        online: server.online,
-        upvotes: server.upvotes,
-        icon: server.icon,
-        banner: server.banner,
-        inviteUrl: server.inviteUrl,
-        createdAt: server.createdAt,
-        pin: server.pin,
-        pinExpiry: server.pinExpiry,
-        nsfw: server.nsfw,
-      })
-      .from(server);
+    // total 跟 rows 綁在同一個快取條目裡一起讀寫，不會發生「total 是舊的、
+    // rows 是新的」這種分頁對不上的情況。key 帶版本號，寫入操作
+    // (新增/刪除/編輯伺服器) 呼叫 bumpCacheVersion("servers") 就能整批失效，
+    // 不需要等 TTL，也不需要 SCAN+DEL。
+    const version = yield* tryEffectPromise("Failed to read servers cache version", () =>
+      getCacheVersion(CACHE_NAMESPACE),
+    );
+    const cacheKey = `servers:list:v${version}:${input.category ?? "all"}:${input.page}:${input.limit}:${
+      userNsfw ? "sfw" : "all"
+    }`;
 
-    // 使用組合好的 whereClause
-    const scopedCountQuery = whereClause ? countQuery.where(whereClause) : countQuery;
+    const { total, rows } = yield* tryEffectPromise(
+      "Failed to load server list",
+      (): Promise<{ total: number; rows: ServerRow[] }> =>
+        cacheAside(cacheKey, LIST_CACHE_TTL_SECONDS, async () => {
+          const countQuery = db.select({ count: sql<number>`count(*)` }).from(server);
+          const scopedCountQuery = whereClause ? countQuery.where(whereClause) : countQuery;
 
-    const scopedRowsQuery = whereClause ? rowsQuery.where(whereClause) : rowsQuery;
+          const rowsQuery = baseServerRowsQuery();
+          const scopedRowsQuery = whereClause ? rowsQuery.where(whereClause) : rowsQuery;
 
-    const [countRows, rows] = yield* Effect.all([
-      tryEffectPromise("Failed to count servers", () => scopedCountQuery),
-      tryEffectPromise("Failed to load server list", () =>
-        scopedRowsQuery
-          .orderBy(...orderBy)
-          .limit(input.limit)
-          .offset(offset),
-      ),
-    ]);
+          const [countRows, rows] = await Promise.all([
+            scopedCountQuery,
+            scopedRowsQuery
+              .orderBy(...orderBy)
+              .limit(input.limit)
+              .offset(offset),
+          ]);
 
-    const total = Number(countRows[0]?.count ?? 0);
+          return { total: Number(countRows[0]?.count ?? 0), rows };
+        }),
+    );
+
     const totalPages = Math.max(1, Math.ceil(total / input.limit));
 
     return {
+      // favorites 永遠在快取讀取「之後」才 merge 上去，不會進 Redis。
       servers: rows.map((row) => mapRowToPublicServer(row, favoriteIds)),
       total,
       totalPages,
@@ -177,44 +200,32 @@ function listServersPageEffect(
 
 function listServerFilterBundleEffect(
   userId?: string | null,
-  userNsfw?: boolean, // 👉 新增參數：判斷使用者是否要過濾 NSFW
+  userNsfw?: boolean,
 ): Effect.Effect<ServerFilterBundle, Error> {
   return Effect.gen(function* () {
+    const version = yield* tryEffectPromise("Failed to read servers cache version", () =>
+      getCacheVersion(CACHE_NAMESPACE),
+    );
+    const cacheKey = `servers:bundle:v${version}:${userNsfw ? "sfw" : "all"}`;
+
+    // 只快取「跟使用者無關」的重運算部分：全表掃描 + tag 統計。
+    const rawServers = yield* tryEffectPromise(
+      "Failed to load raw servers",
+      (): Promise<ServerRow[]> =>
+        cacheAside(cacheKey, BUNDLE_CACHE_TTL_SECONDS, () => {
+          const baseQuery = baseServerRowsQuery();
+          const scopedQuery = userNsfw ? baseQuery.where(eq(server.nsfw, false)) : baseQuery;
+          return scopedQuery;
+        }),
+    );
+
+    // favoriteIds 完全不進 Redis，永遠即時查、即時 merge。
     const favoriteIds = yield* getFavoriteIdsEffect(userId ?? null);
-
-    // 1. 準備基礎的 Query
-    const baseQuery = db
-      .select({
-        id: server.id,
-        name: server.name,
-        description: server.description,
-        tags: server.tags,
-        members: server.members,
-        online: server.online,
-        upvotes: server.upvotes,
-        icon: server.icon,
-        banner: server.banner,
-        inviteUrl: server.inviteUrl,
-        createdAt: server.createdAt,
-        pin: server.pin,
-        pinExpiry: server.pinExpiry,
-        nsfw: server.nsfw,
-      })
-      .from(server);
-
-    // 2. 根據設定加上 where 條件
-    const scopedQuery = userNsfw ? baseQuery.where(eq(server.nsfw, false)) : baseQuery;
-
-    // 3. 執行過濾後的 Query
-    const rows = yield* tryEffectPromise("Failed to load all servers", () => scopedQuery);
-
-    const allServers = rows.map((row) => mapRowToPublicServer(row, favoriteIds));
-
-    // --- 以下邏輯完全不用改，因為資料已經乾淨了 ---
+    const allServers = rawServers.map((row) => mapRowToPublicServer(row, favoriteIds));
 
     const tagCount = new Map<string, number>();
     for (const item of allServers) {
-      for (const tag of item.tags) {
+      for (const tag of normalizeTags(item.tags)) {
         const normalized = tag.trim();
         if (!normalized) continue;
         tagCount.set(normalized, (tagCount.get(normalized) ?? 0) + 1);
@@ -243,7 +254,6 @@ function listServerFilterBundleEffect(
     };
   });
 }
-
 export async function listServersPage(
   input: ServerListQueryInput,
   userId?: string | null,

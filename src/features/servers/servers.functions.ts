@@ -4,6 +4,7 @@ import { effectInputValidator } from "#/lib/effect-utils";
 import { DeleteServerInputSchema, ServerListInputSchema } from "./servers.schemas";
 import { deleteServer, listServerFilterBundle, listServersPage } from "./servers.server";
 import type { DiscordWidgetData } from "./servers.types";
+import { bumpCacheVersion } from "#/lib/redis";
 
 export const getServersListFn = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
@@ -33,6 +34,8 @@ export const deleteServerFn = createServerFn({
     }
 
     const result = await deleteServer(data.serverId, userId);
+
+    await bumpCacheVersion("servers");
 
     if (!result.success) {
       // 直接將 reason 丟給前端處理
