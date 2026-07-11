@@ -9,11 +9,7 @@ import type { PgTransaction } from "drizzle-orm/pg-core";
 
 const schema = { ...schemaTables, ...schemaRelations };
 
-let dbInstance: ReturnType<typeof drizzle<typeof schema>> | null = null;
-
 export function getDb() {
-  if (dbInstance) return dbInstance;
-
   const hyperdrive = env["dchubs-db"] as any;
   const connectionString = hyperdrive?.connectionString || process.env.DATABASE_URL;
 
@@ -25,12 +21,10 @@ export function getDb() {
     connect_timeout: 10,
   });
 
-  dbInstance = drizzle(client, {
+  return drizzle(client, {
     schema,
     logger: false,
   });
-
-  return dbInstance;
 }
 
 export type DbTransaction = PgTransaction<
