@@ -106,11 +106,7 @@ export const Route = createFileRoute("/bots/")({
     return { searchData: deps };
   },
   head: ({ loaderData }) => {
-    const baseLinks = [
-      // 效能優化：加入 Preconnect 提早解析 DNS/TLS
-      { rel: "preconnect", href: "https://gallery.dawngs.top" },
-      { rel: "preconnect", href: "https://cdn.discordapp.com" },
-    ];
+    const baseLinks = [{ rel: "preconnect", href: "https://cdn.discordapp.com" }];
 
     if (!loaderData) {
       return {
@@ -140,7 +136,7 @@ export const Route = createFileRoute("/bots/")({
 
     const categoryLabel =
       BOT_CATEGORY_CONFIG.find((c) => c.id === category)?.label ?? "Discord 機器人";
-    const title = `發現最棒的${categoryLabel} | DiscordHubs`;
+    const title = "熱門機器人 | Discord機器人列表 - DiscordHubs";
     const description = `在 DiscordHubs 探索數百個功能豐富的${categoryLabel}機器人，為您的伺服器增添更多功能和樂趣。尋找最適合您的社群工具。`;
 
     const canonicalUrl = `${siteUrl}/bots${rawTab ? `?tab=${rawTab}` : ""}`;

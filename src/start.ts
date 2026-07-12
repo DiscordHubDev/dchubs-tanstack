@@ -24,7 +24,7 @@ const securityHeadersMiddleware = createMiddleware().server(async ({ next }) => 
       `script-src 'self' 'nonce-${nonce}' 'unsafe-inline' 'unsafe-eval' https://assets.dchubs.org https://ajax.cloudflare.com https://static.cloudflareinsights.com`,
 
       "style-src 'self' 'unsafe-inline' https://assets.dchubs.org",
-      "img-src 'self' data: https://cdn.discordapp.com https://gallery.dawngs.top https://res.cloudinary.com blob:",
+      "img-src 'self' data: https://cdn.discordapp.com https://res.cloudinary.com blob:",
       "frame-src https://discord.com https://www.youtube.com",
       "connect-src 'self' https://cloudflareinsights.com https://static.cloudflareinsights.com",
       "object-src 'none'",
