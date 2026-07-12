@@ -1,7 +1,9 @@
 import fs from "node:fs";
 import path from "node:path";
-import { DeleteObjectsCommand, ListObjectsV2Command, S3Client } from "@aws-sdk/client-s3";
+import https from "node:https";
+import { ListObjectsV2Command, S3Client } from "@aws-sdk/client-s3";
 import { Upload } from "@aws-sdk/lib-storage";
+import { NodeHttpHandler } from "@smithy/node-http-handler";
 import mime from "mime-types";
 
 // ==================== 配置 ====================
@@ -11,19 +13,32 @@ const secretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
 const bucketName = "dchubs";
 
 const REMOTE_PREFIX = "assets/";
-const MAX_CONCURRENT_UPLOADS = 20; // 可依網路調整 10~30
-const STALE_DAYS = 7;
-const MAX_KEYS_PER_DELETE = 1000; // S3 DeleteObjects 限制
+const MAX_CONCURRENT_UPLOADS = 20;
 
 if (!accountId || !accessKeyId || !secretAccessKey) {
   console.error("❌ 錯誤：缺少必要的 R2 環境變數！");
   process.exit(1);
 }
 
+// ==================== HTTP Keep-Alive Handler ====================
+const httpsAgent = new https.Agent({
+  keepAlive: true,
+  keepAliveMsecs: 1000,
+  maxSockets: 50, // 可依實際並發調整
+  maxFreeSockets: 20,
+});
+
+const httpHandler = new NodeHttpHandler({
+  httpsAgent,
+  connectionTimeout: 30000,
+  socketTimeout: 120000,
+});
+
 const s3Client = new S3Client({
   region: "auto",
   endpoint: `https://${accountId}.r2.cloudflarestorage.com`,
   credentials: { accessKeyId, secretAccessKey },
+  requestHandler: httpHandler,
 });
 
 // ==================== 來源目錄 ====================
@@ -53,7 +68,6 @@ function getAllFiles(dirPath: string): string[] {
   return files;
 }
 
-// 簡單的並發控制
 async function withConcurrency<T>(items: T[], concurrency: number, fn: (item: T) => Promise<void>) {
   const queue: Promise<void>[] = [];
   for (const item of items) {
@@ -68,6 +82,34 @@ async function withConcurrency<T>(items: T[], concurrency: number, fn: (item: T)
     }
   }
   await Promise.all(queue);
+}
+
+// ==================== 從 R2 獲取現有檔案 ====================
+async function getExistingR2Files(): Promise<Map<string, { size: number }>> {
+  console.log("📋 正在從 R2 獲取現有檔案列表...");
+  const existing = new Map<string, { size: number }>();
+  let continuationToken: string | undefined;
+
+  do {
+    const listCommand = new ListObjectsV2Command({
+      Bucket: bucketName,
+      Prefix: REMOTE_PREFIX,
+      ContinuationToken: continuationToken,
+    });
+
+    const response = await s3Client.send(listCommand);
+    continuationToken = response.NextContinuationToken;
+
+    if (!response.Contents) break;
+
+    for (const obj of response.Contents) {
+      if (!obj.Key || obj.Size === undefined) continue;
+      existing.set(obj.Key, { size: obj.Size });
+    }
+  } while (continuationToken);
+
+  console.log(`📊 R2 上找到 ${existing.size} 個現有檔案`);
+  return existing;
 }
 
 // ==================== 主流程 ====================
@@ -96,17 +138,40 @@ async function main() {
     process.exit(1);
   }
 
-  // 去重（Client 與 SSR 可能產生相同 hash 檔案）
   const uniqueFiles = Array.from(new Map(allFilesToUpload.map((f) => [f.r2Key, f])).values());
+  console.log(`📦 共發現 ${uniqueFiles.length} 個唯一本地檔案`);
 
-  console.log(`📦 共發現 ${uniqueFiles.length} 個唯一檔案待上傳`);
+  const existingFiles = await getExistingR2Files();
 
-  // 1. 上傳
+  const filesToUpload: { localPath: string; r2Key: string }[] = [];
+  let skippedCount = 0;
+
+  for (const fileObj of uniqueFiles) {
+    const localStats = fs.statSync(fileObj.localPath);
+    const existing = existingFiles.get(fileObj.r2Key);
+
+    if (existing && existing.size === localStats.size) {
+      skippedCount++;
+      console.log(`⏭️ 跳過（已存在且大小相同）: ${fileObj.r2Key}`);
+      continue;
+    }
+
+    filesToUpload.push(fileObj);
+  }
+
+  console.log(`📤 決定上傳 ${filesToUpload.length} 個檔案（跳過 ${skippedCount} 個）`);
+
+  if (filesToUpload.length === 0) {
+    console.log("✨ 所有檔案均已最新，無需上傳！");
+    return;
+  }
+
+  // 上傳
   const uploadedKeys = new Set<string>();
   let successCount = 0;
   let failedCount = 0;
 
-  await withConcurrency(uniqueFiles, MAX_CONCURRENT_UPLOADS, async (fileObj) => {
+  await withConcurrency(filesToUpload, MAX_CONCURRENT_UPLOADS, async (fileObj) => {
     if (uploadedKeys.has(fileObj.r2Key)) return;
 
     const contentType = mime.lookup(fileObj.localPath) || "application/octet-stream";
@@ -128,7 +193,7 @@ async function main() {
       await upload.done();
       uploadedKeys.add(fileObj.r2Key);
       successCount++;
-      console.log(`✅ ${fileObj.r2Key}`);
+      console.log(`✅ 上傳完成: ${fileObj.r2Key}`);
     } catch (err) {
       failedCount++;
       console.error(`❌ 上傳失敗 ${fileObj.r2Key}:`, err);
@@ -136,67 +201,6 @@ async function main() {
   });
 
   console.log(`🎉 上傳完成！成功: ${successCount}，失敗: ${failedCount}`);
-
-  // 2. 清理舊檔案
-  if (successCount > 0) {
-    await cleanUpStaleFiles(uniqueFiles.map((f) => f.r2Key));
-  }
-}
-
-// ==================== 清理過期檔案（支援分頁） ====================
-async function cleanUpStaleFiles(currentKeys: string[]) {
-  console.log("🧹 開始清理過期舊檔案...");
-
-  const localKeys = new Set(currentKeys);
-  const staleMs = STALE_DAYS * 24 * 60 * 60 * 1000;
-  const now = Date.now();
-  const keysToDelete: string[] = [];
-  let skipped = 0;
-  let continuationToken: string | undefined;
-
-  do {
-    const listCommand = new ListObjectsV2Command({
-      Bucket: bucketName,
-      Prefix: REMOTE_PREFIX,
-      ContinuationToken: continuationToken,
-    });
-
-    const response = await s3Client.send(listCommand);
-    continuationToken = response.NextContinuationToken;
-
-    if (!response.Contents) break;
-
-    for (const obj of response.Contents) {
-      if (!obj.Key) continue;
-      if (localKeys.has(obj.Key)) continue;
-
-      const age = now - (obj.LastModified?.getTime() || 0);
-      if (age > staleMs) {
-        keysToDelete.push(obj.Key);
-      } else {
-        skipped++;
-      }
-    }
-  } while (continuationToken);
-
-  if (keysToDelete.length === 0) {
-    console.log(`✨ 沒有超過 ${STALE_DAYS} 天的舊檔案需要清理（跳過 ${skipped} 個緩衝期檔案）`);
-    return;
-  }
-
-  // 分批刪除（S3 限制每次最多 1000）
-  for (let i = 0; i < keysToDelete.length; i += MAX_KEYS_PER_DELETE) {
-    const batch = keysToDelete.slice(i, i + MAX_KEYS_PER_DELETE);
-    await s3Client.send(
-      new DeleteObjectsCommand({
-        Bucket: bucketName,
-        Delete: { Objects: batch.map((Key) => ({ Key })) },
-      }),
-    );
-    console.log(`🗑️ 已刪除 ${batch.length} 個舊檔案`);
-  }
-
-  console.log(`✅ 清理完成，共刪除 ${keysToDelete.length} 個過期檔案`);
 }
 
 // 執行
