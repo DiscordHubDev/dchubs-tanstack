@@ -33,7 +33,6 @@ export const getSession = createServerFn({ method: "GET" })
   .middleware([edgeContextMiddleware])
   .handler(async ({ context }) => {
     if (!context.user) {
-      console.log("getSession: No user in context");
       return null;
     }
 
@@ -83,7 +82,7 @@ export const checkAuthServerFn = createServerFn({ method: "GET" })
   });
 
 export const banUserFn = createServerFn({ method: "POST" })
-  .inputValidator((data: BanUserPayload) => data)
+  .validator((data: BanUserPayload) => data)
   .handler(async ({ data }) => {
     // 1. 取得原始 Request (以便將 headers 傳給 Better Auth 驗證管理員身分)
     const request = getRequest();

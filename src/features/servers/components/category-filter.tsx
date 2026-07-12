@@ -7,7 +7,25 @@ interface CategoryFilterProps {
   categories: CategoryType[];
   selectedCategoryIds: string[];
   onCategoryChange: (selectedCategories: string[]) => void;
+  isPending?: boolean; // 新增
 }
+
+const CategorySkeleton = memo(function CategorySkeleton() {
+  return (
+    <div className="space-y-2 px-1 py-1">
+      {Array.from({ length: 6 }).map((_, i) => (
+        <div key={i} className="flex items-center gap-2 rounded p-2">
+          <span className="h-2 w-2 shrink-0 animate-pulse rounded-full bg-gray-600/50" />
+          <span className="h-5 w-5 shrink-0 animate-pulse rounded border border-gray-600/50" />
+          <span
+            className="h-3 flex-1 animate-pulse rounded bg-gray-600/40"
+            style={{ maxWidth: `${60 + ((i * 13) % 30)}%` }}
+          />
+        </div>
+      ))}
+    </div>
+  );
+});
 
 const CATEGORIES_PER_PAGE = 10;
 
@@ -37,14 +55,16 @@ const CategoryItem = memo(function CategoryItem({
 
   return (
     <button
-      className="flex w-full cursor-pointer items-center justify-between rounded p-2 transition-colors hover:rounded-lg hover:bg-[#36393f]"
+      className="flex w-full cursor-pointer items-center justify-between rounded p-2
+        transition-colors hover:rounded-lg hover:bg-[#36393f]
+        hover:scale-100 hover:translate-y-0 active:scale-100"
+      // ↑ 關鍵：滿版按鈕明確覆寫全域 scale/translate，避免橫向撐破容器
       onClick={handleClick}
       onKeyDown={handleKeyDown}
       type="button"
       tabIndex={0}
       aria-pressed={selected}
     >
-      {/* 加上 min-w-0 是 Flex 佈局中防止子元素撐開變形的關鍵 */}
       <div className="flex min-w-0 flex-1 items-center">
         <span className={`mr-2 h-2 w-2 shrink-0 rounded-full ${category.color}`}></span>
         <div
@@ -54,7 +74,6 @@ const CategoryItem = memo(function CategoryItem({
         >
           {selected && <Check size={14} className="text-[#5865f2]" />}
         </div>
-        {/* 加上 truncate 實現省略號，並加上 flex-1 讓它佔滿剩餘空間 */}
         <span className="flex-1 truncate text-left">{category.name}</span>
       </div>
     </button>
@@ -65,6 +84,7 @@ const CategoryFilter = memo(function CategoryFilter({
   categories,
   selectedCategoryIds,
   onCategoryChange,
+  isPending,
 }: CategoryFilterProps) {
   const [currentPage, setCurrentPage] = useState(1);
 
@@ -111,9 +131,13 @@ const CategoryFilter = memo(function CategoryFilter({
     setCurrentPage(page);
   }, []);
 
+  if (isPending) {
+    return <CategorySkeleton />;
+  }
+
   return (
     <div className="space-y-2">
-      <div className="max-h-64 space-y-2 overflow-y-auto pr-1">
+      <div className="max-h-64 space-y-2 overflow-y-auto overflow-x-hidden px-1 py-1 pr-2">
         {currentPageCategories.map((category) => (
           <CategoryItem
             key={category.id}

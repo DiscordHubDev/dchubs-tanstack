@@ -178,7 +178,6 @@ export default defineConfig(({ mode }) => {
               "@aws-sdk/lib-storage",
               "cloudinary",
 
-              "@t3-oss/env-core",
               "dotenv",
               "cloudflare:workers",
               "cloudflare:sockets",

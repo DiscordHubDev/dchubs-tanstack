@@ -80,6 +80,34 @@ const LazyHomeAddServerCta = lazy(
 
 // ─── Search-param helpers (unchanged from original) ──────────────────────────
 
+function useDebounce<T extends (...args: any[]) => void>(callback: T, delay: number) {
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  const debounced = useCallback(
+    (...args: Parameters<T>) => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+
+      timeoutRef.current = setTimeout(() => {
+        callback(...args);
+      }, delay);
+    },
+    [callback, delay],
+  );
+
+  // 元件 unmount 時清理
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
+
+  return debounced;
+}
+
 function parseServerCategory(value: unknown): ServerCategory | undefined {
   if (typeof value !== "string") return undefined;
   return SERVER_CATEGORIES.includes(value as ServerCategory)
@@ -140,14 +168,6 @@ export const Route = createFileRoute("/")({
     category: (search.tab ?? DEFAULT_CATEGORY) as ServerCategory,
     page: search.page ?? 1,
   }),
-  head: () => {
-    return {
-      links: [
-        { rel: "preconnect", href: "https://api.dchubs.org" },
-        { rel: "preconnect", href: "https://cdn.dchubs.org" },
-      ],
-    };
-  },
   loader: async ({ context, deps }) => {
     await context.queryClient.ensureQueryData(
       serversListQueryOptions({
@@ -357,12 +377,14 @@ function HomePage() {
     let filtered = filterBundleData.allServers;
 
     if (selectedCategoryIds.length > 0) {
-      const selectedNames = mergedCategories
-        .filter((item) => selectedCategoryIds.includes(item.id))
-        .map((item) => item.name.toLowerCase());
+      const selectedNames = new Set(
+        mergedCategories
+          .filter((item) => selectedCategoryIds.includes(item.id))
+          .map((item) => item.name.toLowerCase()),
+      );
 
       filtered = filtered.filter((item) =>
-        item.tags.some((tag) => selectedNames.includes(tag.toLowerCase())),
+        item.tags.some((tag) => selectedNames.has(tag.toLowerCase())),
       );
     }
 
@@ -459,34 +481,36 @@ function HomePage() {
     [updateSearch],
   );
 
-  const commitSearch = useCallback(
-    (value: string) => {
-      const trimmed = value.trim();
+  const debouncedCommitSearch = useDebounce((value: string) => {
+    const trimmed = value.trim();
+    if (trimmed && !filterBundleEnabled) {
+      setFilterBundleEnabled(true);
+    }
+    setIsSearching(Boolean(trimmed));
+    updateSearch({ search: trimmed || undefined, page: 1 });
 
-      // Activate filter bundle on first meaningful keystroke
-      if (trimmed && !filterBundleEnabled) {
-        setFilterBundleEnabled(true);
-      }
-
-      setIsSearching(Boolean(trimmed));
-      updateSearch({ search: trimmed || undefined, page: 1 });
-
-      if (trimmed) {
-        window.setTimeout(() => {
-          setIsSearching(false);
-        }, 300);
-      }
-    },
-    [updateSearch, filterBundleEnabled],
-  );
+    if (trimmed) {
+      setTimeout(() => setIsSearching(false), 280);
+    }
+  }, 220);
 
   const handleSearchChange = useCallback(
     (event: React.ChangeEvent<HTMLInputElement>) => {
       const value = event.target.value;
       setInputValue(value);
-      if (!isComposingRef.current) commitSearch(value);
+
+      if (!isComposingRef.current) {
+        debouncedCommitSearch(value);
+      }
     },
-    [commitSearch],
+    [debouncedCommitSearch],
+  );
+
+  const commitSearch = useCallback(
+    (value: string) => {
+      debouncedCommitSearch(value); // 保留給 compositionEnd 使用
+    },
+    [debouncedCommitSearch],
   );
 
   const handleCategoryChange = useCallback(

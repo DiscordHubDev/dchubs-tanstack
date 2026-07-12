@@ -1,7 +1,7 @@
 import { Link, useLocation, useRouteContext, useRouter } from "@tanstack/react-router";
 import { Image } from "@unpic/react";
 import { LogOut, Menu, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { FaUser } from "react-icons/fa";
 import { FaDiscord } from "react-icons/fa6";
 import { Button } from "#/components/ui/button";
@@ -20,7 +20,6 @@ const links: LinkItem[] = [
   { to: "/protected/add-bot", label: "新增機器人" },
 ];
 
-// 純函式：不依賴任何 local state，提到元件外部避免每次渲染重建
 const handleDiscordSignIn = () => {
   void signIn("/");
 };
@@ -40,7 +39,6 @@ type AuthButtonsProps = {
   setIsOpen: (open: boolean) => void;
 };
 
-// 抽離登入/登出按鈕主體，避免在 Header 內部定義造成 state 重置
 function AuthButtonsInner({ isMobile, pathname, handleSignOut, setIsOpen }: AuthButtonsInnerProps) {
   return (
     <div className={`flex ${isMobile ? "mt-2 w-full flex-col gap-2" : "items-center gap-3"}`}>
@@ -73,7 +71,6 @@ function AuthButtonsInner({ isMobile, pathname, handleSignOut, setIsOpen }: Auth
   );
 }
 
-// 登入/登出按鈕入口，接受 Header 的 local state 作為 props
 function AuthButtons({
   isMobile = false,
   isSignedIn,
@@ -112,9 +109,20 @@ export default function Header() {
   const { session } = useRouteContext({ from: "__root__" });
   const router = useRouter();
 
+  // 用於 RAF 防抖，避免 Forced Reflow
+  const tickingRef = useRef(false);
+
   useEffect(() => {
-    const handleScroll = () => {
+    const updateScroll = () => {
       setIsScrolled(window.scrollY > 8);
+      tickingRef.current = false;
+    };
+
+    const handleScroll = () => {
+      if (!tickingRef.current) {
+        requestAnimationFrame(updateScroll);
+        tickingRef.current = true;
+      }
     };
 
     window.addEventListener("scroll", handleScroll, { passive: true });
@@ -148,10 +156,8 @@ export default function Header() {
         <div className="flex h-16 items-center justify-between gap-4">
           {/* 左側：Logo 與 導覽連結 */}
           <div className="flex min-w-0 items-center gap-2 md:gap-6">
-            {/* 行動端側邊欄觸發按鈕 */}
             <SidebarTrigger className="cursor-pointer text-white md:hidden" />
 
-            {/* Logo */}
             <Link
               to="/"
               className="flex shrink-0 items-center font-bold text-white text-xl transition-opacity hover:opacity-90"
@@ -166,7 +172,6 @@ export default function Header() {
               <span className="truncate">DiscordHubs</span>
             </Link>
 
-            {/* 桌面版導覽連結 (md 以上顯示) */}
             <div className="hidden items-center gap-1 md:flex">
               {links.map(({ to, label }) => (
                 <Link key={to} to={to}>
@@ -183,7 +188,6 @@ export default function Header() {
             </div>
           </div>
 
-          {/* 右側：桌面版使用者功能 (md 以上顯示) */}
           <div className="hidden items-center md:flex">
             <AuthButtons
               isSignedIn={isSignedIn}
@@ -193,7 +197,6 @@ export default function Header() {
             />
           </div>
 
-          {/* 右側：行動版主選單漢堡按鈕 (md 以下顯示) */}
           <div className="flex items-center md:hidden">
             <button
               type="button"
@@ -207,7 +210,6 @@ export default function Header() {
         </div>
       </div>
 
-      {/* 行動端下拉選單選單 (md 以下顯示) */}
       {isOpen && (
         <div className="border-white/5 border-t bg-[#2b2d31] px-4 pt-2 pb-4 shadow-xl md:hidden">
           <div className="space-y-1">
@@ -225,7 +227,6 @@ export default function Header() {
             ))}
           </div>
 
-          {/* 行動端認證按鈕 */}
           <div className="mt-4 border-white/5 border-t pt-4">
             <AuthButtons
               isMobile

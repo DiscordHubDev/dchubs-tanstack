@@ -7,7 +7,7 @@ import { sendDiscordWebhookEffect } from "./webhook.server";
 
 export const sendDiscordWebhookFn = createServerFn({ method: "POST" })
   .middleware([protectedMiddleware])
-  .inputValidator((data: unknown) => effectInputValidator(WebhookPayloadSchema)(data))
+  .validator((data: unknown) => effectInputValidator(WebhookPayloadSchema)(data))
   .handler(async ({ data: payload, context }) => {
     const tag = payload._tag;
 

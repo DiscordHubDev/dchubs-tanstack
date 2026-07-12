@@ -1,3 +1,4 @@
+// __root.tsx
 import type { QueryClient } from "@tanstack/react-query";
 import { createRootRouteWithContext, HeadContent, Scripts } from "@tanstack/react-router";
 import React, { type ReactNode, Suspense } from "react";
@@ -34,8 +35,6 @@ declare module "@tanstack/react-router" {
 // ==========================================
 // 2. 常數與全域設定
 // ==========================================
-const THEME_INIT_SCRIPT = `(function(){try{var root=document.documentElement;root.classList.remove('light');root.classList.add('dark');root.setAttribute('data-theme','dark');root.style.colorScheme='dark';window.localStorage.setItem('theme','dark');}catch(e){}})();`;
-
 const VITE_PRELOAD_ERROR_SCRIPT = `
   window.addEventListener('vite:preloadError', function(event) {
     console.warn('偵測到資源預載入失敗，正在強制重新整理以獲取最新版本...');
@@ -200,43 +199,60 @@ function RootDocument({ children }: { children: ReactNode }) {
       suppressHydrationWarning
     >
       <head>
-        <script
-          // biome-ignore lint/security/noDangerouslySetInnerHtml:  reload when deployment fails or new deployment
-          dangerouslySetInnerHTML={{ __html: VITE_PRELOAD_ERROR_SCRIPT }}
-        />
-        {/* biome-ignore lint/security/noDangerouslySetInnerHtml: Just Theme */}
-        <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
+        <script dangerouslySetInnerHTML={{ __html: VITE_PRELOAD_ERROR_SCRIPT }} />
         <script
           type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }}
           suppressHydrationWarning
-          // biome-ignore lint/security/noDangerouslySetInnerHtml: Embedding JSON-LD
-          dangerouslySetInnerHTML={{
-            __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c"),
-          }}
         />
         <HeadContent />
       </head>
-      <body className="wrap-anywhere flex min-h-screen flex-col bg-[#2b2d31] font-sans antialiased selection:bg-[rgba(79,184,178,0.24)]">
+      <body className="flex min-h-screen flex-col bg-[#2b2d31] font-sans antialiased selection:bg-[rgba(79,184,178,0.24)]">
         <SidebarProvider className="flex-col">
+          {/* Header 可以保持同步（因為是頂部導航） */}
           <Header />
+
           <div className="flex-1">
             <TooltipProvider>
               <main className="page-wrap flex items-start">
-                <AppSidebar className="w-64 shrink-0" />
+                {/* Sidebar 改成可 suspend */}
+                <Suspense fallback={<SidebarSkeleton />}>
+                  <AppSidebar className="w-64 shrink-0" />
+                </Suspense>
+
                 <SidebarInset className="flex grow flex-col overflow-x-hidden">
+                  {/* 主要內容保持 children（各頁面自己負責 Suspense） */}
                   {children}
                   <ToastContainer />
                 </SidebarInset>
               </main>
             </TooltipProvider>
           </div>
-          <Footer />
+
+          {/* Footer 也可以 lazy */}
+          <Suspense fallback={null}>
+            <Footer />
+          </Suspense>
         </SidebarProvider>
+
         <Suspense fallback={null}>
           <Devtools />
         </Suspense>
         <Scripts />
       </body>
     </html>
+  );
+}
+
+// 新增簡單的 Sidebar Skeleton
+function SidebarSkeleton() {
+  return (
+    <div className="w-64 shrink-0 border-r border-white/10 bg-[#2b2d31] p-4">
+      <div className="space-y-6">
+        {Array.from({ length: 6 }).map((_, i) => (
+          <div key={i} className="h-9 rounded-md bg-[#36393f] animate-pulse" />
+        ))}
+      </div>
+    </div>
   );
 }

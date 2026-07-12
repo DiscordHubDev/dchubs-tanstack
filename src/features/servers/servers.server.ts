@@ -10,7 +10,7 @@ import type {
   ServerListQueryInput,
   ServerListQueryResult,
 } from "./servers.types";
-import { cacheAside, getCacheVersion } from "#/lib/redis";
+import { cacheAside, getServersCacheVersion } from "#/lib/redis";
 import { getDb } from "#/drizzle/db";
 
 const CACHE_NAMESPACE = "servers";
@@ -161,7 +161,7 @@ function listServersPageEffect(
     // (新增/刪除/編輯伺服器) 呼叫 bumpCacheVersion("servers") 就能整批失效，
     // 不需要等 TTL，也不需要 SCAN+DEL。
     const version = yield* tryEffectPromise("Failed to read servers cache version", () =>
-      getCacheVersion(CACHE_NAMESPACE),
+      getServersCacheVersion(),
     );
     const cacheKey = `servers:list:v${version}:${input.category ?? "all"}:${input.page}:${input.limit}:${
       userNsfw ? "sfw" : "all"
@@ -208,7 +208,7 @@ function listServerFilterBundleEffect(
 ): Effect.Effect<ServerFilterBundle, Error> {
   return Effect.gen(function* () {
     const version = yield* tryEffectPromise("Failed to read servers cache version", () =>
-      getCacheVersion(CACHE_NAMESPACE),
+      getServersCacheVersion(),
     );
     const cacheKey = `servers:bundle:v${version}:${userNsfw ? "sfw" : "all"}`;
 

@@ -346,45 +346,80 @@ function BotsPage() {
           behavior: prefersReducedMotion ? "auto" : "smooth",
         });
       });
-      updateSearch({ page }, { resetScroll: false });
+      startTransition(() => {
+        updateSearch({ page }, { resetScroll: false });
+      });
     },
-    [updateSearch],
+    [updateSearch, startTransition],
   );
 
   const handleTabChange = useCallback(
     (value: string) => {
       const parsed = parseBotCategory(value);
       if (!parsed) return;
-      updateSearch({ tab: parsed, page: 1 });
+      startTransition(() => {
+        updateSearch({ tab: parsed, page: 1 });
+      });
     },
-    [updateSearch],
+    [updateSearch, startTransition],
   );
 
   const commitSearch = useCallback(
     (value: string) => {
-      updateSearch({ search: value.trim() || undefined, page: 1 });
+      startTransition(() => {
+        updateSearch({ search: value.trim() || undefined, page: 1 });
+      });
     },
-    [updateSearch],
-  );
-
-  const handleSearchChange = useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) => {
-      const value = event.target.value;
-      setInputValue(value);
-      if (!isComposingRef.current) commitSearch(value);
-    },
-    [commitSearch],
+    [updateSearch, startTransition],
   );
 
   const handleCategoryChange = useCallback(
     (ids: string[]) => {
-      updateSearch({
-        categories: ids.length ? ids.join(",") : undefined,
-        page: 1,
+      startTransition(() => {
+        updateSearch({
+          categories: ids.length ? ids.join(",") : undefined,
+          page: 1,
+        });
       });
     },
-    [updateSearch],
+    [updateSearch, startTransition],
   );
+
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleSearchChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      const value = event.target.value;
+      setInputValue(value); // 立即更新，輸入框不卡頓
+
+      if (isComposingRef.current) return; // 中文/日文等 IME 組字中不處理
+
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = setTimeout(() => {
+        commitSearch(value);
+      }, 300); // 300ms 沒有再輸入才真正觸發
+    },
+    [commitSearch],
+  );
+
+  const handleCompositionEnd = useCallback(
+    (event: React.CompositionEvent<HTMLInputElement>) => {
+      isComposingRef.current = false;
+      const value = event.currentTarget.value;
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = setTimeout(() => {
+        commitSearch(value);
+      }, 300);
+    },
+    [commitSearch],
+  );
+
+  // 元件卸載時記得清掉 timer，避免 unmount 後還觸發 navigate
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    };
+  }, []);
 
   const handleAddCustomCategory = useCallback(
     (categoryName: string) => {
@@ -436,10 +471,7 @@ function BotsPage() {
                 onCompositionStart={() => {
                   isComposingRef.current = true;
                 }}
-                onCompositionEnd={(event) => {
-                  isComposingRef.current = false;
-                  commitSearch(event.currentTarget.value);
-                }}
+                onCompositionEnd={handleCompositionEnd}
               />
               {/* 效能優化：使用 Inline SVG 取代 lucide-react 套件 */}
               {/** biome-ignore lint/a11y/noSvgWithoutTitle: I dont want to add a title. */}

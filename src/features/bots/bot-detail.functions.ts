@@ -11,28 +11,28 @@ import { getBotDetailById, rateBotById, reportBotById, voteBotById } from "./bot
 
 export const getBotDetailFn = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
-  .inputValidator(effectInputValidator(BotDetailInputSchema))
+  .validator(effectInputValidator(BotDetailInputSchema))
   .handler(async ({ data, context }) => {
     return getBotDetailById(data.botId, context.user?.discordId);
   });
 
 export const voteBotFn = createServerFn({ method: "POST" })
   .middleware([protectedMiddleware])
-  .inputValidator(effectInputValidator(BotVoteInputSchema))
+  .validator(effectInputValidator(BotVoteInputSchema))
   .handler(async ({ data, context }) => {
     return voteBotById(data.botId, context.user.discordId);
   });
 
 export const rateBotFn = createServerFn({ method: "POST" })
   .middleware([protectedMiddleware])
-  .inputValidator(effectInputValidator(BotRateInputSchema))
+  .validator(effectInputValidator(BotRateInputSchema))
   .handler(async ({ data, context }) => {
     return rateBotById(data.botId, data.rating, context.user.discordId);
   });
 
 export const reportBotFn = createServerFn({ method: "POST" })
   .middleware([protectedMiddleware])
-  .inputValidator(effectInputValidator(BotReportInputSchema))
+  .validator(effectInputValidator(BotReportInputSchema))
   .handler(async ({ data, context }) => {
     return reportBotById({
       ...data,

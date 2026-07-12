@@ -1,7 +1,7 @@
 // scripts/update-servers.ts
-import { Data, Effect, Exit } from "effect";
+import { Data, Effect } from "effect";
 import { server, user } from "#/drizzle/schema";
-import { getDb } from "#/drizzle/db";
+import { type Database } from "#/drizzle/db";
 
 class DiscordApiError extends Data.TaggedError("DiscordApiError")<{
   message: string;
@@ -44,11 +44,10 @@ interface DiscordGuildMember {
   joined_at: string;
 }
 
-const getAllServersFromDb = () =>
+const getAllServersFromDb = (db: Database) =>
   Effect.tryPromise({
     /* 同你原本的實作 */
     try: async () => {
-      const db = getDb();
       const query = db.select({ id: server.id, ownerId: server.ownerId }).from(server);
       if (process.env.NODE_ENV === "development") return await query.limit(5);
       return await query;
@@ -99,11 +98,10 @@ const fetchDiscordMemberData = (guildId: string, userId: string, botToken: strin
       }),
   });
 
-const upsertServerDb = (guild: DiscordGuildWithCounts, ownerId: string) =>
+const upsertServerDb = (guild: DiscordGuildWithCounts, ownerId: string, db: Database) =>
   Effect.tryPromise({
     /* 同你原本的實作 */
     try: async () => {
-      const db = getDb();
       const iconUrl = guild.icon
         ? `https://cdn.discordapp.com/icons/${guild.id}/${guild.icon}.webp`
         : null;
@@ -142,11 +140,10 @@ const upsertServerDb = (guild: DiscordGuildWithCounts, ownerId: string) =>
     catch: (cause) => new DatabaseError({ message: "Failed to upsert server data", cause }),
   });
 
-const upsertUserDb = (member: DiscordGuildMember) =>
+const upsertUserDb = (member: DiscordGuildMember, db: Database) =>
   Effect.tryPromise({
     /* 同你原本的實作 */
     try: async () => {
-      const db = getDb();
       const discordUser = member.user;
       const avatarUrl = discordUser.avatar
         ? `https://cdn.discordapp.com/avatars/${discordUser.id}/${discordUser.avatar}.webp`
@@ -182,12 +179,12 @@ const upsertUserDb = (member: DiscordGuildMember) =>
     catch: (cause) => new DatabaseError({ message: "Failed to upsert user data", cause }),
   });
 
-const syncSingleServer = (guildId: string, ownerId: string, botToken: string) =>
+const syncSingleServer = (guildId: string, ownerId: string, botToken: string, db: Database) =>
   Effect.gen(function* () {
     const guildData = yield* fetchDiscordServerData(guildId, botToken);
-    const updatedServer = yield* upsertServerDb(guildData, ownerId);
+    const updatedServer = yield* upsertServerDb(guildData, ownerId, db);
     const memberData = yield* fetchDiscordMemberData(guildId, ownerId, botToken);
-    const updatedOwner = yield* upsertUserDb(memberData);
+    const updatedOwner = yield* upsertUserDb(memberData, db);
     console.log(`✅ Server 同步成功: ${updatedServer.name}`);
     return { server: updatedServer, owner: updatedOwner };
   }).pipe(
@@ -197,36 +194,25 @@ const syncSingleServer = (guildId: string, ownerId: string, botToken: string) =>
     }),
   );
 
-const syncAllServersProgram = Effect.gen(function* () {
-  const botToken = process.env.DISCORD_BOT_TOKEN;
-  if (!botToken)
-    yield* Effect.fail(new ConfigError({ message: "DISCORD_BOT_TOKEN is not configured." }));
+export const syncAllServersProgram = (db: Database) =>
+  Effect.gen(function* () {
+    const botToken = process.env.DISCORD_BOT_TOKEN;
+    if (!botToken)
+      yield* Effect.fail(new ConfigError({ message: "DISCORD_BOT_TOKEN is not configured." }));
 
-  console.log("🔍 開始抓取資料庫內的伺服器清單...");
-  const serversToSync = yield* getAllServersFromDb();
+    console.log("🔍 開始抓取資料庫內的伺服器清單...");
+    const serversToSync = yield* getAllServersFromDb(db);
 
-  console.log(`🚀 準備併發同步 ${serversToSync.length} 個伺服器 (Concurrency: 5)`);
-  const results = yield* Effect.forEach(
-    serversToSync,
-    (s) => syncSingleServer(s.id, s.ownerId, botToken!),
-    { concurrency: 5 },
-  );
+    console.log(`🚀 準備併發同步 ${serversToSync.length} 個伺服器 (Concurrency: 5)`);
+    const results = yield* Effect.forEach(
+      serversToSync,
+      (s) => syncSingleServer(s.id, s.ownerId, botToken!, db),
+      { concurrency: 5 },
+    );
 
-  const successfulUpdates = results.filter((res) => res !== null);
-  return {
-    total: serversToSync.length,
-    updated: successfulUpdates.length,
-  };
-});
-
-// ─── 執行進入點 ───
-Effect.runPromiseExit(syncAllServersProgram).then((exit) => {
-  console.log("🔌 正在關閉資料庫連線池...");
-  if (Exit.isSuccess(exit)) {
-    console.log("🎉 所有伺服器與擁有人資料同步完成:", exit.value);
-    process.exit(0);
-  } else {
-    console.error("❌ 同步任務發生嚴重錯誤:", exit.cause);
-    process.exit(1);
-  }
-});
+    const successfulUpdates = results.filter((res) => res !== null);
+    return {
+      total: serversToSync.length,
+      updated: successfulUpdates.length,
+    };
+  });

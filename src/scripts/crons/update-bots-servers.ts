@@ -2,7 +2,7 @@
 import { eq, asc, sql } from "drizzle-orm";
 import { Data, Effect, Option } from "effect";
 import { bot } from "#/drizzle/schema";
-import { getDb } from "#/drizzle/db";
+import { type Database } from "#/drizzle/db";
 
 const BOT_PROCESS_DELAY_MS = 3000;
 const PROCESS_LIMIT = 15;
@@ -49,60 +49,50 @@ const fetchBotServerCountEffect = (botId: string) =>
     }),
   );
 
-const updateBotServerCountProgram = Effect.gen(function* () {
-  console.log("🔢 開始排程更新伺服器數量...");
+export const updateBotServerCountProgram = (db: Database) =>
+  Effect.gen(function* () {
+    console.log("🔢 開始排程更新伺服器數量...");
 
-  const db = getDb();
+    // 每次只撈取最久沒有被更新過的 N 筆資料
+    const bots = yield* Effect.tryPromise(() =>
+      db
+        .select({
+          id: bot.id,
+          name: bot.name,
+        })
+        .from(bot)
+        .where(eq(bot.status, "approved"))
+        .orderBy(asc(bot.updatedAt))
+        .limit(PROCESS_LIMIT),
+    );
 
-  // 每次只撈取最久沒有被更新過的 N 筆資料
-  const bots = yield* Effect.tryPromise(() =>
-    db
-      .select({
-        id: bot.id,
-        name: bot.name,
-      })
-      .from(bot)
-      .where(eq(bot.status, "approved"))
-      .orderBy(asc(bot.updatedAt))
-      .limit(PROCESS_LIMIT),
-  );
+    console.log(`📋 本次排程將處理 ${bots.length} 個 Bot 的伺服器數量`);
 
-  console.log(`📋 本次排程將處理 ${bots.length} 個 Bot 的伺服器數量`);
+    for (let i = 0; i < bots.length; i++) {
+      const current = bots[i];
+      console.log(`🔄 [伺服器數量] 處理 ${current.name} (${current.id}) [${i + 1}/${bots.length}]`);
 
-  for (let i = 0; i < bots.length; i++) {
-    const current = bots[i];
-    console.log(`🔄 [伺服器數量] 處理 ${current.name} (${current.id}) [${i + 1}/${bots.length}]`);
+      const countOpt = yield* fetchBotServerCountEffect(current.id);
 
-    const countOpt = yield* fetchBotServerCountEffect(current.id);
+      if (Option.isSome(countOpt)) {
+        // Server count 更新頻率較低，且數量少，直接單筆寫入即可
+        yield* Effect.tryPromise(() =>
+          db
+            .update(bot)
+            .set({
+              servers: countOpt.value,
+              updatedAt: sql`CURRENT_TIMESTAMP`,
+            })
+            .where(eq(bot.id, current.id)),
+        );
+        console.log(`✅ ${current.name} 更新為 ${countOpt.value} 個伺服器`);
+      }
 
-    if (Option.isSome(countOpt)) {
-      // Server count 更新頻率較低，且數量少，直接單筆寫入即可
-      yield* Effect.tryPromise(() =>
-        db
-          .update(bot)
-          .set({
-            servers: countOpt.value,
-            updatedAt: sql`CURRENT_TIMESTAMP`,
-          })
-          .where(eq(bot.id, current.id)),
-      );
-      console.log(`✅ ${current.name} 更新為 ${countOpt.value} 個伺服器`);
+      // 單線程延遲，避免 Python 後端過載
+      if (i < bots.length - 1) {
+        yield* Effect.sleep(`${BOT_PROCESS_DELAY_MS} millis`);
+      }
     }
 
-    // 單線程延遲，避免 Python 後端過載
-    if (i < bots.length - 1) {
-      yield* Effect.sleep(`${BOT_PROCESS_DELAY_MS} millis`);
-    }
-  }
-
-  console.log("🎉 本次伺服器數量批次更新完畢！");
-});
-
-Effect.runPromiseExit(updateBotServerCountProgram).then((exit) => {
-  console.log("🔌 正在關閉資料庫連線池...");
-  if (exit._tag === "Failure") {
-    console.error("❌ 執行發生錯誤:", exit.cause);
-    process.exit(1);
-  }
-  process.exit(0);
-});
+    console.log("🎉 本次伺服器數量批次更新完畢！");
+  });

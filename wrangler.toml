@@ -1,7 +1,7 @@
 name = "dchubs-tanstack"
 compatibility_date = "2026-07-11"
 
-main = "@tanstack/react-start/server-entry"
+main = "src/server.ts"
 
 compatibility_flags = ["nodejs_compat"]
 
@@ -16,9 +16,6 @@ binding = "dchubs-db"
 id = "ff15613734924d059d98b4e10bc98766"
 localConnectionString = "postgresql://directus:dawngs_181_database@100.99.177.51:5434/directus"
 
-[[kv_namespaces]]
-binding = "DCHUBS_CACHE"
-id = "188a0fa976004201a76a64ca97d85a39"
 
 [[kv_namespaces]]
 binding = "BANNED_USERS"
@@ -44,3 +41,10 @@ invocation_logs = true
 enabled = false
 persist = true
 head_sampling_rate = 1
+
+[triggers]
+crons = [
+  "*/10 * * * *", # check-pins：每 10 分鐘
+  "*/30 * * * *", # update-bots-servers：每 30 分鐘
+  "15 * * * *", # update-bots-info：每小時第 15 分
+]

@@ -80,7 +80,7 @@ export const getPosts = createServerFn()
   })
 
 export const createPost = createServerFn({ method: 'POST' })
-  .inputValidator(createPostSchema)
+  .validator(createPostSchema)
   .handler(async ({ data }) => {
     return await createPostInDb(data)
   })

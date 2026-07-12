@@ -23,8 +23,14 @@ import {
 } from "../ui/sidebar";
 import { NavItem } from "./nav-item";
 import { NavMain } from "./nav-main";
-import { NavSecondary } from "./nav-secondary";
+import { lazy, Suspense } from "react";
 import { NavUser } from "./nav-user";
+
+const LazyNavSecondary = lazy(() =>
+  import("./nav-secondary").then((module) => ({
+    default: module.NavSecondary, // 注意這裡要對應正確的 named export 名稱
+  })),
+);
 
 const adminEnv = import.meta.env.VITE_ADMIN_IDS || "";
 const ADMIN_ID = adminEnv ? adminEnv.split(",").map((id) => id.trim()) : [];
@@ -184,13 +190,17 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
         <NavItem items={navItem} />
         <Separator className="h-0.5 bg-muted-foreground/30" />
         <NavMain items={data.navMain} />
-        <NavSecondary items={filterednavSecondary} className="mt-auto" />
+        <Suspense fallback={<div className="h-24" />}>
+          <LazyNavSecondary items={filterednavSecondary} className="mt-auto" />
+        </Suspense>
       </SidebarContent>
       <SidebarFooter>
-        <NavUser
-          key={status === "authenticated" ? session?.user?.discordId : "unauthenticated"}
-          user={user}
-        />
+        <Suspense fallback={null}>
+          <NavUser
+            key={status === "authenticated" ? session?.user?.discordId : "unauthenticated"}
+            user={user}
+          />
+        </Suspense>
       </SidebarFooter>
       <SidebarRail />
     </Sidebar>

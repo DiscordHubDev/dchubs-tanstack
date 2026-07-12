@@ -2,7 +2,9 @@
 import { inArray } from "drizzle-orm";
 import { Data, Duration, Effect } from "effect";
 import { server, user } from "#/drizzle/schema";
-import { getDb } from "#/drizzle/db";
+import type { getDb } from "#/drizzle/db";
+
+type Db = ReturnType<typeof getDb>;
 
 class DiscordApiError extends Data.TaggedError("DiscordApiError")<{
   readonly message: string;
@@ -46,7 +48,6 @@ interface DiscordRateLimitResponse {
   code?: number;
 }
 
-// ─── new Discord API shapes ───
 interface DiscordGuildDetail {
   id: string;
   name: string;
@@ -58,14 +59,15 @@ interface DiscordUser {
   username: string;
   global_name: string | null;
   avatar: string | null;
-  email: string;
+  email: string | null;
   banner: string | null;
   accent_color: number | null;
 }
 
-const DISCORD_REQUEST_CONCURRENCY = 3; // tune down if you still see 429s
+const DISCORD_REQUEST_CONCURRENCY = 3;
 const MAX_RATE_LIMIT_RETRIES = 5;
 const DISCORD_GUILDS_PAGE_LIMIT = 200;
+
 const getBotGuildIdsEffect = (botToken: string) =>
   Effect.gen(function* () {
     const allIds: string[] = [];
@@ -78,12 +80,7 @@ const getBotGuildIdsEffect = (botToken: string) =>
 
       const guilds = yield* fetchDiscordJson(url.toString(), botToken).pipe(
         Effect.map((g) => g as DiscordUserGuild[]),
-        Effect.mapError(
-          (error) =>
-            new DiscordApiError({
-              message: error.message,
-            }),
-        ),
+        Effect.mapError((error) => new DiscordApiError({ message: error.message })),
       );
 
       if (guilds.length === 0) break;
@@ -95,10 +92,10 @@ const getBotGuildIdsEffect = (botToken: string) =>
     return allIds;
   });
 
-const getAllServerIdsChunkedEffect = () =>
+// ✅ 改吃 db 參數
+const getAllServerIdsChunkedEffect = (db: Db) =>
   Effect.tryPromise({
     try: async () => {
-      const db = getDb();
       const result = await db.select({ id: server.id }).from(server);
       return result.map((row) => row.id);
     },
@@ -108,12 +105,11 @@ const getAllServerIdsChunkedEffect = () =>
       }),
   });
 
-const deleteServersEffect = (toDeleteIds: string[]) =>
+// ✅ 改吃 db 參數
+const deleteServersEffect = (db: Db, toDeleteIds: string[]) =>
   Effect.tryPromise({
     try: async () => {
-      const db = getDb();
       const deleteResult = await db.delete(server).where(inArray(server.id, toDeleteIds));
-
       return (
         (deleteResult as any).rowCount ??
         (deleteResult as any).rowsAffected ??
@@ -122,12 +118,9 @@ const deleteServersEffect = (toDeleteIds: string[]) =>
       );
     },
     catch: (error: any) =>
-      new DbDeleteError({
-        message: error?.message || "Failed to delete servers",
-      }),
+      new DbDeleteError({ message: error?.message || "Failed to delete servers" }),
   });
 
-// ─── fetch the owner_id of a guild ───
 const fetchDiscordJson = (url: string, botToken: string, attempt = 1): Effect.Effect<any, Error> =>
   Effect.gen(function* () {
     const res = yield* Effect.tryPromise({
@@ -142,7 +135,7 @@ const fetchDiscordJson = (url: string, botToken: string, attempt = 1): Effect.Ef
       const body = yield* Effect.tryPromise({
         try: async () => {
           const json = await res.json().catch(() => ({}));
-          return json as DiscordRateLimitResponse; // 明確轉型
+          return json as DiscordRateLimitResponse;
         },
         catch: () => new Error("Failed to parse rate limit body"),
       });
@@ -164,30 +157,16 @@ const fetchDiscordJson = (url: string, botToken: string, attempt = 1): Effect.Ef
     });
   });
 
-// ─── fetch the owner_id of a guild ───
 const getGuildOwnerIdEffect = (guildId: string, botToken: string) =>
   fetchDiscordJson(`https://discord.com/api/v10/guilds/${guildId}`, botToken).pipe(
     Effect.map((guild: DiscordGuildDetail) => guild.owner_id),
-    Effect.mapError(
-      (error) =>
-        new DiscordGuildDetailError({
-          message: error.message,
-          guildId,
-        }),
-    ),
+    Effect.mapError((error) => new DiscordGuildDetailError({ message: error.message, guildId })),
   );
 
-// ─── fetch a Discord user's profile ───
 const getDiscordUserEffect = (userId: string, botToken: string) =>
   fetchDiscordJson(`https://discord.com/api/v10/users/${userId}`, botToken).pipe(
     Effect.map((u) => u as DiscordUser),
-    Effect.mapError(
-      (error) =>
-        new DiscordUserFetchError({
-          message: error.message,
-          userId,
-        }),
-    ),
+    Effect.mapError((error) => new DiscordUserFetchError({ message: error.message, userId })),
   );
 
 const buildAvatarUrl = (discordUser: DiscordUser) =>
@@ -204,20 +183,19 @@ const buildBannerUrl = (discordUser: DiscordUser) =>
       }`
     : null;
 
-// ─── upsert: update if discordId exists, otherwise insert a stub row ───
-const upsertOwnerProfileEffect = (discordUser: DiscordUser) =>
+// ✅ 改吃 db 參數
+const upsertOwnerProfileEffect = (db: Db, discordUser: DiscordUser) =>
   Effect.tryPromise({
     try: async () => {
       const displayName = discordUser.global_name ?? discordUser.username;
       const avatarUrl = buildAvatarUrl(discordUser);
       const bannerUrl = buildBannerUrl(discordUser);
 
-      const db = getDb();
       await db
         .insert(user)
         .values({
           id: discordUser.id,
-          email: discordUser.email,
+          email: discordUser.email ?? `${discordUser.id}@discord.placeholder`,
           discordId: discordUser.id,
           name: displayName,
           username: discordUser.username,
@@ -239,19 +217,15 @@ const upsertOwnerProfileEffect = (discordUser: DiscordUser) =>
         });
     },
     catch: (error: any) =>
-      new UserUpdateError({
-        message: error?.message || `Failed to upsert user ${discordUser.id}`,
-      }),
+      new UserUpdateError({ message: error?.message || `Failed to upsert user ${discordUser.id}` }),
   });
 
-// ─── combine: guild -> owner_id -> profile -> db update ───
-// Failures here are logged and skipped rather than aborting the whole sync,
-// since one bad guild/user fetch shouldn't kill the run.
-const syncGuildOwnerEffect = (guildId: string, botToken: string) =>
+// ✅ db 一路往下傳
+const syncGuildOwnerEffect = (db: Db, guildId: string, botToken: string) =>
   Effect.gen(function* () {
     const ownerId = yield* getGuildOwnerIdEffect(guildId, botToken);
     const discordUser = yield* getDiscordUserEffect(ownerId, botToken);
-    yield* upsertOwnerProfileEffect(discordUser);
+    yield* upsertOwnerProfileEffect(db, discordUser);
     return { guildId, ownerId };
   }).pipe(
     Effect.catchAll((error) =>
@@ -262,28 +236,29 @@ const syncGuildOwnerEffect = (guildId: string, botToken: string) =>
     ),
   );
 
-const syncServersProgram = (botToken: string) =>
+// ✅ 對外唯一 export：吃 db + botToken，回傳 Effect
+export const syncServersProgram = (db: Db) =>
   Effect.gen(function* () {
+    const botToken = process.env.DISCORD_BOT_TOKEN;
     console.log("🔍 開始檢查 Bot 伺服器狀態...");
     const botGuildIds = yield* getBotGuildIdsEffect(botToken);
-    const allPublishedIds = yield* getAllServerIdsChunkedEffect();
+    const allPublishedIds = yield* getAllServerIdsChunkedEffect(db);
 
     const toDelete = allPublishedIds.filter((id) => !botGuildIds.includes(id));
 
     let deletedCount = 0;
     if (toDelete.length > 0) {
       console.log(`🗑️ 發現 ${toDelete.length} 個需要刪除的伺服器，執行刪除...`);
-      deletedCount = yield* deleteServersEffect(toDelete);
+      deletedCount = yield* deleteServersEffect(db, toDelete);
     } else {
       console.log("✅ 沒有需要清理的伺服器。");
     }
 
-    // 同步剩餘伺服器的擁有者資訊
     const remainingIds = botGuildIds.filter((id) => allPublishedIds.includes(id));
     console.log(`👤 開始同步 ${remainingIds.length} 個伺服器的擁有者資訊...`);
     const ownerSyncResults = yield* Effect.forEach(
       remainingIds,
-      (id) => syncGuildOwnerEffect(id, botToken),
+      (id) => syncGuildOwnerEffect(db, id, botToken),
       { concurrency: DISCORD_REQUEST_CONCURRENCY },
     );
     const ownerSyncedCount = ownerSyncResults.filter((r) => r !== null).length;
@@ -291,23 +266,3 @@ const syncServersProgram = (botToken: string) =>
 
     return { deletedCount, deletedIds: toDelete, ownerSyncedCount };
   });
-
-// ─── 執行進入點 ───
-const botToken = process.env.DISCORD_BOT_TOKEN;
-if (!botToken) {
-  console.error("❌ 找不到環境變數 DISCORD_BOT_TOKEN");
-  process.exit(1);
-}
-
-Effect.runPromiseExit(syncServersProgram(botToken)).then((exit) => {
-  // 💡 腳本準備結束，主動關閉連線池
-  console.log("🔌 正在關閉資料庫連線池...");
-
-  if (exit._tag === "Success") {
-    console.log("🎉 同步完成:", exit.value);
-    process.exit(0);
-  } else {
-    console.error("❌ 同步發生錯誤:", exit.cause);
-    process.exit(1);
-  }
-});

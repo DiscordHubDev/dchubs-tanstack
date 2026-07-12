@@ -4,7 +4,7 @@ import { Effect, Array as EffectArray, Option, Schema, Either } from "effect";
 import { bot } from "#/drizzle/schema";
 import { fetchBotRpcEffect, fetchUserEffect } from "#/utils/fetch-rpc";
 import { DiscordBotRPCInfoSchema } from "#/features/bots/bot-submit.schemas";
-import { getDb } from "#/drizzle/db";
+import { type Database } from "#/drizzle/db";
 
 const DB_BATCH_WRITE_SIZE = 20;
 // Discord API 有速率限制，這裡限制同時處理的 bot 數量，避免 429
@@ -92,11 +92,11 @@ const fetchUpdatedBotInfoEffect = (botId: string) =>
 const flushUpdatesEffect = <T extends Record<string, unknown>>(
   pending: PendingUpdate<T>[],
   label: string,
+  db: Database,
 ) =>
   Effect.tryPromise({
     try: async () => {
       if (pending.length === 0) return;
-      const db = getDb();
       await db.transaction(async (tx) => {
         for (const { id, data } of pending) {
           await tx.update(bot).set(data).where(eq(bot.id, id));
@@ -110,75 +110,66 @@ const flushUpdatesEffect = <T extends Record<string, unknown>>(
       ),
   });
 
-const updateBotBasicInfoProgram = Effect.gen(function* () {
-  console.log("🚀 開始更新 Bot 基本資訊...");
-  const isDev = process.env.NODE_ENV === "development";
-  const db = getDb();
+export const updateBotBasicInfoProgram = (db: Database) =>
+  Effect.gen(function* () {
+    console.log("🚀 開始更新 Bot 基本資訊...");
+    const isDev = process.env.NODE_ENV === "development";
 
-  let query = db
-    .select({
-      id: bot.id,
-      name: bot.name,
-      icon: bot.icon,
-      banner: bot.banner,
-      verified: bot.verified,
-      isAdmin: bot.isAdmin,
-      termsOfServiceUrl: bot.termsOfServiceUrl,
-      privacyPolicyUrl: bot.privacyPolicyUrl,
-    })
-    .from(bot)
-    .where(eq(bot.status, "approved"));
+    let query = db
+      .select({
+        id: bot.id,
+        name: bot.name,
+        icon: bot.icon,
+        banner: bot.banner,
+        verified: bot.verified,
+        isAdmin: bot.isAdmin,
+        termsOfServiceUrl: bot.termsOfServiceUrl,
+        privacyPolicyUrl: bot.privacyPolicyUrl,
+      })
+      .from(bot)
+      .where(eq(bot.status, "approved"));
 
-  if (isDev) query = query.limit(1) as any;
+    if (isDev) query = query.limit(1) as any;
 
-  const bots: BotRow[] = yield* Effect.tryPromise(() => query);
-  console.log(`📋 共需處理 ${bots.length} 個 bots`);
+    const bots: BotRow[] = yield* Effect.tryPromise(() => query);
+    console.log(`📋 共需處理 ${bots.length} 個 bots`);
 
-  const chunks = EffectArray.chunksOf(bots, DB_BATCH_WRITE_SIZE);
+    const chunks = EffectArray.chunksOf(bots, DB_BATCH_WRITE_SIZE);
 
-  for (const chunk of chunks) {
-    // 同一批次內，用有限並發同時抓取 Discord 資訊，比逐一 await 快很多
-    const results = yield* Effect.all(
-      chunk.map((current) =>
-        Effect.gen(function* () {
-          console.log(`🔄 [基本資訊] 處理 ${current.name} (${current.id})`);
-          const infoOpt = yield* fetchUpdatedBotInfoEffect(current.id);
-          return { current, infoOpt };
-        }),
-      ),
-      { concurrency: FETCH_CONCURRENCY },
-    );
+    for (const chunk of chunks) {
+      // 同一批次內，用有限並發同時抓取 Discord 資訊，比逐一 await 快很多
+      const results = yield* Effect.all(
+        chunk.map((current) =>
+          Effect.gen(function* () {
+            console.log(`🔄 [基本資訊] 處理 ${current.name} (${current.id})`);
+            const infoOpt = yield* fetchUpdatedBotInfoEffect(current.id);
+            return { current, infoOpt };
+          }),
+        ),
+        { concurrency: FETCH_CONCURRENCY },
+      );
 
-    const pendingUpdates: PendingUpdate<BotInfoUpdateSet>[] = [];
+      const pendingUpdates: PendingUpdate<BotInfoUpdateSet>[] = [];
 
-    for (const { current, infoOpt } of results) {
-      if (Option.isSome(infoOpt)) {
-        const data: BotInfoUpdateSet = {
-          name: infoOpt.value.name ?? current.name,
-          icon: infoOpt.value.avatar_url ?? current.icon,
-          banner: infoOpt.value.banner_url ?? current.banner,
-          verified: infoOpt.value.verified,
-          isAdmin: infoOpt.value.isAdmin,
-          termsOfServiceUrl: infoOpt.value.termsOfServiceUrl ?? current.termsOfServiceUrl,
-          privacyPolicyUrl: infoOpt.value.privacyPolicyUrl ?? current.privacyPolicyUrl,
-        };
-        pendingUpdates.push({ id: current.id, data });
-      } else {
-        console.warn(`⏭️ [${current.id}] 跳過此筆更新（無法取得有效資料）`);
+      for (const { current, infoOpt } of results) {
+        if (Option.isSome(infoOpt)) {
+          const data: BotInfoUpdateSet = {
+            name: infoOpt.value.name ?? current.name,
+            icon: infoOpt.value.avatar_url ?? current.icon,
+            banner: infoOpt.value.banner_url ?? current.banner,
+            verified: infoOpt.value.verified,
+            isAdmin: infoOpt.value.isAdmin,
+            termsOfServiceUrl: infoOpt.value.termsOfServiceUrl ?? current.termsOfServiceUrl,
+            privacyPolicyUrl: infoOpt.value.privacyPolicyUrl ?? current.privacyPolicyUrl,
+          };
+          pendingUpdates.push({ id: current.id, data });
+        } else {
+          console.warn(`⏭️ [${current.id}] 跳過此筆更新（無法取得有效資料）`);
+        }
       }
+
+      yield* flushUpdatesEffect(pendingUpdates, "基本資訊", db);
     }
 
-    yield* flushUpdatesEffect(pendingUpdates, "基本資訊");
-  }
-
-  console.log("✅ Bot 基本資訊全部更新完畢！");
-});
-
-Effect.runPromiseExit(updateBotBasicInfoProgram).then((exit) => {
-  console.log("🔌 正在關閉資料庫連線池...");
-  if (exit._tag === "Failure") {
-    console.error("❌ 執行發生錯誤:", exit.cause);
-    process.exit(1);
-  }
-  process.exit(0);
-});
+    console.log("✅ Bot 基本資訊全部更新完畢！");
+  });

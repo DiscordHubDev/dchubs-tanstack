@@ -1,6 +1,5 @@
 /* @import url("https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@100..900&display=swap"); */
 @import "tailwindcss";
-@import "@fontsource-variable/noto-sans";
 
 @custom-variant dark (&:is(.dark *));
 
@@ -41,7 +40,7 @@
   --color-discord-hover: var(--discord-hover);
 
   /* --- 字體與圓角 --- */
-  --font-sans: 'Noto Sans Variable', sans-serif;
+  --font-sans: "Noto Sans TC", "Noto Sans Traditional Chinese", sans-serif;
   --font-mono: "Noto Sans TC", "Noto Sans Traditional Chinese", sans-serif;
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
@@ -92,8 +91,6 @@
       box-shadow: 0 0 0 8px rgba(88, 101, 242, 0);
     }
   }
-
-  --font-heading: var(--font-sans)
 }
 
 /* --- 全局變數設定 --- */
@@ -179,6 +176,10 @@
   --sidebar-ring: oklch(0.551 0.027 264.364);
 }
 
+.server-grid {
+  contain: content;
+}
+
 /* --- 元件類別 --- */
 @layer components {
   .discord {
@@ -228,6 +229,4 @@
   button:hover {
     @apply shadow-lg;
   }
-  html {
-    @apply font-sans;}
 }

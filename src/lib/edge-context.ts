@@ -79,13 +79,6 @@ export const edgeContextMiddleware = createMiddleware().server(async ({ next, re
     user: domainUser,
   };
 
-  console.log("🔍 [EdgeContext] Built:", {
-    hasUser: !!baUser,
-    isAdmin,
-    isBanned,
-    userId: baUser?.id,
-  });
-
   // 如果被 ban，直接拒絕（可依需求調整）
   if (isBanned) {
     return new Response(JSON.stringify({ error: "Forbidden: Account is banned." }), {

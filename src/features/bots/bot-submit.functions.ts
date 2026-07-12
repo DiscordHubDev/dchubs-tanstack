@@ -15,21 +15,21 @@ import type {
 
 export const submitBotFn = createServerFn({ method: "POST" })
   .middleware([protectedMiddleware])
-  .inputValidator(effectInputValidator(SubmitBotInputSchema))
+  .validator(effectInputValidator(SubmitBotInputSchema))
   .handler(async ({ data }): Promise<SubmitBotResult> => {
     return submitBot(data);
   });
 
 export const uploadBotImagesFn = createServerFn({ method: "POST" })
   .middleware([protectedMiddleware])
-  .inputValidator(effectInputValidator(UploadBotImagesInputSchema))
+  .validator(effectInputValidator(UploadBotImagesInputSchema))
   .handler(async ({ data }): Promise<UploadBotImagesResult> => {
     return uploadBotImages(data);
   });
 
 export const deleteBotImageFn = createServerFn({ method: "POST" })
   .middleware([protectedMiddleware])
-  .inputValidator(effectInputValidator(DeleteBotImageInputSchema))
+  .validator(effectInputValidator(DeleteBotImageInputSchema))
   .handler(async ({ data }): Promise<DeleteBotImageResult> => {
     return deleteBotImage(data);
   });

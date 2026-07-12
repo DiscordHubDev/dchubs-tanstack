@@ -27,7 +27,7 @@ import {
 import { fetchAndUpdateServerCount } from "./admin.server";
 import { sendNotificationEffect } from "../notifications/notifications.server";
 import { SendNotificationSchema } from "../notifications/notifications.schemas";
-import { bumpBotsCacheVersion, bumpCacheVersion } from "#/lib/redis";
+import { bumpBotsCacheVersion, bumpServersCacheVersion } from "#/lib/redis";
 import { globalDBMiddleware } from "#/start";
 import { getAuth } from "#/lib/auth";
 
@@ -35,7 +35,7 @@ export const updateBotServerCountBackgroundFn = createServerFn({
   method: "POST",
 })
   .middleware([adminMiddleware])
-  .inputValidator((data: { botId: string }) => data)
+  .validator((data: { botId: string }) => data)
   .handler(async ({ data }) => {
     fetchAndUpdateServerCount(data.botId);
     return { success: true, message: "已在背景處理" };
@@ -88,7 +88,7 @@ export const getReportsFn = createServerFn({ method: "GET" })
 /** Approve or reject a bot application */
 export const reviewBotFn = createServerFn({ method: "POST" })
   .middleware([adminMiddleware, globalDBMiddleware])
-  .inputValidator(effectInputValidator(ReviewBotSchema))
+  .validator(effectInputValidator(ReviewBotSchema))
   .handler(async ({ data, context }) => {
     const result = await toResult(
       fromDrizzle(async () => {
@@ -176,7 +176,7 @@ export const reviewBotFn = createServerFn({ method: "POST" })
 /** Delete a bot by id */
 export const deleteBotFn = createServerFn({ method: "POST" })
   .middleware([adminMiddleware, globalDBMiddleware])
-  .inputValidator(effectInputValidator(BotIdSchema))
+  .validator(effectInputValidator(BotIdSchema))
   .handler(async ({ data, context }): Promise<ActionResult> => {
     await bumpBotsCacheVersion();
     return toResult(
@@ -189,9 +189,9 @@ export const deleteBotFn = createServerFn({ method: "POST" })
 /** Delete a server by guild id */
 export const deleteServerFn = createServerFn({ method: "POST" })
   .middleware([adminMiddleware, globalDBMiddleware])
-  .inputValidator(effectInputValidator(ServerGuildIdSchema))
+  .validator(effectInputValidator(ServerGuildIdSchema))
   .handler(async ({ data, context }): Promise<ActionResult> => {
-    await bumpCacheVersion("servers");
+    await bumpServersCacheVersion();
     return toResult(
       fromDrizzle(async () => {
         await context.db.delete(server).where(eq(server.id, data.guildId));
@@ -202,7 +202,7 @@ export const deleteServerFn = createServerFn({ method: "POST" })
 /** Update a report */
 export const updateReportFn = createServerFn({ method: "POST" })
   .middleware([adminMiddleware, globalDBMiddleware])
-  .inputValidator(effectInputValidator(UpdateReportSchema))
+  .validator(effectInputValidator(UpdateReportSchema))
   .handler(
     // 1. 將 handler 標記為 async（與內部的 Promise 對齊）
     async ({ data, context }): Promise<ActionResult> => {
@@ -264,7 +264,7 @@ export const adminGetDashboardCountsFn = createServerFn({
  */
 export const rejectBotServerFn = createServerFn({ method: "POST" })
   .middleware([adminMiddleware, globalDBMiddleware])
-  .inputValidator(effectInputValidator(RejectBotSchema))
+  .validator(effectInputValidator(RejectBotSchema))
   .handler(async ({ data, context }) => {
     const { botId, reason } = data;
     const user = context.user;
@@ -348,9 +348,7 @@ export const rejectBotServerFn = createServerFn({ method: "POST" })
 
 export const resolveReportServerFn = createServerFn({ method: "POST" })
   .middleware([adminMiddleware, globalDBMiddleware])
-  .inputValidator(
-    (data: { reportId: string; status: ReportStatus; resolutionNote: string }) => data,
-  )
+  .validator((data: { reportId: string; status: ReportStatus; resolutionNote: string }) => data)
   .handler(async ({ data, context }) => {
     try {
       const { reportId, status, resolutionNote } = data;
@@ -393,7 +391,7 @@ export const resolveReportServerFn = createServerFn({ method: "POST" })
 // User Management Functions
 export const getUsersFn = createServerFn({ method: "GET" })
   .middleware([adminMiddleware, globalDBMiddleware])
-  .inputValidator(effectInputValidator(QuerySchema))
+  .validator(effectInputValidator(QuerySchema))
   .handler(async ({ data, context }) => {
     const { search, page, limit } = data;
     const offset = (page - 1) * limit;
@@ -448,7 +446,7 @@ interface ToggleBanPayload {
 
 // 封鎖/解封使用者 (整合 Better Auth + KV + Effect)
 export const toggleUserBanFn = createServerFn({ method: "POST" })
-  .inputValidator((data: ToggleBanPayload) => data)
+  .validator((data: ToggleBanPayload) => data)
   .handler(async ({ data }) => {
     const request = getRequest();
 
@@ -515,7 +513,7 @@ export const toggleUserBanFn = createServerFn({ method: "POST" })
 
 export const SendNotificationFn = createServerFn({ method: "POST" })
   .middleware([adminMiddleware])
-  .inputValidator(effectInputValidator(SendNotificationSchema))
+  .validator(effectInputValidator(SendNotificationSchema))
   .handler(async ({ data }) => {
     await runEffect(sendNotificationEffect(data));
     return { success: true };
