@@ -81,6 +81,8 @@ type ServerCardData = {
   tags: string[];
   members: number;
   ownerId: string;
+  pin: boolean;
+  pinExpiry?: string | null;
 };
 
 type BotCardData = UserDetail["developedBots"][0];
@@ -351,6 +353,8 @@ function ServersTabContainer({
         tags: item.tags ?? [],
         members: item.members ?? 0,
         ownerId: item.ownerId ?? "",
+        pin: item.pin,
+        pinExpiry: item.pinExpiry ?? null,
       });
     }
     return [...serversMap.values()];
@@ -742,7 +746,12 @@ const ServerCard = memo(
               管理伺服器
             </Button>
 
-            <PinButton itemId={server.id} itemType="server" />
+            <PinButton
+              itemId={server.id}
+              itemType="server"
+              isPinned={server.pin ?? false}
+              pinExpiry={server.pinExpiry ?? null}
+            />
             <Button
               variant="outline"
               size="sm"
@@ -976,7 +985,12 @@ const BotCard = memo(
                 >
                   管理機器人
                 </Button>
-                <PinButton itemId={bot.id} itemType="bot" />
+                <PinButton
+                  itemId={bot.id}
+                  itemType="bot"
+                  isPinned={bot.pin ?? false}
+                  pinExpiry={bot.pinExpiry ?? null}
+                />
               </>
             )}
 
@@ -1274,12 +1288,53 @@ UserHeader.displayName = "UserHeader";
 interface PinButtonProps {
   itemId: string;
   itemType: "bot" | "server";
+  isPinned?: boolean;
+  pinExpiry?: string | null; // ISO 字串或 null
 }
 
-export function PinButton({ itemId, itemType }: PinButtonProps) {
+export function PinButton({ itemId, itemType, isPinned = false, pinExpiry }: PinButtonProps) {
   const [isLoading, setIsLoading] = useState(false);
+  const [timeLeft, setTimeLeft] = useState<string>("");
+
+  // 計算剩餘時間並即時更新
+  useEffect(() => {
+    if (!isPinned || !pinExpiry) {
+      setTimeLeft("");
+      return;
+    }
+
+    const expiryDate = new Date(pinExpiry);
+    let interval: NodeJS.Timeout;
+
+    const updateCountdown = () => {
+      const now = new Date();
+      const diff = expiryDate.getTime() - now.getTime();
+
+      if (diff <= 0) {
+        setTimeLeft("已過期");
+        return;
+      }
+
+      const hours = Math.floor(diff / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+      if (hours > 0) {
+        setTimeLeft(`${hours}小時 ${minutes}分`);
+      } else {
+        setTimeLeft(`${minutes}分 ${seconds}秒`);
+      }
+    };
+
+    updateCountdown();
+    interval = setInterval(updateCountdown, 1000);
+
+    return () => clearInterval(interval);
+  }, [isPinned, pinExpiry]);
 
   const handlePinClick = async () => {
+    if (isPinned) return; // 已置頂時不允許操作
+
     setIsLoading(true);
 
     try {
@@ -1296,7 +1351,7 @@ export function PinButton({ itemId, itemType }: PinButtonProps) {
         Swal.fire({
           icon: "error",
           title: "置頂失敗",
-          text: result.error, // 顯示被 Effect 捕捉的錯誤訊息 (如: 冷卻中、查詢失敗等)
+          text: result.error,
           confirmButtonColor: "#5865f2",
         });
       }
@@ -1312,14 +1367,16 @@ export function PinButton({ itemId, itemType }: PinButtonProps) {
     setIsLoading(false);
   };
 
+  const isDisabled = isPinned || isLoading;
+
   return (
     <Button
       variant="outline"
       className="h-10 w-full cursor-pointer border-[#5865f2] text-white hover:bg-[#5865f2] hover:text-[#5865f2] disabled:cursor-not-allowed disabled:opacity-50"
       onClick={handlePinClick}
-      disabled={isLoading}
+      disabled={isDisabled}
     >
-      {isLoading ? "處理中..." : "置頂"}
+      {isLoading ? "處理中..." : isPinned ? `已置頂 (${timeLeft})` : "置頂"}
     </Button>
   );
 }

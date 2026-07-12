@@ -35,6 +35,8 @@ export type UserSummary = {
   servers?: number;
   verified?: boolean;
   status?: "pending" | "approved" | "rejected";
+  pin: boolean;
+  pinExpiry?: string | null;
 };
 
 export type UserDeveloperSummary = {

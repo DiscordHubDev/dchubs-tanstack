@@ -46,6 +46,8 @@ function toServerSummary(input: {
   tags: string[] | null;
   members: number;
   ownerId: string | null;
+  pin: boolean;
+  pinExpiry: string | null;
 }): UserSummary {
   return {
     id: input.id,
@@ -55,6 +57,8 @@ function toServerSummary(input: {
     tags: input.tags ?? [],
     members: input.members,
     ownerId: input.ownerId ?? "",
+    pin: input.pin,
+    pinExpiry: input.pinExpiry,
   };
 }
 
@@ -67,6 +71,8 @@ function toBotSummary(input: {
   servers: number;
   verified: boolean;
   status: "pending" | "approved" | "rejected";
+  pin: boolean;
+  pinExpiry: string | null;
 }): UserSummary {
   return {
     id: input.id,
@@ -77,6 +83,8 @@ function toBotSummary(input: {
     servers: input.servers,
     verified: input.verified,
     status: input.status,
+    pin: input.pin,
+    pinExpiry: input.pinExpiry,
   };
 }
 
@@ -293,6 +301,8 @@ export function getUserServersEffect(id: string) {
             tags: server.tags,
             members: server.members,
             ownerId: server.ownerId,
+            pin: server.pin,
+            pinExpiry: server.pinExpiry,
           })
           .from(server)
           .where(eq(server.ownerId, id)),
@@ -307,6 +317,8 @@ export function getUserServersEffect(id: string) {
             tags: server.tags,
             members: server.members,
             ownerId: server.ownerId,
+            pin: server.pin,
+            pinExpiry: server.pinExpiry,
           })
           .from(serverAdmins)
           .innerJoin(server, eq(serverAdmins.a, server.id))
@@ -336,6 +348,8 @@ export function getUserBotsEffect(id: string) {
           servers: bot.servers,
           verified: bot.verified,
           status: bot.status,
+          pin: bot.pin,
+          pinExpiry: bot.pinExpiry,
         })
         .from(botDevelopers)
         .innerJoin(bot, eq(botDevelopers.a, bot.id))
@@ -396,6 +410,8 @@ export function getUserFavoritesEffect(id: string) {
             tags: server.tags,
             members: server.members,
             ownerId: server.ownerId,
+            pin: server.pin,
+            pinExpiry: server.pinExpiry,
           })
           .from(userFavoriteServers)
           .innerJoin(server, eq(userFavoriteServers.a, server.id))
@@ -412,6 +428,8 @@ export function getUserFavoritesEffect(id: string) {
             servers: bot.servers,
             verified: bot.verified,
             status: bot.status,
+            pin: bot.pin,
+            pinExpiry: bot.pinExpiry,
           })
           .from(userFavoriteBots)
           .innerJoin(bot, eq(userFavoriteBots.a, bot.id))
@@ -516,10 +534,11 @@ function getUserByIdEffect(id: string): Effect.Effect<UserDetail | null, Error> 
               name: server.name,
               icon: server.icon,
               description: server.description,
-
               tags: server.tags,
               members: server.members,
               ownerId: server.ownerId,
+              pin: server.pin,
+              pinExpiry: server.pinExpiry,
             })
             .from(userFavoriteServers)
             .innerJoin(server, eq(userFavoriteServers.a, server.id))
@@ -536,6 +555,8 @@ function getUserByIdEffect(id: string): Effect.Effect<UserDetail | null, Error> 
               servers: bot.servers,
               verified: bot.verified,
               status: bot.status,
+              pin: bot.pin,
+              pinExpiry: bot.pinExpiry,
             })
             .from(userFavoriteBots)
             .innerJoin(bot, eq(userFavoriteBots.a, bot.id))
@@ -551,6 +572,8 @@ function getUserByIdEffect(id: string): Effect.Effect<UserDetail | null, Error> 
               tags: server.tags,
               members: server.members,
               ownerId: server.ownerId,
+              pin: server.pin,
+              pinExpiry: server.pinExpiry,
             })
             .from(server)
             .where(eq(server.ownerId, id)),
@@ -565,6 +588,8 @@ function getUserByIdEffect(id: string): Effect.Effect<UserDetail | null, Error> 
               tags: server.tags,
               members: server.members,
               ownerId: server.ownerId,
+              pin: server.pin,
+              pinExpiry: server.pinExpiry,
             })
             .from(serverAdmins)
             .innerJoin(server, eq(serverAdmins.a, server.id))
@@ -581,6 +606,8 @@ function getUserByIdEffect(id: string): Effect.Effect<UserDetail | null, Error> 
               servers: bot.servers,
               verified: bot.verified,
               status: bot.status,
+              pin: bot.pin,
+              pinExpiry: bot.pinExpiry,
             })
             .from(botDevelopers)
             .innerJoin(bot, eq(botDevelopers.a, bot.id))
