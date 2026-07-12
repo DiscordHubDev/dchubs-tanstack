@@ -6,7 +6,7 @@ import { getBotEditBundleById } from "./bot-edit.server";
 
 export const getBotEditBundleFn = createServerFn({ method: "GET" })
   .middleware([protectedMiddleware])
-  .inputValidator(effectInputValidator(BotEditInputSchema))
+  .validator(effectInputValidator(BotEditInputSchema))
   .handler(async ({ data, context }) => {
     return getBotEditBundleById(data.botId, context.user.discordId);
   });

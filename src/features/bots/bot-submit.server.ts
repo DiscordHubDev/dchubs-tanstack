@@ -1,4 +1,3 @@
-import { v2 as cloudinary } from "cloudinary";
 import { and, eq, inArray, or } from "drizzle-orm";
 import { Effect } from "effect";
 import { db } from "#/drizzle/db";
@@ -32,7 +31,11 @@ import type {
   SubmitBotResult,
   UploadBotImagesResult,
 } from "./bot-submit.types";
-import { getCloudinaryCredentialsEffect } from "#/lib/cloudinary";
+import {
+  destroyCloudinaryImage,
+  getCloudinaryCredentialsEffect,
+  uploadImageToCloudinary,
+} from "#/lib/cloudinary";
 
 const SUBMIT_SUCCESS_MESSAGE =
   "✅ 機器人已成功提交，請等待審核人員審核，審核結果將會通過 Discord 私訊和官方群組的通知中出現。";
@@ -590,29 +593,20 @@ function uploadBotImagesEffect(
 ): Effect.Effect<UploadBotImagesResult, never> {
   return Effect.gen(function* () {
     const credentials = yield* getCloudinaryCredentialsEffect();
-    cloudinary.config({
-      cloud_name: credentials.cloudName,
-      api_key: credentials.apiKey,
-      api_secret: credentials.apiSecret,
-      secure: true,
-    });
 
     const results = yield* Effect.forEach(input.files, (file) =>
-      Effect.tryPromise({
-        try: () =>
-          cloudinary.uploader.upload(file.dataUrl, {
-            resource_type: "image",
-            folder: "bots/screenshots",
-            use_filename: false,
-            unique_filename: true,
-            invalidate: true,
-            ...(credentials.uploadPreset ? { upload_preset: credentials.uploadPreset } : {}),
-            context: {
-              file_name: file.fileName,
-            },
-          }),
-        catch: () => new ImageUploadFailed({ filename: file.fileName }),
-      }),
+      uploadImageToCloudinary(file.dataUrl, credentials.cloudName, {
+        resource_type: "image", // 雖然 fetch 這邊沒用，但保留給未來
+        folder: "bots/screenshots",
+        unique_filename: true,
+        invalidate: true,
+        ...(credentials.uploadPreset && { upload_preset: credentials.uploadPreset }),
+        context: {
+          file_name: file.fileName,
+        },
+      }).pipe(
+        Effect.catchAll(() => Effect.fail(new ImageUploadFailed({ filename: file.fileName }))),
+      ),
     );
 
     const items = yield* Effect.forEach(results, (result, index) => {
@@ -623,7 +617,6 @@ function uploadBotImagesEffect(
           }),
         );
       }
-
       return Effect.succeed({
         url: result.secure_url,
         public_id: result.public_id,
@@ -646,21 +639,8 @@ function deleteBotImageEffect(
 ): Effect.Effect<DeleteBotImageResult, never> {
   return Effect.gen(function* () {
     const credentials = yield* getCloudinaryCredentialsEffect();
-    cloudinary.config({
-      cloud_name: credentials.cloudName,
-      api_key: credentials.apiKey,
-      api_secret: credentials.apiSecret,
-      secure: true,
-    });
 
-    yield* Effect.tryPromise({
-      try: () =>
-        cloudinary.uploader.destroy(input.publicId, {
-          resource_type: "image",
-          invalidate: true,
-        }),
-      catch: () => new SubmitBotFailed({ message: "圖片刪除失敗" }),
-    });
+    yield* destroyCloudinaryImage(input.publicId, credentials);
 
     return { success: true as const };
   }).pipe(

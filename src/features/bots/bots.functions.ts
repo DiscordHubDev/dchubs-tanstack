@@ -8,7 +8,7 @@ import { bumpBotsCacheVersion } from "#/lib/redis";
 
 export const getBotsListFn = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
-  .inputValidator(effectInputValidator(BotListInputSchema))
+  .validator(effectInputValidator(BotListInputSchema))
   .handler(async ({ data, context }) => {
     return listBotsPage(data, context.user?.discordId ?? null, context.user?.nsfw);
   });
@@ -21,7 +21,7 @@ export const getBotFilterBundleFn = createServerFn({ method: "GET" })
 
 export const checkBotDeveloperServerFn = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
-  .inputValidator((data: { botId: string }) => data)
+  .validator((data: { botId: string }) => data)
   .handler(async ({ data, context }) => {
     if (!context.user) {
       return { isLoggedIn: false, isDeveloper: false };
@@ -42,7 +42,7 @@ export const deleteBotFn = createServerFn({
   method: "POST",
 })
   .middleware([authMiddleware])
-  .inputValidator((data: { botId: string }) => data)
+  .validator((data: { botId: string }) => data)
   .handler(async ({ data, context }) => {
     const userId = context.user?.betterAuthId;
 

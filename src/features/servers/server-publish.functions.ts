@@ -14,21 +14,21 @@ import {
 
 export const getServerPublishBundleFn = createServerFn({ method: "GET" })
   .middleware([protectedMiddleware])
-  .inputValidator(effectInputValidator(ServerPublishInputSchema))
+  .validator(effectInputValidator(ServerPublishInputSchema))
   .handler(async ({ data, context }) => {
     return getServerPublishBundleById(data.serverId, context.user);
   });
 
 export const upsertServerPublishFn = createServerFn({ method: "POST" })
   .middleware([protectedMiddleware])
-  .inputValidator(effectInputValidator(ServerPublishSubmitSchema))
+  .validator(effectInputValidator(ServerPublishSubmitSchema))
   .handler(async ({ data, context }) => {
     return upsertServerPublish(data, context.user);
   });
 
 export const uploadServerBannerFn = createServerFn({ method: "POST" })
   .middleware([protectedMiddleware])
-  .inputValidator(effectInputValidator(ServerBannerUploadSchema))
+  .validator(effectInputValidator(ServerBannerUploadSchema))
   .handler(async ({ data, context }) => {
     return uploadServerBanner(data, context.user);
   });

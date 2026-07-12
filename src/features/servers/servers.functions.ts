@@ -8,7 +8,7 @@ import { bumpCacheVersion } from "#/lib/redis";
 
 export const getServersListFn = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
-  .inputValidator(effectInputValidator(ServerListInputSchema))
+  .validator(effectInputValidator(ServerListInputSchema))
   .handler(async ({ data, context }) => {
     return listServersPage(data, context.user?.discordId, context.user?.nsfw);
   });
@@ -25,7 +25,7 @@ export const deleteServerFn = createServerFn({
   method: "POST",
 })
   .middleware([authMiddleware])
-  .inputValidator(effectInputValidator(DeleteServerInputSchema))
+  .validator(effectInputValidator(DeleteServerInputSchema))
   .handler(async ({ data, context }) => {
     const userId = context.user?.betterAuthId;
 
@@ -44,7 +44,7 @@ export const deleteServerFn = createServerFn({
   });
 
 export const getDiscordWidget = createServerFn({ method: "GET" })
-  .inputValidator((input: { guildId: string }) => input)
+  .validator((input: { guildId: string }) => input)
   .handler(async ({ data: { guildId } }): Promise<DiscordWidgetData> => {
     const response = await fetch(`https://discord.com/api/guilds/${guildId}/widget.json`);
 

@@ -64,9 +64,7 @@ function parsePositiveIntLike(value: unknown): number | undefined {
   return parsed;
 }
 
-const siteUrl =
-  (typeof process !== "undefined" ? process.env.BETTER_AUTH_URL : undefined) ||
-  "https://dchubs.org";
+const siteUrl = import.meta.env.VITE_SITE_URL || "https://dchubs.org";
 
 function validateSearch(search: Record<string, unknown>): BotHomeSearch {
   const tab = parseBotCategory(search.tab);
@@ -136,8 +134,7 @@ export const Route = createFileRoute("/bots/")({
     const canonicalUrl = `${siteUrl}/bots${rawTab ? `?tab=${rawTab}` : ""}`;
     const hasQueryString = canonicalUrl.includes("?");
     const currentUrl = `${canonicalUrl}${page > 1 ? `${hasQueryString ? "&" : "?"}page=${page}` : ""}`;
-    const ogImage =
-      "https://gallery.dawngs.top/api/v1/buckets/image/objects/download?preview=true&prefix=nuo_dchub_2.png";
+    const ogImage = "/nuo_dchub_2.webp";
 
     return {
       meta: [
@@ -349,45 +346,80 @@ function BotsPage() {
           behavior: prefersReducedMotion ? "auto" : "smooth",
         });
       });
-      updateSearch({ page }, { resetScroll: false });
+      startTransition(() => {
+        updateSearch({ page }, { resetScroll: false });
+      });
     },
-    [updateSearch],
+    [updateSearch, startTransition],
   );
 
   const handleTabChange = useCallback(
     (value: string) => {
       const parsed = parseBotCategory(value);
       if (!parsed) return;
-      updateSearch({ tab: parsed, page: 1 });
+      startTransition(() => {
+        updateSearch({ tab: parsed, page: 1 });
+      });
     },
-    [updateSearch],
+    [updateSearch, startTransition],
   );
 
   const commitSearch = useCallback(
     (value: string) => {
-      updateSearch({ search: value.trim() || undefined, page: 1 });
+      startTransition(() => {
+        updateSearch({ search: value.trim() || undefined, page: 1 });
+      });
     },
-    [updateSearch],
-  );
-
-  const handleSearchChange = useCallback(
-    (event: React.ChangeEvent<HTMLInputElement>) => {
-      const value = event.target.value;
-      setInputValue(value);
-      if (!isComposingRef.current) commitSearch(value);
-    },
-    [commitSearch],
+    [updateSearch, startTransition],
   );
 
   const handleCategoryChange = useCallback(
     (ids: string[]) => {
-      updateSearch({
-        categories: ids.length ? ids.join(",") : undefined,
-        page: 1,
+      startTransition(() => {
+        updateSearch({
+          categories: ids.length ? ids.join(",") : undefined,
+          page: 1,
+        });
       });
     },
-    [updateSearch],
+    [updateSearch, startTransition],
   );
+
+  const debounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const handleSearchChange = useCallback(
+    (event: React.ChangeEvent<HTMLInputElement>) => {
+      const value = event.target.value;
+      setInputValue(value); // 立即更新，輸入框不卡頓
+
+      if (isComposingRef.current) return; // 中文/日文等 IME 組字中不處理
+
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = setTimeout(() => {
+        commitSearch(value);
+      }, 300); // 300ms 沒有再輸入才真正觸發
+    },
+    [commitSearch],
+  );
+
+  const handleCompositionEnd = useCallback(
+    (event: React.CompositionEvent<HTMLInputElement>) => {
+      isComposingRef.current = false;
+      const value = event.currentTarget.value;
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = setTimeout(() => {
+        commitSearch(value);
+      }, 300);
+    },
+    [commitSearch],
+  );
+
+  // 元件卸載時記得清掉 timer，避免 unmount 後還觸發 navigate
+  useEffect(() => {
+    return () => {
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    };
+  }, []);
 
   const handleAddCustomCategory = useCallback(
     (categoryName: string) => {
@@ -439,10 +471,7 @@ function BotsPage() {
                 onCompositionStart={() => {
                   isComposingRef.current = true;
                 }}
-                onCompositionEnd={(event) => {
-                  isComposingRef.current = false;
-                  commitSearch(event.currentTarget.value);
-                }}
+                onCompositionEnd={handleCompositionEnd}
               />
               {/* 效能優化：使用 Inline SVG 取代 lucide-react 套件 */}
               {/** biome-ignore lint/a11y/noSvgWithoutTitle: I dont want to add a title. */}
@@ -474,13 +503,15 @@ function BotsPage() {
             <div className="relative mt-6 h-32 overflow-hidden rounded-xl border border-white/10 bg-[#1e1f22] sm:h-48 md:h-70">
               <a href="https://nuorpg.com/" target="_blank" rel="noopener noreferrer">
                 <Image
-                  src="https://gallery.dawngs.top/api/v1/buckets/image/objects/download?preview=true&prefix=nuo_dchub_2.png"
+                  src="/nuo_dchub_2.webp"
                   alt="機器人活動宣傳"
                   width={1280}
-                  height={480}
+                  height={427}
                   className="h-full w-full object-cover"
                   loading="eager"
                   fetchPriority="high" /* 效能優化：提示瀏覽器優先載入 LCP 圖片 */
+                  sizes="(max-width: 640px) 100vw, (max-width: 768px) 100vw, 1280px"
+                  breakpoints={[640, 768, 1024, 1280]}
                 />
               </a>
             </div>

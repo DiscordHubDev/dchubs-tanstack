@@ -9,7 +9,7 @@ const InputSchema = Schema.Struct({
 });
 
 export const getDiscordRPCWithMember = createServerFn({ method: "POST" })
-  .inputValidator((raw: unknown) => Schema.decodeUnknownSync(InputSchema)(raw))
+  .validator((raw: unknown) => Schema.decodeUnknownSync(InputSchema)(raw))
   .handler(({ data }) => {
     const program = Effect.gen(function* () {
       // 使用 Effect.all 讓兩個網路請求同時發出，速度更快！

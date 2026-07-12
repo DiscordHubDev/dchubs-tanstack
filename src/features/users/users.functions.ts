@@ -44,34 +44,34 @@ export const getCurrentUserFn = createServerFn({ method: "GET" })
 
 export const getUserSettingsFn = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
-  .inputValidator(effectInputValidator(userByIdInputEffectSchema))
+  .validator(effectInputValidator(userByIdInputEffectSchema))
   .handler(async ({ data }) => {
     return await runEffect(getUserSettingsEffect(data.id));
   });
 
 export const getUserFavoritesFn = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
-  .inputValidator(effectInputValidator(userByIdInputEffectSchema))
+  .validator(effectInputValidator(userByIdInputEffectSchema))
   .handler(async ({ data }) => {
     return await runEffect(getUserFavoritesEffect(data.id));
   });
 
 export const getUserBotsFn = createServerFn({ method: "GET" })
   .middleware([authMiddleware])
-  .inputValidator(effectInputValidator(userByIdInputEffectSchema))
+  .validator(effectInputValidator(userByIdInputEffectSchema))
   .handler(async ({ data }) => {
     return await runEffect(getUserBotsEffect(data.id));
   });
 
 export const getUserServersFn = createServerFn({ method: "GET" })
-  .inputValidator(effectInputValidator(userByIdInputEffectSchema))
+  .validator(effectInputValidator(userByIdInputEffectSchema))
   .middleware([authMiddleware])
   .handler(async ({ data }) => {
     return await runEffect(getUserServersEffect(data.id));
   });
 
 export const getUserBaseProfileFn = createServerFn({ method: "GET" })
-  .inputValidator(effectInputValidator(userByIdInputEffectSchema))
+  .validator(effectInputValidator(userByIdInputEffectSchema))
   .middleware([authMiddleware])
   .handler(async ({ data }) => {
     return await runEffect(getUserBaseProfileEffect(data.id));
@@ -79,14 +79,14 @@ export const getUserBaseProfileFn = createServerFn({ method: "GET" })
 
 // 2. 取得特定使用者：公開讀取
 export const getUserByIdFn = createServerFn({ method: "GET" })
-  .inputValidator(effectInputValidator(userByIdInputEffectSchema))
+  .validator(effectInputValidator(userByIdInputEffectSchema))
   .middleware([authMiddleware])
   .handler(async ({ data }) => {
     return getUserById(data.id);
   });
 
 export const getUserByIdOrNameFn = createServerFn({ method: "GET" })
-  .inputValidator(effectInputValidator(userByIdOrNameInputEffectSchema))
+  .validator(effectInputValidator(userByIdOrNameInputEffectSchema))
   .middleware([authMiddleware])
   .handler(async ({ data }) => {
     const program = getUserByIdOrNameEffect(data.query);
@@ -95,7 +95,7 @@ export const getUserByIdOrNameFn = createServerFn({ method: "GET" })
 
 export const upsertUserFromSessionFn = createServerFn({ method: "POST" })
   .middleware([authMiddleware])
-  .inputValidator(effectInputValidator(upsertUserFromSessionInputEffectSchema))
+  .validator(effectInputValidator(upsertUserFromSessionInputEffectSchema))
   .handler(async ({ data }) => {
     return upsertUserFromSession(data);
   });
@@ -103,7 +103,7 @@ export const upsertUserFromSessionFn = createServerFn({ method: "POST" })
 // 4. 更新個人設定：必須登入 🔒
 export const updateUserSettingsFn = createServerFn({ method: "POST" })
   .middleware([protectedMiddleware])
-  .inputValidator(effectInputValidator(updateUserSettingsInputEffectSchema))
+  .validator(effectInputValidator(updateUserSettingsInputEffectSchema))
   .handler(async ({ data, context }) => {
     return updateUserSettingsForCurrentUser(data, context.user.discordId);
   });
@@ -111,7 +111,7 @@ export const updateUserSettingsFn = createServerFn({ method: "POST" })
 // 5. 切換收藏：必須登入 🔒
 export const toggleFavoriteFn = createServerFn({ method: "POST" })
   .middleware([protectedMiddleware])
-  .inputValidator(effectInputValidator(toggleFavoriteInputEffectSchema))
+  .validator(effectInputValidator(toggleFavoriteInputEffectSchema))
   .handler(async ({ data, context }) => {
     return toggleFavoriteForCurrentUser(data, context.user.discordId);
   });
@@ -119,14 +119,14 @@ export const toggleFavoriteFn = createServerFn({ method: "POST" })
 // 6. 產生 API Token：必須登入 (高敏感操作) 🔒
 export const createOrRegenerateApiTokenFn = createServerFn({ method: "POST" })
   .middleware([protectedMiddleware])
-  .inputValidator(strictValidator)
+  .validator(strictValidator)
   .handler(async ({ context }) => {
     return createOrRegenerateApiTokenForCurrentUser(context.user.discordId);
   });
 
 export const pinItemFn = createServerFn({ method: "POST" })
   .middleware([protectedMiddleware])
-  .inputValidator(effectInputValidator(PinItemInputSchema))
+  .validator(effectInputValidator(PinItemInputSchema))
   .handler(async ({ data }) => {
     const { id, type } = data;
     return toResult(pinItemLogicEffect(id, type));
@@ -134,7 +134,7 @@ export const pinItemFn = createServerFn({ method: "POST" })
 
 export const getUserIdByDiscordIdFn = createServerFn({ method: "GET" })
   .middleware([protectedMiddleware])
-  .inputValidator((data: { discordId: string }) => data)
+  .validator((data: { discordId: string }) => data)
   .handler(async ({ data }) => {
     const result = await db
       .select({ id: user.id })

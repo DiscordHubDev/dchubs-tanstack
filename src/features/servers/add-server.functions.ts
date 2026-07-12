@@ -13,7 +13,7 @@ export const getGuildMembershipBundleFn = createServerFn({
   method: "GET",
 })
   .middleware([protectedMiddleware]) // ⬅️ 套用保護，強制要求登入
-  .inputValidator(strictValidator)
+  .validator(strictValidator)
   .handler(async ({ context }) => {
     return getGuildMembershipBundle(context.user.discordId);
   });

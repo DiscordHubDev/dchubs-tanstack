@@ -35,7 +35,7 @@ export const updateBotServerCountBackgroundFn = createServerFn({
   method: "POST",
 })
   .middleware([adminMiddleware])
-  .inputValidator((data: { botId: string }) => data)
+  .validator((data: { botId: string }) => data)
   .handler(async ({ data }) => {
     fetchAndUpdateServerCount(data.botId);
     return { success: true, message: "已在背景處理" };
@@ -88,7 +88,7 @@ export const getReportsFn = createServerFn({ method: "GET" })
 /** Approve or reject a bot application */
 export const reviewBotFn = createServerFn({ method: "POST" })
   .middleware([adminMiddleware])
-  .inputValidator(effectInputValidator(ReviewBotSchema))
+  .validator(effectInputValidator(ReviewBotSchema))
   .handler(async ({ data }) => {
     const result = await toResult(
       fromDrizzle(async () => {
@@ -176,7 +176,7 @@ export const reviewBotFn = createServerFn({ method: "POST" })
 /** Delete a bot by id */
 export const deleteBotFn = createServerFn({ method: "POST" })
   .middleware([adminMiddleware])
-  .inputValidator(effectInputValidator(BotIdSchema))
+  .validator(effectInputValidator(BotIdSchema))
   .handler(async ({ data }): Promise<ActionResult> => {
     await bumpBotsCacheVersion();
     return toResult(fromDrizzle(() => db.delete(bot).where(eq(bot.id, data.id))));
@@ -185,7 +185,7 @@ export const deleteBotFn = createServerFn({ method: "POST" })
 /** Delete a server by guild id */
 export const deleteServerFn = createServerFn({ method: "POST" })
   .middleware([adminMiddleware])
-  .inputValidator(effectInputValidator(ServerGuildIdSchema))
+  .validator(effectInputValidator(ServerGuildIdSchema))
   .handler(async ({ data }): Promise<ActionResult> => {
     await bumpCacheVersion("servers");
     return toResult(fromDrizzle(() => db.delete(server).where(eq(server.id, data.guildId))));
@@ -194,7 +194,7 @@ export const deleteServerFn = createServerFn({ method: "POST" })
 /** Update a report */
 export const updateReportFn = createServerFn({ method: "POST" })
   .middleware([adminMiddleware])
-  .inputValidator(effectInputValidator(UpdateReportSchema))
+  .validator(effectInputValidator(UpdateReportSchema))
   .handler(
     ({ data }): Promise<ActionResult> =>
       toResult(
@@ -247,7 +247,7 @@ export const adminGetDashboardCountsFn = createServerFn({
  */
 export const rejectBotServerFn = createServerFn({ method: "POST" })
   .middleware([adminMiddleware])
-  .inputValidator(effectInputValidator(RejectBotSchema))
+  .validator(effectInputValidator(RejectBotSchema))
   .handler(async ({ data, context }) => {
     const { botId, reason } = data;
     const user = context.user;
@@ -331,9 +331,7 @@ export const rejectBotServerFn = createServerFn({ method: "POST" })
 
 export const resolveReportServerFn = createServerFn({ method: "POST" })
   .middleware([adminMiddleware])
-  .inputValidator(
-    (data: { reportId: string; status: ReportStatus; resolutionNote: string }) => data,
-  )
+  .validator((data: { reportId: string; status: ReportStatus; resolutionNote: string }) => data)
   .handler(async ({ data, context }) => {
     try {
       const { reportId, status, resolutionNote } = data;
@@ -376,7 +374,7 @@ export const resolveReportServerFn = createServerFn({ method: "POST" })
 // User Management Functions
 export const getUsersFn = createServerFn({ method: "GET" })
   .middleware([adminMiddleware])
-  .inputValidator(effectInputValidator(QuerySchema))
+  .validator(effectInputValidator(QuerySchema))
   .handler(async ({ data }) => {
     const { search, page, limit } = data;
     const offset = (page - 1) * limit;
@@ -431,7 +429,7 @@ interface ToggleBanPayload {
 
 // 封鎖/解封使用者 (整合 Better Auth + KV + Effect)
 export const toggleUserBanFn = createServerFn({ method: "POST" })
-  .inputValidator((data: ToggleBanPayload) => data)
+  .validator((data: ToggleBanPayload) => data)
   .handler(async ({ data }) => {
     const request = getRequest();
 
@@ -496,7 +494,7 @@ export const toggleUserBanFn = createServerFn({ method: "POST" })
 
 export const SendNotificationFn = createServerFn({ method: "POST" })
   .middleware([adminMiddleware])
-  .inputValidator(effectInputValidator(SendNotificationSchema))
+  .validator(effectInputValidator(SendNotificationSchema))
   .handler(async ({ data }) => {
     await runEffect(sendNotificationEffect(data));
     return { success: true };
