@@ -18,18 +18,11 @@ const CategorySkeleton = memo(function CategorySkeleton() {
     <div className="space-y-2 px-1 py-1">
       {Array.from({ length: 8 }).map((_, i) => (
         <div key={i} className="flex items-center gap-3 rounded-lg p-2" aria-hidden="true">
-          {/* Color dot */}
           <div className="h-2 w-2 shrink-0 animate-pulse rounded-full bg-gray-500/40" />
-
-          {/* Checkbox */}
           <div className="h-5 w-5 shrink-0 animate-pulse rounded border border-gray-600/50 bg-gray-700/30" />
-
-          {/* Text */}
           <div
             className="h-4 animate-pulse rounded bg-gray-600/40"
-            style={{
-              width: `${Math.max(45, 85 - (i % 5) * 8)}%`,
-            }}
+            style={{ width: `${Math.max(45, 85 - (i % 5) * 8)}%` }}
           />
         </div>
       ))}
@@ -40,11 +33,11 @@ const CategorySkeleton = memo(function CategorySkeleton() {
 // ==================== 單一分類項目 ====================
 const CategoryItem = memo(function CategoryItem({
   category,
-  selected,
+  isSelected,
   onToggle,
 }: {
   category: CategoryType;
-  selected: boolean;
+  isSelected: boolean;
   onToggle: (id: string) => void;
 }) {
   const handleClick = useCallback(() => {
@@ -70,26 +63,23 @@ const CategoryItem = memo(function CategoryItem({
       onKeyDown={handleKeyDown}
       type="button"
       tabIndex={0}
-      aria-pressed={selected}
+      aria-pressed={isSelected}
       role="checkbox"
     >
       <div className="flex min-w-0 flex-1 items-center gap-3">
-        {/* Color indicator */}
         <span className={`h-2 w-2 shrink-0 rounded-full ${category.color}`} aria-hidden="true" />
 
-        {/* Checkbox */}
         <div
           className={`flex h-5 w-5 shrink-0 items-center justify-center rounded border transition-colors
             ${
-              selected
+              isSelected
                 ? "border-[#5865f2] bg-[#5865f2]/10"
                 : "border-gray-600 group-hover:border-gray-500"
             }`}
         >
-          {selected && <Check size={14} className="text-[#5865f2]" />}
+          {isSelected && <Check size={14} className="text-[#5865f2]" />}
         </div>
 
-        {/* Category name */}
         <span className="flex-1 truncate text-left text-sm">{category.name}</span>
       </div>
     </button>
@@ -105,18 +95,20 @@ const CategoryFilter = memo(function CategoryFilter({
 }: CategoryFilterProps) {
   const [currentPage, setCurrentPage] = useState(1);
 
+  // 使用 Set 提供 O(1) 查詢
+  const selectedSet = useMemo(() => new Set(selectedCategoryIds), [selectedCategoryIds]);
+
   const totalPages = useMemo(
     () => Math.ceil(categories.length / CATEGORIES_PER_PAGE),
     [categories.length],
   );
 
-  // 當分類列表改變時，重置到有效頁碼
   const safeCurrentPage = useMemo(() => {
     if (totalPages === 0) return 1;
     return Math.min(Math.max(1, currentPage), totalPages);
   }, [currentPage, totalPages]);
 
-  // 當 totalPages 改變時同步頁碼
+  // 同步頁碼
   useMemo(() => {
     if (currentPage !== safeCurrentPage) {
       setCurrentPage(safeCurrentPage);
@@ -128,16 +120,16 @@ const CategoryFilter = memo(function CategoryFilter({
     return categories.slice(start, start + CATEGORIES_PER_PAGE);
   }, [categories, safeCurrentPage]);
 
+  // 優化：使用 useCallback + 穩定的 toggle 函數
   const toggleCategory = useCallback(
     (id: string) => {
-      const isSelected = selectedCategoryIds.includes(id);
-      const nextIds = isSelected
+      const nextIds = selectedSet.has(id)
         ? selectedCategoryIds.filter((selectedId) => selectedId !== id)
         : [...selectedCategoryIds, id];
 
       onCategoryChange(nextIds);
     },
-    [selectedCategoryIds, onCategoryChange],
+    [selectedCategoryIds, selectedSet, onCategoryChange],
   );
 
   const handlePageChange = useCallback((page: number) => {
@@ -150,14 +142,13 @@ const CategoryFilter = memo(function CategoryFilter({
 
   return (
     <div className="space-y-3">
-      {/* 分類列表 */}
       <div className="max-h-64 space-y-1 overflow-y-auto overflow-x-hidden px-1 py-1 pr-2">
         {currentPageCategories.length > 0 ? (
           currentPageCategories.map((category) => (
             <CategoryItem
               key={category.id}
               category={category}
-              selected={selectedCategoryIds.includes(category.id)}
+              isSelected={selectedSet.has(category.id)} // ← 使用 Set
               onToggle={toggleCategory}
             />
           ))
@@ -166,7 +157,6 @@ const CategoryFilter = memo(function CategoryFilter({
         )}
       </div>
 
-      {/* 分頁 */}
       {totalPages > 1 && (
         <div className="pt-1">
           <Pagination
