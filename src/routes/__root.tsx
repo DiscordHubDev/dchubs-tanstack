@@ -51,6 +51,8 @@ const keywords = [
   "免費 Discord 社群",
   "伺服器人氣推薦",
   "DiscordHubs 熱門伺服器",
+  "台灣 Discord 伺服器",
+  "Discord 交流群組",
 ];
 
 const siteUrl = "https://dchubs.org";

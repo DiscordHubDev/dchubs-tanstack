@@ -115,7 +115,7 @@ export const Route = createFileRoute("/bots/")({
     if (!loaderData) {
       return {
         meta: [
-          { title: "熱門機器人 | DiscordHubs" },
+          { title: "熱門機器人 | Discord機器人列表 - DiscordHubs" },
           {
             name: "description",
             content: "在 DiscordHubs 探索數百個功能豐富的機器人...",
@@ -125,6 +125,18 @@ export const Route = createFileRoute("/bots/")({
       };
     }
     const { category, page, rawTab } = loaderData.searchData;
+
+    const keywords = [
+      "熱門 Discord 機器人",
+      "Discord 機器人推薦",
+      "中文 Discord 機器人",
+      "Discord 機器人排行",
+      "實用 Discord 機器人推薦",
+      "免費 Discord 機器人",
+      "Discord 功能型機器人",
+      "DiscordHubs 熱門機器人",
+      "Discord 機器人社群",
+    ];
 
     const categoryLabel =
       BOT_CATEGORY_CONFIG.find((c) => c.id === category)?.label ?? "Discord 機器人";
@@ -142,6 +154,7 @@ export const Route = createFileRoute("/bots/")({
         { name: "description", content: description },
         { property: "og:site_name", content: "DiscordHubs" },
         { property: "og:title", content: title },
+        { name: "keywords", content: keywords.join("，") },
         { property: "og:description", content: description },
         { property: "og:image", content: ogImage },
         { property: "og:type", content: "website" },
