@@ -55,15 +55,10 @@ const TAB_LABELS: Record<ServerCategory, string> = {
 
 /**
  * Safe fallback used while the filter bundle hasn't been fetched yet.
- * Keeps downstream `useMemo`s stable without guarding every property access.
  */
 const EMPTY_FILTER_BUNDLE = {
   categories: [] as CategoryType[],
-  allServers: [] as ReturnType<typeof serverFilterBundleQueryOptions> extends {
-    select: (d: infer _D) => unknown;
-  }
-    ? never
-    : never[],
+  allServers: [] as any[],
   stats: { totalServers: 0, featuredServers: 0, totalTags: 0 },
 } as const;
 
@@ -78,30 +73,22 @@ const LazyHomeAddServerCta = lazy(
   () => import("#/features/servers/components/home-add-server-cta"),
 );
 
-// ─── Search-param helpers (unchanged from original) ──────────────────────────
+// ─── Search-param helpers ───────────────────────────────────────────────────
 
 function useDebounce<T extends (...args: any[]) => void>(callback: T, delay: number) {
   const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   const debounced = useCallback(
     (...args: Parameters<T>) => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
-
-      timeoutRef.current = setTimeout(() => {
-        callback(...args);
-      }, delay);
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      timeoutRef.current = setTimeout(() => callback(...args), delay);
     },
     [callback, delay],
   );
 
-  // 元件 unmount 時清理
   useEffect(() => {
     return () => {
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-      }
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
     };
   }, []);
 
@@ -182,8 +169,6 @@ export const Route = createFileRoute("/")({
       dehydratedState: dehydrate(context.queryClient),
     };
   },
-
-  // 5. Component last
   component: HomePageRoute,
 });
 
@@ -193,21 +178,9 @@ interface PrefetchTabTriggerProps {
   value: ServerCategory;
   activeTab: ServerCategory;
   isPending: boolean;
-  /** Called on pointer-enter AND keyboard focus — triggers a background prefetch. */
   onPrefetch: (category: ServerCategory) => void;
 }
 
-/**
- * OPTIMISATION 2 — Hover/focus prefetch per tab.
- *
- * Before: switching tabs always caused a loading state because the data wasn't
- *         in the cache until the user clicked.
- * After : data is prefetched the moment the pointer enters (or focus lands on)
- *         the trigger, so the tab switch is usually instant.
- *
- * Also eliminates the 4-times-repeated `{activeTab === value && <motion.div …>}`
- * block — single source of truth for the animated indicator.
- */
 function PrefetchTabTrigger({ value, activeTab, isPending, onPrefetch }: PrefetchTabTriggerProps) {
   const isActive = activeTab === value;
 
@@ -265,23 +238,22 @@ function HomePage() {
   const [inputValue, setInputValue] = useState(searchQuery);
   const [customCategories, setCustomCategories] = useState<CategoryType[]>([]);
 
-  const [isMounted] = useState(() => typeof window !== "undefined");
+  // FIXED: Proper hydration-safe mounting flag
+  const [isMounted, setIsMounted] = useState(false);
 
   /**
    * OPTIMISATION 3 — Lazy filter-bundle activation.
-   *
-   * The filter bundle (all servers) is heavy. We only need it when the user
-   * actually types in the search box or selects a category filter.
-   *
-   * `filterBundleEnabled` starts as `true` only when the URL already contains
-   * search/category params (e.g. direct link or browser back-navigation).
-   * Otherwise it stays `false` until the user interacts with those controls.
    */
   const [filterBundleEnabled, setFilterBundleEnabled] = useState(() =>
     Boolean(searchQuery.trim() || selectedCategoryIds.length),
   );
 
-  // Sync input with URL (e.g. back/forward navigation)
+  // Hydration-safe mount effect
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  // Sync input with URL
   const searchQueryRef = useRef(searchQuery);
   useEffect(() => {
     if (searchQueryRef.current !== searchQuery) {
@@ -290,9 +262,8 @@ function HomePage() {
     }
   }, [searchQuery]);
 
-  // Clean up Discord hash fragment on mount
+  // Clean up Discord hash fragment
   useEffect(() => {
-    if (typeof window === "undefined") return;
     if (!window.location.hash.startsWith("#sym:")) return;
     window.history.replaceState(null, "", `${window.location.pathname}${window.location.search}`);
     window.scrollTo({ top: 0, behavior: "auto" });
@@ -327,47 +298,29 @@ function HomePage() {
     }),
   );
 
-  /**
-   * Filter bundle uses plain `useQuery` (not Suspense) with `enabled` flag.
-   * This prevents the component from suspending while the bundle is loading —
-   * the server list renders immediately with whatever data it already has.
-   */
   const { data: filterBundleDataRaw } = useQuery({
     ...serverFilterBundleQueryOptions(),
     enabled: filterBundleEnabled,
   });
 
-  // Safe accessor — falls back to empty arrays/zeros before bundle arrives
   const filterBundleData = filterBundleDataRaw ?? EMPTY_FILTER_BUNDLE;
 
   // ── Derived state ────────────────────────────────────────────────────────
 
-  // 3. 整合所有標籤 (預設 + API + 自訂)
   const mergedCategories = useMemo(() => {
     const map = new Map<string, CategoryType>();
 
-    // [區塊 A] 預設伺服器標籤 (加上 server- 前綴避免 ID 衝突)
     const formattedServerCategories = ServerCategories.map((c) => ({
       ...c,
       id: `server-${c.id}`,
     }));
 
-    for (const item of formattedServerCategories) {
-      map.set(item.id, item);
-    }
-
-    // [區塊 B] 載入來自 API 的標籤
-    for (const item of filterBundleDataRaw?.categories ?? []) {
-      map.set(item.id, item);
-    }
-
-    // [區塊 C] 載入使用者的自訂標籤 (確保這段有被執行)
-    for (const item of customCategories) {
-      map.set(item.id, item);
-    }
+    for (const item of formattedServerCategories) map.set(item.id, item);
+    for (const item of filterBundleDataRaw?.categories ?? []) map.set(item.id, item);
+    for (const item of customCategories) map.set(item.id, item);
 
     return [...map.values()];
-  }, [filterBundleDataRaw, customCategories]); // 確保 customCategories 在依賴陣列中
+  }, [filterBundleDataRaw, customCategories]);
 
   const useClientSideFiltering = Boolean(searchQuery.trim() || selectedCategoryIds.length);
 
@@ -384,7 +337,7 @@ function HomePage() {
       );
 
       filtered = filtered.filter((item) =>
-        item.tags.some((tag) => selectedNames.has(tag.toLowerCase())),
+        item.tags.some((tag: string) => selectedNames.has(tag.toLowerCase())),
       );
     }
 
@@ -411,7 +364,6 @@ function HomePage() {
   }, [serversListData, useClientSideFiltering, clientFiltered, currentPage]);
 
   const shouldShowSkeleton = isSearching;
-
   const isStatsLoading = !isMounted || !filterBundleDataRaw;
 
   // ── Callbacks ────────────────────────────────────────────────────────────
@@ -423,27 +375,19 @@ function HomePage() {
           to: "/",
           replace: true,
           resetScroll: options?.resetScroll,
-          search: (previous) => {
-            const next = { ...previous, ...patch };
-            return {
-              tab: next.tab,
-              page: next.page,
-              search: next.search,
-              categories: next.categories,
-              redirect: next.redirect,
-            };
-          },
+          search: (previous) => ({
+            tab: (patch.tab ?? previous.tab) as ServerCategory | undefined,
+            page: patch.page ?? previous.page,
+            search: patch.search,
+            categories: patch.categories,
+            redirect: patch.redirect,
+          }),
         });
       });
     },
     [navigate],
   );
 
-  /**
-   * OPTIMISATION 2 (impl) — prefetch the hovered tab's page-1 data.
-   * Skips the active tab (already loaded) and deduplicates automatically
-   * because TanStack Query won't re-fetch a fresh cache entry.
-   */
   const handleTabHoverPrefetch = useCallback(
     (category: ServerCategory) => {
       if (category === activeTab) return;
@@ -457,14 +401,12 @@ function HomePage() {
   const handlePageChange = useCallback(
     (page: number) => {
       const prefersReducedMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
-
       window.requestAnimationFrame(() => {
         window.scrollTo({
           top: 0,
           behavior: prefersReducedMotion ? "auto" : "smooth",
         });
       });
-
       updateSearch({ page }, { resetScroll: false });
     },
     [updateSearch],
@@ -474,8 +416,6 @@ function HomePage() {
     (value: string) => {
       const parsed = parseServerCategory(value);
       if (!parsed) return;
-
-      // 移除 setIsSearching(true) 與 setTimeout 的強制骨架屏邏輯
       updateSearch({ tab: parsed, page: 1 });
     },
     [updateSearch],
@@ -498,7 +438,6 @@ function HomePage() {
     (event: React.ChangeEvent<HTMLInputElement>) => {
       const value = event.target.value;
       setInputValue(value);
-
       if (!isComposingRef.current) {
         debouncedCommitSearch(value);
       }
@@ -507,9 +446,7 @@ function HomePage() {
   );
 
   const commitSearch = useCallback(
-    (value: string) => {
-      debouncedCommitSearch(value); // 保留給 compositionEnd 使用
-    },
+    (value: string) => debouncedCommitSearch(value),
     [debouncedCommitSearch],
   );
 
@@ -525,20 +462,17 @@ function HomePage() {
 
   const handleAddCustomCategory = useCallback(
     (categoryName: string) => {
-      // 檢查是否已經有同名的標籤 (不分大小寫)
       if (mergedCategories.some((item) => item.name.toLowerCase() === categoryName.toLowerCase())) {
         return;
       }
 
-      // 建立新標籤 (ID 必須包含 custom- 前綴，才能配合 CategorySearch 裡的頁籤邏輯)
       const nextCategory: CategoryType = {
         id: `custom-${Date.now()}`,
         name: categoryName,
-        color: "bg-sky-500", // 預設給一個顏色
+        color: "bg-sky-500",
       };
 
-      // 更新狀態，並自動將新標籤設為選取狀態
-      setCustomCategories((previous) => [...previous, nextCategory]);
+      setCustomCategories((prev) => [...prev, nextCategory]);
       handleCategoryChange([...selectedCategoryIds, nextCategory.id]);
     },
     [mergedCategories, handleCategoryChange, selectedCategoryIds],
@@ -668,7 +602,6 @@ function HomePage() {
 
               {(SERVER_CATEGORIES as readonly ServerCategory[]).map((tab) => (
                 <TabsContent key={tab} value={tab} className="mt-6">
-                  {/* flex-wrap 讓頁碼在窄螢幕上換行到下一行 */}
                   <div className="mb-4 flex flex-wrap items-center justify-between gap-y-1">
                     <h2 className="font-bold text-xl sm:text-2xl">{TAB_LABELS[tab]}</h2>
                     {!shouldShowSkeleton && displayData.total > 0 && (
@@ -718,17 +651,17 @@ function HomePage() {
                 <StatRow
                   label="總伺服器數"
                   value={filterBundleData.stats.totalServers}
-                  loading={isStatsLoading} // 3. 替換原本的 loading prop
+                  loading={isStatsLoading}
                 />
                 <StatRow
                   label="總精選伺服器數量"
                   value={filterBundleData.stats.featuredServers}
-                  loading={isStatsLoading} // 3. 替換原本的 loading prop
+                  loading={isStatsLoading}
                 />
                 <StatRow
                   label="目前已使用分類數"
                   value={filterBundleData.stats.totalTags}
-                  loading={isStatsLoading} // 3. 替換原本的 loading prop
+                  loading={isStatsLoading}
                 />
               </div>
             </div>
@@ -754,12 +687,6 @@ function HomePage() {
   );
 }
 
-// ─── Tiny helper ─────────────────────────────────────────────────────────────
-
-/**
- * Shows a shimmer placeholder while the filter bundle is loading,
- * then renders the real value once available.
- */
 function StatRow({ label, value, loading }: { label: string; value: number; loading: boolean }) {
   return (
     <div className="flex items-center justify-between">

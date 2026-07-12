@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { ArrowUp, Clock, Heart, Pin, Users } from "lucide-react";
-import { memo } from "react";
+import { memo, useEffect, useState } from "react";
 import ListSkeleton from "#/components/list-skeleton";
 import { OptimizedImage } from "#/components/OptimizedImage";
 import { Badge } from "#/components/ui/badge";
@@ -15,6 +15,13 @@ type ServerListProps = {
 };
 
 function ServerList({ servers, isLoading, skeletonCount = 10 }: ServerListProps) {
+  // Hydration-safe rendering for dynamic time strings
+  const [isClient, setIsClient] = useState(false);
+
+  useEffect(() => {
+    setIsClient(true);
+  }, []);
+
   if (isLoading) {
     return (
       <div className="space-y-4">
@@ -47,14 +54,15 @@ function ServerList({ servers, isLoading, skeletonCount = 10 }: ServerListProps)
           >
             <span className="sr-only">前往 {item.name} 伺服器頁面</span>
           </Link>
+
           <div className="flex flex-col gap-4 sm:flex-row">
             <OptimizedImage
               src={item.icon}
-              fallbackSrc="https://cdn.discordapp.com/embed/avatars/0.png" // 🟢 移至 fallbackSrc，統一走 Proxy 路由
+              fallbackSrc="https://cdn.discordapp.com/embed/avatars/0.png"
               alt={`${item.name} icon`}
-              width={64} // 配合 h-16 (64px) 提供 1:1 的精準優化像素
+              width={64}
               height={64}
-              className="h-16 w-16 rounded-xl object-cover" // 註：unpic 預設即為 lazy loading，通常可省略 loading="lazy"
+              className="h-16 w-16 rounded-xl object-cover"
             />
 
             <div className="min-w-0 flex-1">
@@ -78,7 +86,7 @@ function ServerList({ servers, isLoading, skeletonCount = 10 }: ServerListProps)
               <div className="mt-3 flex flex-wrap items-center gap-3 text-gray-400 text-sm">
                 <span className="inline-flex items-center gap-1">
                   <Users className="h-4 w-4" />
-                  {item.members.toLocaleString()} 成員
+                  {item.members.toLocaleString("zh-TW")} 成員
                 </span>
                 <span className="inline-flex items-center gap-1">
                   <div className="mr-1 h-2 w-2 rounded-full bg-green-500" />
@@ -86,26 +94,24 @@ function ServerList({ servers, isLoading, skeletonCount = 10 }: ServerListProps)
                 </span>
                 <span className="inline-flex items-center gap-1">
                   <ArrowUp className="h-4 w-4" />
-                  {item.upvotes.toLocaleString()} 票
+                  {item.upvotes.toLocaleString("zh-TW")} 票
                 </span>
                 <span className="inline-flex items-center gap-1">
                   <Clock className="h-4 w-4" />
-                  {formatTime(item.createdAt)}
+                  {isClient ? formatTime(item.createdAt) : formatTimeStatic(item.createdAt)}
                 </span>
               </div>
 
               <div className="mt-3 flex flex-wrap gap-2">
                 {item.nsfw && (
                   <Badge
-                    variant="destructive" /* 這裡使用 shadcn 的 destructive 通常預設就是紅色，或者用 className 自訂 */
+                    variant="destructive"
                     className="relative z-20 cursor-default bg-red-600 font-bold text-white hover:bg-red-700"
                   >
-                    <span className="mr-1">🔞</span> {/* 你可以使用 Emoji 或是你的 Icon 組件 */}
-                    NSFW
+                    <span className="mr-1">🔞</span> NSFW
                   </Badge>
                 )}
 
-                {/* 原有的 tags 渲染 */}
                 {item.tags.slice(0, 5).map((tag) => (
                   <Badge
                     key={tag}
@@ -139,6 +145,11 @@ function ServerList({ servers, isLoading, skeletonCount = 10 }: ServerListProps)
       ))}
     </div>
   );
+}
+
+function formatTimeStatic(date: string | Date): string {
+  const d = new Date(date);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
 }
 
 export default memo(ServerList);
