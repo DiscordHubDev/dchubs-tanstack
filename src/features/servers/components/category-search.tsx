@@ -10,6 +10,7 @@ type CategorySearchProps = {
   selectedCategoryIds: string[];
   onCategoryChange: (ids: string[]) => void;
   onCustomCategoryAdd?: (name: string) => void;
+  isPending?: boolean;
 };
 
 // 分類頁籤類型
@@ -23,6 +24,7 @@ export default function CategorySearch({
   selectedCategoryIds,
   onCategoryChange,
   onCustomCategoryAdd,
+  isPending,
 }: CategorySearchProps) {
   const [keyword, setKeyword] = useState("");
   const [customCategory, setCustomCategory] = useState("");
@@ -114,6 +116,7 @@ export default function CategorySearch({
             categories={displayCategories}
             selectedCategoryIds={selectedCategoryIds}
             onCategoryChange={onCategoryChange}
+            isPending={isPending}
           />
         ) : (
           <div className="py-4 text-center text-gray-500 text-xs">找不到相關分類</div>

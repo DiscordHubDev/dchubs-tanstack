@@ -537,6 +537,7 @@ function BotsPage() {
                 selectedCategoryIds={selectedCategoryIds}
                 onCategoryChange={handleCategoryChange}
                 onCustomCategoryAdd={handleAddCustomCategory}
+                isPending={isPending}
               />
             </Suspense>
           </div>
