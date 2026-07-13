@@ -587,7 +587,7 @@ function HomePage() {
             <Tabs className="mb-8 w-full" value={activeTab} onValueChange={handleTabChange}>
               <TabsList
                 className={cn(
-                  "flex flex-wrap h-auto w-full items-center justify-start p-1 gap-1",
+                  "flex flex-wrap h-auto w-full items-center justify-center p-1 gap-1",
                   "border-b border-[#1e1f22] bg-[#2b2d31]",
                 )}
               >
