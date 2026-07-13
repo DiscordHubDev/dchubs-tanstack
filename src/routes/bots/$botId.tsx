@@ -1175,15 +1175,24 @@ function BotDetailPage() {
           </div>
 
           <div className="lg:col-span-3">
-            <Tabs value={activeTab} onValueChange={handleTabChange} className="mb-8">
-              <TabsList className="h-full w-full overflow-hidden border-[#1e1f22] border-b bg-[#2b2d31]">
-                <TabsTrigger value="about" className="data-[state=active]:bg-[#36393f]">
+            <Tabs value={activeTab} onValueChange={handleTabChange} className="mb-8 w-full">
+              <TabsList className="flex flex-wrap h-auto w-full items-center gap-1 p-1 border-[#1e1f22] border-b bg-[#2b2d31]">
+                <TabsTrigger
+                  value="about"
+                  className="flex flex-1 items-center justify-center sm:flex-none whitespace-nowrap px-2 py-2 text-sm sm:px-4 sm:py-2.5 sm:text-base data-[state=active]:bg-[#36393f]"
+                >
                   關於機器人
                 </TabsTrigger>
-                <TabsTrigger value="commands" className="data-[state=active]:bg-[#36393f]">
+                <TabsTrigger
+                  value="commands"
+                  className="flex flex-1 items-center justify-center sm:flex-none whitespace-nowrap px-2 py-2 text-sm sm:px-4 sm:py-2.5 sm:text-base data-[state=active]:bg-[#36393f]"
+                >
                   指令列表
                 </TabsTrigger>
-                <TabsTrigger value="screenshots" className="data-[state=active]:bg-[#36393f]">
+                <TabsTrigger
+                  value="screenshots"
+                  className="flex flex-1 items-center justify-center sm:flex-none whitespace-nowrap px-2 py-2 text-sm sm:px-4 sm:py-2.5 sm:text-base data-[state=active]:bg-[#36393f]"
+                >
                   截圖
                 </TabsTrigger>
               </TabsList>

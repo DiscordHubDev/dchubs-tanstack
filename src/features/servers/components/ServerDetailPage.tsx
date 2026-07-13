@@ -857,15 +857,24 @@ const ContentTabs = memo(function ContentTabs({
   serverName,
 }: ContentTabsProps) {
   return (
-    <Tabs value={activeTab} onValueChange={onTabChange} className="mb-8">
-      <TabsList className="h-full w-full overflow-hidden border-[#1e1f22] border-b bg-[#2b2d31]">
-        <TabsTrigger value="about" className="data-[state=active]:bg-[#36393f]">
+    <Tabs value={activeTab} onValueChange={onTabChange} className="mb-8 w-full">
+      <TabsList className="flex flex-wrap h-auto w-full items-center gap-1 p-1 border-[#1e1f22] border-b bg-[#2b2d31]">
+        <TabsTrigger
+          value="about"
+          className="flex flex-1 items-center justify-center sm:flex-none whitespace-nowrap px-2 py-2 text-sm sm:px-4 sm:py-2.5 sm:text-base data-[state=active]:bg-[#36393f]"
+        >
           關於伺服器
         </TabsTrigger>
-        <TabsTrigger value="rules" className="data-[state=active]:bg-[#36393f]">
+        <TabsTrigger
+          value="rules"
+          className="flex flex-1 items-center justify-center sm:flex-none whitespace-nowrap px-2 py-2 text-sm sm:px-4 sm:py-2.5 sm:text-base data-[state=active]:bg-[#36393f]"
+        >
           規則
         </TabsTrigger>
-        <TabsTrigger value="screenshots" className="data-[state=active]:bg-[#36393f]">
+        <TabsTrigger
+          value="screenshots"
+          className="flex flex-1 items-center justify-center sm:flex-none whitespace-nowrap px-2 py-2 text-sm sm:px-4 sm:py-2.5 sm:text-base data-[state=active]:bg-[#36393f]"
+        >
           截圖
         </TabsTrigger>
       </TabsList>

@@ -193,9 +193,12 @@ function PrefetchTabTrigger({ value, activeTab, isPending, onPrefetch }: Prefetc
       className={cn(
         "relative z-10 bg-transparent transition-colors",
         "data-[state=active]:bg-transparent",
+        // 手機端均分寬度 (flex-1) 且內容置中，平板以上恢復原本大小 (sm:flex-none)
+        "flex flex-1 items-center justify-center sm:flex-none",
         "whitespace-nowrap",
-        "px-2 py-1.5 text-sm",
-        "sm:px-4 sm:py-2 sm:text-base",
+        // 微調手機端 padding 增加點擊範圍
+        "px-2 py-2 text-sm",
+        "sm:px-4 sm:py-2.5 sm:text-base",
       )}
     >
       <span className="relative z-20">{TAB_LABELS[value]}</span>
@@ -581,13 +584,11 @@ function HomePage() {
               </div>
             )}
 
-            <Tabs className="mb-8" value={activeTab} onValueChange={handleTabChange}>
+            <Tabs className="mb-8 w-full" value={activeTab} onValueChange={handleTabChange}>
               <TabsList
                 className={cn(
-                  "h-full w-full p-1",
+                  "flex flex-wrap h-auto w-full items-center justify-start p-1 gap-1",
                   "border-b border-[#1e1f22] bg-[#2b2d31]",
-                  "overflow-x-auto",
-                  "[&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]",
                 )}
               >
                 {SERVER_CATEGORIES.map((category) => (
@@ -601,6 +602,7 @@ function HomePage() {
                 ))}
               </TabsList>
 
+              {/* 下方的 TabsContent 保持原樣即可 */}
               {(SERVER_CATEGORIES as readonly ServerCategory[]).map((tab) => (
                 <TabsContent key={tab} value={tab} className="mt-6">
                   <div className="mb-4 flex flex-wrap items-center justify-between gap-y-1">

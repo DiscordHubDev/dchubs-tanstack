@@ -235,13 +235,13 @@ export function UserProfilePage({
             if (!isOwner && value === "settings") return;
             onTabChange(value);
           }}
-          className="mb-8"
+          className="mb-8 w-full"
         >
-          <TabsList className="h-full w-full overflow-hidden overflow-y-hidden border-[#1e1f22] border-b bg-[#2b2d31]">
+          <TabsList className="flex flex-wrap h-auto w-full items-center gap-1 p-1 border-[#1e1f22] border-b bg-[#2b2d31]">
             <TabsTrigger
               value="servers"
-              className="data-[state=active]:bg-[#36393f]"
-              onMouseEnter={() => handlePrefetch("servers")} // 滑鼠移入時預載
+              className="flex flex-1 items-center justify-center sm:flex-none whitespace-nowrap px-2 py-2 text-sm sm:px-4 sm:py-2.5 sm:text-base data-[state=active]:bg-[#36393f]"
+              onMouseEnter={() => handlePrefetch("servers")}
               onFocus={() => handlePrefetch("servers")}
             >
               <Users size={16} className="mr-2" />
@@ -249,7 +249,7 @@ export function UserProfilePage({
             </TabsTrigger>
             <TabsTrigger
               value="bots"
-              className="data-[state=active]:bg-[#36393f]"
+              className="flex flex-1 items-center justify-center sm:flex-none whitespace-nowrap px-2 py-2 text-sm sm:px-4 sm:py-2.5 sm:text-base data-[state=active]:bg-[#36393f]"
               onMouseEnter={() => handlePrefetch("bots")}
               onFocus={() => handlePrefetch("bots")}
             >
@@ -258,7 +258,7 @@ export function UserProfilePage({
             </TabsTrigger>
             <TabsTrigger
               value="favorites"
-              className="data-[state=active]:bg-[#36393f]"
+              className="flex flex-1 items-center justify-center sm:flex-none whitespace-nowrap px-2 py-2 text-sm sm:px-4 sm:py-2.5 sm:text-base data-[state=active]:bg-[#36393f]"
               onMouseEnter={() => handlePrefetch("favorites")}
               onFocus={() => handlePrefetch("favorites")}
             >
@@ -268,7 +268,7 @@ export function UserProfilePage({
             {isOwner && (
               <TabsTrigger
                 value="settings"
-                className="data-[state=active]:bg-[#36393f]"
+                className="flex flex-1 items-center justify-center sm:flex-none whitespace-nowrap px-2 py-2 text-sm sm:px-4 sm:py-2.5 sm:text-base data-[state=active]:bg-[#36393f]"
                 onMouseEnter={() => handlePrefetch("settings")}
                 onFocus={() => handlePrefetch("settings")}
               >
