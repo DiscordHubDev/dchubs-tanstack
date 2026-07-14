@@ -24,6 +24,7 @@ export interface MyRouterContext {
   queryClient: QueryClient;
   session: NormalizedSession | null;
   status: "authenticated" | "loading" | "unauthenticated";
+  nonce?: string;
 }
 
 declare module "@tanstack/react-router" {
@@ -192,6 +193,7 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
 // 4. 根文檔元件
 // ==========================================
 function RootDocument({ children }: { children: ReactNode }) {
+  const { nonce } = Route.useRouteContext();
   return (
     <html
       lang="zh-TW"
@@ -201,8 +203,9 @@ function RootDocument({ children }: { children: ReactNode }) {
       suppressHydrationWarning
     >
       <head>
-        <script dangerouslySetInnerHTML={{ __html: VITE_PRELOAD_ERROR_SCRIPT }} />
+        <script nonce={nonce} dangerouslySetInnerHTML={{ __html: VITE_PRELOAD_ERROR_SCRIPT }} />
         <script
+          nonce={nonce}
           type="application/ld+json"
           dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/</g, "\\u003c") }}
           suppressHydrationWarning

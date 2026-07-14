@@ -17,19 +17,18 @@ const securityHeadersMiddleware = createMiddleware().server(async ({ next }) => 
     // 3. 組合 CSP：將 nonce 正確注入到 script-src 中
     const cspDirectives = [
       "default-src 'self'",
-
-      // 🟢 修正 1: 正確使用 'nonce-...'。
-      // 注意：在正式環境中，有了 nonce，支援的瀏覽器會自動忽略 'unsafe-inline'。
-      // 保留 'unsafe-inline' 是為了向下相容極舊的瀏覽器。
-      `script-src 'self' 'nonce-${nonce}' 'unsafe-inline' 'unsafe-eval' https://assets.dchubs.org https://ajax.cloudflare.com https://static.cloudflareinsights.com`,
-
-      "style-src 'self' 'unsafe-inline' https://assets.dchubs.org",
-      "img-src 'self' data: https://cdn.discordapp.com https://res.cloudinary.com blob:",
-      "frame-src https://discord.com https://www.youtube.com",
-      "connect-src 'self' https://cloudflareinsights.com https://static.cloudflareinsights.com",
+      `script-src 'self' 'nonce-${nonce}' https://assets.dchubs.org https://ajax.cloudflare.com https://static.cloudflareinsights.com`, // 移除 unsafe-eval + unsafe-inline（測試後）
+      "style-src 'self' 'unsafe-inline' https://assets.dchubs.org", // style 通常允許 unsafe-inline 較安全
+      "img-src 'self' data: https://cdn.discordapp.com https://res.cloudinary.com blob: https://*.discord.com",
+      "frame-src https://discord.com https://www.youtube.com https://*.discord.com",
+      "connect-src 'self' https://*.dchubs.org https://discord.com https://*.cloudflare.com",
+      "font-src 'self' https://assets.dchubs.org",
       "object-src 'none'",
-      "frame-ancestors 'self'",
       "base-uri 'self'",
+      "form-action 'self'",
+      "upgrade-insecure-requests",
+      "block-all-mixed-content",
+      // "require-trusted-types-for 'script'" // 進階防護（需搭配 Trusted Types）
     ].join("; ");
 
     // 寫入 CSP
@@ -52,6 +51,11 @@ const securityHeadersMiddleware = createMiddleware().server(async ({ next }) => 
     result.response.headers.set(
       "Strict-Transport-Security",
       "max-age=31536000; includeSubDomains; preload",
+    );
+
+    result.response.headers.set(
+      "Permissions-Policy",
+      "camera=(), microphone=(), geolocation=(), interest-cohort=(), payment=(), sync-xhr=(), usb=(), accelerometer=(), gyroscope=(), magnetometer=(), midi=(), speaker-selection=() fullscreen=(self https://discord.com https://www.youtube.com)",
     );
   }
 
