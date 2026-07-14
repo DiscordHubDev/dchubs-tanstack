@@ -21,7 +21,7 @@ const securityHeadersMiddleware = createMiddleware().server(async ({ next }) => 
       "style-src 'self' 'unsafe-inline' https://assets.dchubs.org", // style 通常允許 unsafe-inline 較安全
       "img-src 'self' data: https://cdn.discordapp.com https://res.cloudinary.com blob: https://*.discord.com",
       "frame-src https://discord.com https://www.youtube.com https://*.discord.com",
-      "connect-src 'self' https://*.dchubs.org https://discord.com https://*.cloudflare.com",
+      "connect-src 'self' https://*.dchubs.org https://discord.com https://*.cloudflare.com https://*.cloudflareinsights.com",
       "font-src 'self' https://assets.dchubs.org",
       "object-src 'none'",
       "base-uri 'self'",
