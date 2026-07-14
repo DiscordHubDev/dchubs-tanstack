@@ -55,7 +55,7 @@ const securityHeadersMiddleware = createMiddleware().server(async ({ next }) => 
 
     result.response.headers.set(
       "Permissions-Policy",
-      "camera=(), microphone=(), geolocation=(), interest-cohort=(), payment=(), sync-xhr=(), usb=(), accelerometer=(), gyroscope=(), magnetometer=(), midi=(), speaker-selection=() fullscreen=(self https://discord.com https://www.youtube.com)",
+      "camera=(), microphone=(), geolocation=(), interest-cohort=(), sync-xhr=(), usb=(), accelerometer=(), gyroscope=(), magnetometer=(), midi=(), speaker-selection=() fullscreen=(self https://discord.com https://www.youtube.com)",
     );
   }
 
