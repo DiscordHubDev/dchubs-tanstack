@@ -269,7 +269,7 @@ function buildBotPayload(
     botId,
     mode,
     botRow: {
-      name: input.form.botName.trim(),
+      name: rpc.name.trim(),
       description: input.form.botDescription.trim(),
       longDescription: input.form.botLongDescription.trim(),
       prefix: input.form.botPrefix.trim(),
@@ -484,7 +484,7 @@ function submitPipeline(
   input: SubmitBotInput,
 ): Effect.Effect<string, InvalidInviteUrl | BotAlreadyExists | DiscordRpcFailed | SubmitBotFailed> {
   return Effect.gen(function* () {
-    const botId = yield* parseClientId(input.form.botInvite);
+    const botId = input.form.botId.trim();
     const exists = yield* getExistingBotEffect(botId);
 
     const isCreateMode = (input.mode ?? "create") === "create";
@@ -505,7 +505,7 @@ function submitPipeline(
         _tag: "pendingBot",
         avatarUrl: payload.botRow.icon || "https://cdn.discordapp.com/embed/avatars/0.png",
         data: {
-          botName: payload.botRow.name,
+          botName: rpc.name,
           botPrefix: payload.botRow.prefix || "",
           botDescription: payload.botRow.description || "",
           tags: payload.botRow.tags || [],

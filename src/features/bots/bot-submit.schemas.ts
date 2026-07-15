@@ -56,7 +56,7 @@ export const DiscordBotRPCInfoSchema = Schema.Struct({
   is_verified: Schema.Boolean,
   is_discoverable: Schema.Boolean,
   hook: Schema.Boolean,
-  guild_id: Schema.String,
+  guild_id: Schema.optional(Schema.String),
   storefront_available: Schema.Boolean,
   bot_public: Schema.Boolean,
   bot_require_code_grant: Schema.Boolean,
@@ -70,5 +70,9 @@ export const DiscordBotRPCInfoSchema = Schema.Struct({
   ),
   verify_key: Schema.String,
   flags: Schema.Number,
-  tags: Schema.Array(Schema.String),
+  tags: Schema.optional(Schema.Array(Schema.String)),
+});
+
+export const ClientIdInputSchema = Schema.Struct({
+  client_id: Schema.String,
 });

@@ -2,6 +2,8 @@ import { Schema } from "effect";
 
 const NonEmptyString = Schema.String.pipe(Schema.minLength(1));
 
+const discordIdRegex = /^\d{17,20}$/;
+
 export const BotNameSchema = NonEmptyString.pipe(Schema.maxLength(50));
 export const BotPrefixSchema = NonEmptyString.pipe(Schema.maxLength(10));
 export const BotDescriptionSchema = Schema.String.pipe(Schema.minLength(10), Schema.maxLength(200));
@@ -42,8 +44,14 @@ export const BotTagsSchema = Schema.Array(BotTagSchema).pipe(
 export const BotSecretSchema = Schema.optional(Schema.String);
 export const BotWebhookUrlSchema = Schema.optional(Schema.String);
 
+export const DiscordIdSchema = Schema.String.pipe(
+  Schema.pattern(discordIdRegex, {
+    message: () => "機器人 ID 格式不正確，應為 17 到 20 位的數字",
+  }),
+);
+
 export const BotFormSchema = Schema.Struct({
-  botName: BotNameSchema,
+  botId: DiscordIdSchema,
   botPrefix: BotPrefixSchema,
   botDescription: BotDescriptionSchema,
   botLongDescription: BotLongDescriptionSchema,

@@ -21,9 +21,9 @@ import {
   BotFormSchema,
   BotInviteSchema,
   BotLongDescriptionSchema,
-  BotNameSchema,
   BotPrefixSchema,
   BotTagsSchema,
+  DiscordIdSchema,
 } from "#/features/bots/bot-form-schema";
 import {
   deleteBotImageFn,
@@ -42,6 +42,7 @@ import DiscordEmbedPreview from "../DiscordEmbedPreview";
 import EmbedFieldsListField from "../EmbedFieldsListField";
 import { OptimizedImage } from "../OptimizedImage";
 import { Checkbox } from "../ui/checkbox";
+import { botInfoQueryOptions } from "#/features/bots/bot-submit.query";
 
 const EMPTY_CATEGORIES: CategoryType[] = [];
 const EMPTY_ARRAY: any[] = [];
@@ -92,10 +93,10 @@ type BaseDeveloperItem = BotFormData["developers"][number];
 
 const OptionalStringSchema = Schema.Union(Schema.String, Schema.Null, Schema.Undefined);
 
-const validateBotName = effectValidator(BotNameSchema, {
-  label: "機器人名稱",
-  required: "機器人名稱不可為空",
-  maxLength: { value: 50, message: "機器人名稱最多 50 字" },
+const validateBotId = effectValidator(DiscordIdSchema, {
+  label: "機器人 ID",
+  required: "請填寫機器人 ID",
+  fallback: "機器人 ID 格式不正確",
 });
 
 const validateBotPrefix = effectValidator(BotPrefixSchema, {
@@ -168,23 +169,126 @@ const validateWebhookUrl = effectValidator(OptionalStringSchema, {
 // Helper Functions
 // ============================================================================
 
+function useMediaManager(defaultValues?: BotFormDefaultValues) {
+  const objectUrlsRef = useRef<Set<string>>(new Set());
+  const [media, setMedia] = useState<MediaState>(() => {
+    if (!defaultValues) return { screenshots: [], banner: undefined };
+    return {
+      screenshots: defaultValues.screenshots?.map(buildScreenshotFromUrl) ?? [],
+      banner: defaultValues.banner ? buildScreenshotFromUrl(defaultValues.banner) : undefined,
+    };
+  });
+  const [isUploadingMedia, setIsUploadingMedia] = useState(false);
+
+  // Cleanup object URLs on unmount
+  useEffect(() => {
+    const urlsToRevoke = objectUrlsRef.current;
+    return () => {
+      urlsToRevoke.forEach((url) => URL.revokeObjectURL(url));
+    };
+  }, []);
+
+  const handleMediaUpload = useCallback(
+    async (event: React.ChangeEvent<HTMLInputElement>, kind: "screenshots" | "banner") => {
+      const files = event.target.files ? Array.from(event.target.files) : [];
+      event.target.value = "";
+      if (files.length === 0) return;
+
+      const remainingSlots =
+        kind === "banner" ? (media.banner ? 0 : 1) : Math.max(0, 5 - media.screenshots.length);
+      if (remainingSlots <= 0) return;
+
+      setIsUploadingMedia(true);
+
+      const validFiles = await Effect.runPromise(
+        validateFiles(files, remainingSlots).pipe(
+          Effect.catchAllDefect((defect) => {
+            console.error("Unexpected error during media upload:", defect);
+            return Effect.succeed([] as File[]);
+          }),
+        ),
+      );
+
+      if (validFiles.length > 0) {
+        const newItems: MediaItem[] = validFiles.map((file) => {
+          const url = URL.createObjectURL(file);
+          objectUrlsRef.current.add(url);
+          return { url, file };
+        });
+
+        setMedia((prev) => {
+          if (kind === "banner") {
+            if (prev.banner?.file) {
+              URL.revokeObjectURL(prev.banner.url);
+              objectUrlsRef.current.delete(prev.banner.url);
+            }
+            return { ...prev, banner: newItems[0] };
+          }
+          return {
+            ...prev,
+            screenshots: [...prev.screenshots, ...newItems],
+          };
+        });
+      }
+
+      setIsUploadingMedia(false);
+    },
+    [media.banner, media.screenshots.length],
+  );
+
+  const removeScreenshot = useCallback((index: number) => {
+    setMedia((prev) => {
+      const toDelete = prev.screenshots[index];
+      if (!toDelete) return prev;
+
+      if (toDelete.file) {
+        URL.revokeObjectURL(toDelete.url);
+        objectUrlsRef.current.delete(toDelete.url);
+      } else if (toDelete.public_id) {
+        void Effect.runPromise(
+          deleteImage(toDelete.public_id).pipe(Effect.catchAll(() => Effect.succeed(undefined))),
+        );
+      }
+      return {
+        ...prev,
+        screenshots: prev.screenshots.filter((_, i) => i !== index),
+      };
+    });
+  }, []);
+
+  const removeBanner = useCallback(() => {
+    setMedia((prev) => {
+      const toDelete = prev.banner;
+      if (!toDelete) return prev;
+
+      if (toDelete.file) {
+        URL.revokeObjectURL(toDelete.url);
+        objectUrlsRef.current.delete(toDelete.url);
+      } else if (toDelete.public_id) {
+        void Effect.runPromise(
+          deleteImage(toDelete.public_id).pipe(Effect.catchAll(() => Effect.succeed(undefined))),
+        );
+      }
+      return { ...prev, banner: undefined };
+    });
+  }, []);
+
+  return {
+    media,
+    isUploadingMedia,
+    setMedia,
+    handleMediaUpload,
+    removeScreenshot,
+    removeBanner,
+  } as const;
+}
+
 function readFirstError(errors: unknown[] | undefined): string | null {
   if (!Array.isArray(errors) || errors.length === 0) return null;
   const first = errors[0];
   if (typeof first === "string") return first;
   if (first instanceof Error) return first.message;
   return String(first);
-}
-
-function readPersistedFormValues(): Partial<BotFormData> {
-  if (typeof window === "undefined") return {};
-  try {
-    const saved = window.localStorage.getItem("bot_form_backup");
-    return saved ? JSON.parse(saved) : {};
-  } catch (error) {
-    console.error("無法解析表單備份", error);
-    return {};
-  }
 }
 
 function buildScreenshotFromUrl(url: string): Screenshot {
@@ -228,7 +332,10 @@ async function deleteCloudinaryImage(publicId: string): Promise<void> {
   if (!result.success) throw new Error(result.error.message);
 }
 
+const discordIdRegex = /^\d{17,20}$/;
+
 function hasRequiredPublishFields(values: {
+  botId: string;
   botDescription: string;
   botLongDescription: string;
   botInvite: string;
@@ -236,6 +343,9 @@ function hasRequiredPublishFields(values: {
   botTags: readonly string[];
 }): boolean {
   return (
+    // 1. 驗證 botId 是否符合 Discord ID (Snowflake) 格式
+    discordIdRegex.test(values.botId.trim()) &&
+    // 2. 其他欄位驗證
     values.botDescription.trim().length > 0 &&
     values.botLongDescription.trim().length > 0 &&
     values.botInvite.trim().length > 0 &&
@@ -847,51 +957,44 @@ function DeveloperListField({ field }: { field: AnyFieldApi }) {
 export default function BotForm({ mode = "create", defaultValues }: BotFormProps) {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const objectUrlsRef = useRef<Set<string>>(new Set());
-  const [media, setMedia] = useState<MediaState>(() => {
-    if (!defaultValues) return { screenshots: [], banner: undefined };
-    return {
-      screenshots: defaultValues.screenshots?.map(buildScreenshotFromUrl) ?? [],
-      banner: defaultValues.banner ? buildScreenshotFromUrl(defaultValues.banner) : undefined,
-    };
-  });
-  const [isUploadingMedia, setIsUploadingMedia] = useState(false);
 
-  // Initial state hydration from localStorage (CSR only to avoid SSR mismatch)
-  const [persistedValues] = useState<Partial<BotFormData>>(() => readPersistedFormValues());
+  const { media, isUploadingMedia, setMedia, handleMediaUpload, removeScreenshot, removeBanner } =
+    useMediaManager(defaultValues);
+
+  // Initial state hydration from localStorage (CSR only)
+  const [persistedValues] = useState<Partial<BotFormData>>(() => {
+    const backupKey =
+      mode === "edit" ? `bot_form_backup_${defaultValues?.botId}` : "bot_form_backup";
+    const saved = window.localStorage.getItem(backupKey);
+    return saved ? JSON.parse(saved) : {};
+  });
 
   const { session } = useRouteContext({ from: "__root__" });
-
   const currentUser = session?.user;
 
-  const initialDevelopers = currentUser
-    ? [
-        {
-          name: currentUser.discordId,
-          _displayUsername: currentUser.name || currentUser.username,
-          avatar: currentUser.avatar,
-        },
-      ]
-    : [];
+  const initialDevelopers = useMemo(
+    () =>
+      currentUser
+        ? [
+            {
+              name: currentUser.discordId,
+              _displayUsername: currentUser.name || currentUser.username,
+              avatar: currentUser.avatar,
+            },
+          ]
+        : [],
+    [currentUser],
+  );
 
-  const finalDevelopers =
-    persistedValues?.developers && persistedValues.developers.length > 0
-      ? persistedValues.developers
-      : defaultValues?.developers && defaultValues.developers.length > 0
-        ? defaultValues.developers
-        : initialDevelopers;
-
-  useEffect(() => {
-    // ✅ 1. 先把當下的 ref 參考抓出來
-    const urlsToRevoke = objectUrlsRef.current;
-
-    return () => {
-      // ✅ 2. 在 cleanup 裡面使用剛剛抓出來的變數
-      urlsToRevoke.forEach((url) => {
-        URL.revokeObjectURL(url);
-      });
-    };
-  }, []);
+  const finalDevelopers = useMemo(
+    () =>
+      persistedValues?.developers && persistedValues.developers.length > 0
+        ? persistedValues.developers
+        : defaultValues?.developers && defaultValues.developers.length > 0
+          ? defaultValues.developers
+          : initialDevelopers,
+    [persistedValues?.developers, defaultValues?.developers, initialDevelopers],
+  );
 
   const form = useForm({
     defaultValues: {
@@ -943,7 +1046,18 @@ export default function BotForm({ mode = "create", defaultValues }: BotFormProps
     },
   });
 
-  // Extracting mutation out of onSubmit for better React Query integration
+  type BotFormInstance = typeof form;
+
+  useFormPersistence(form);
+
+  const botIdValue = useSelector(form.store, (state) => state.values.botId ?? "");
+
+  const botInfoQuery = useQuery({
+    ...botInfoQueryOptions(botIdValue),
+    enabled: mode === "create" && /^\d{17,20}$/.test(botIdValue.trim()),
+    retry: 1,
+  });
+
   const submitMutation = useMutation({
     mutationFn: async ({
       value,
@@ -1006,6 +1120,30 @@ export default function BotForm({ mode = "create", defaultValues }: BotFormProps
     },
   });
 
+  function useFormPersistence(form: BotFormInstance) {
+    useEffect(() => {
+      if (typeof window === "undefined") return;
+
+      const handleBeforeUnload = (event: BeforeUnloadEvent) => {
+        const currentState = form.store.state;
+        if (currentState.isDirty) {
+          try {
+            const backupKey =
+              mode === "edit" ? `bot_form_backup_${defaultValues?.botId}` : "bot_form_backup";
+            window.localStorage.setItem(backupKey, JSON.stringify(currentState.values));
+          } catch (error) {
+            console.error("緊急備份失敗:", error);
+          }
+          event.preventDefault();
+          event.returnValue = "";
+        }
+      };
+
+      window.addEventListener("beforeunload", handleBeforeUnload);
+      return () => window.removeEventListener("beforeunload", handleBeforeUnload);
+    }, [form.store]);
+  }
+
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
   const previewRef = useRef<HTMLDivElement | null>(null);
   const bannerFileInputRef = useRef<HTMLInputElement | null>(null);
@@ -1014,26 +1152,6 @@ export default function BotForm({ mode = "create", defaultValues }: BotFormProps
   const longDescription = useSelector(form.store, (state) => state.values.botLongDescription);
   const customEmbedValues = useSelector(form.store, (state) => state.values.customEmbed);
 
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-
-    const handleBeforeUnload = (event: BeforeUnloadEvent) => {
-      const currentState = form.store.state;
-      if (currentState.isDirty) {
-        try {
-          window.localStorage.setItem("bot_form_backup", JSON.stringify(currentState.values));
-        } catch (error) {
-          console.error("緊急備份失敗:", error);
-        }
-        event.preventDefault();
-        event.returnValue = "";
-      }
-    };
-
-    window.addEventListener("beforeunload", handleBeforeUnload);
-    return () => window.removeEventListener("beforeunload", handleBeforeUnload);
-  }, [form.store]);
-
   const handleScroll = useCallback(() => {
     const textarea = textareaRef.current;
     const preview = previewRef.current;
@@ -1041,93 +1159,6 @@ export default function BotForm({ mode = "create", defaultValues }: BotFormProps
       const scrollRatio = textarea.scrollTop / (textarea.scrollHeight - textarea.clientHeight);
       preview.scrollTop = scrollRatio * (preview.scrollHeight - preview.clientHeight);
     }
-  }, []);
-
-  const handleMediaUpload = async (
-    event: React.ChangeEvent<HTMLInputElement>,
-    kind: "screenshots" | "banner",
-  ) => {
-    const files = event.target.files ? Array.from(event.target.files) : [];
-    event.target.value = "";
-    if (files.length === 0) return;
-
-    const remainingSlots =
-      kind === "banner" ? (media.banner ? 0 : 1) : Math.max(0, 5 - media.screenshots.length);
-    if (remainingSlots <= 0) return;
-
-    setIsUploadingMedia(true);
-
-    // Catch both expected failures (catchAll) and unexpected defects
-    // (catchAllDefect) inside the Effect pipeline itself, so there's no
-    // need for an outer try/catch/finally in the component.
-    const validFiles = await Effect.runPromise(
-      validateFiles(files, remainingSlots).pipe(
-        Effect.catchAllDefect((defect) => {
-          console.error("Unexpected error during media upload:", defect);
-          return Effect.succeed([] as File[]);
-        }),
-      ),
-    );
-
-    if (validFiles.length > 0) {
-      const newItems: MediaItem[] = validFiles.map((file) => {
-        const url = URL.createObjectURL(file);
-        objectUrlsRef.current.add(url);
-        return { url, file };
-      });
-
-      if (kind === "banner") {
-        if (media.banner?.file) {
-          URL.revokeObjectURL(media.banner.url);
-          objectUrlsRef.current.delete(media.banner.url);
-        }
-        setMedia((prev) => ({ ...prev, banner: newItems[0] }));
-      } else {
-        setMedia((prev) => ({
-          ...prev,
-          screenshots: [...prev.screenshots, ...newItems],
-        }));
-      }
-    }
-
-    setIsUploadingMedia(false);
-  };
-
-  const removeScreenshot = useCallback((index: number) => {
-    setMedia((prev) => {
-      const toDelete = prev.screenshots[index];
-      if (!toDelete) return prev;
-
-      if (toDelete.file) {
-        URL.revokeObjectURL(toDelete.url);
-        objectUrlsRef.current.delete(toDelete.url);
-      } else if (toDelete.public_id) {
-        void Effect.runPromise(
-          deleteImage(toDelete.public_id).pipe(Effect.catchAll(() => Effect.succeed(undefined))),
-        );
-      }
-      return {
-        ...prev,
-        screenshots: prev.screenshots.filter((_, i) => i !== index),
-      };
-    });
-  }, []);
-
-  const removeBanner = useCallback(() => {
-    setMedia((prev) => {
-      const toDelete = prev.banner;
-      if (!toDelete) return prev;
-
-      if (toDelete.file) {
-        URL.revokeObjectURL(toDelete.url);
-        objectUrlsRef.current.delete(toDelete.url);
-      } else if (toDelete.public_id) {
-        void Effect.runPromise(
-          deleteImage(toDelete.public_id).pipe(Effect.catchAll(() => Effect.succeed(undefined))),
-        );
-      }
-      return { ...prev, banner: undefined };
-    });
   }, []);
 
   const sanitizedMarkdown = useMemo(
@@ -1159,32 +1190,56 @@ export default function BotForm({ mode = "create", defaultValues }: BotFormProps
           }}
           className="grid gap-6 lg:grid-cols-2"
         >
+          {/* Left Column - Form Fields */}
           <div className="space-y-6 rounded-xl border border-white/10 bg-[#2b2d31] p-5">
             <h2 className="border-white/10 border-b pb-2 font-bold text-lg">基本資訊</h2>
 
+            {/* All form.Field components remain unchanged for feature parity */}
             <form.Field
-              name="botName"
-              validators={{ onChange: ({ value }) => validateBotName(value) }}
+              name="botId"
+              validators={{ onChange: ({ value }) => validateBotId(value) }}
+              listeners={{
+                onChange: ({ value, fieldApi }) => {
+                  const trimmed = (value ?? "").trim();
+                  if (!trimmed || !/^\d{17,20}$/.test(trimmed)) {
+                    fieldApi.form.setFieldValue("botDescription", "");
+                    fieldApi.form.setFieldValue("botLongDescription", "");
+                    fieldApi.form.setFieldValue("botInvite", "");
+                  }
+                },
+              }}
             >
               {(field) => {
-                const errorMessage = readFirstError(field.state.meta.errors);
+                const fieldError = readFirstError(field.state.meta.errors);
+                // 合併表單驗證錯誤與 Query 錯誤
+                const errorMessage =
+                  fieldError || (botInfoQuery.isError ? botInfoQuery.error.message : null);
+
                 return (
                   <div className="space-y-2">
-                    <Label htmlFor="botName">機器人名稱 *</Label>
+                    <Label htmlFor="botId" className="flex items-center gap-2">
+                      機器人 ID *
+                      {botInfoQuery.isFetching && (
+                        <Loader2 className="h-4 w-4 animate-spin text-[#5865f2]" />
+                      )}
+                    </Label>
                     <Input
-                      id="botName"
+                      id="botId"
                       value={field.state.value ?? ""}
                       onBlur={field.handleBlur}
                       onChange={(e) => field.handleChange(e.target.value)}
-                      placeholder="輸入您的機器人名稱"
+                      placeholder="輸入 Discord Bot ID 後會自動抓取資訊..."
                       aria-invalid={Boolean(errorMessage)}
+                      disabled={botInfoQuery.isFetching}
                     />
                     {errorMessage && <p className="text-[#ed4245] text-sm">{errorMessage}</p>}
+                    {botInfoQuery.isFetching && (
+                      <p className="text-[#b9bbbe] text-xs">正在從 Discord 取得機器人資訊...</p>
+                    )}
                   </div>
                 );
               }}
             </form.Field>
-
             <form.Field
               name="botPrefix"
               validators={{ onChange: ({ value }) => validateBotPrefix(value) }}
@@ -1691,6 +1746,7 @@ export default function BotForm({ mode = "create", defaultValues }: BotFormProps
               </p>
             </div>
 
+            {/* Submit Section */}
             <div className="space-y-4 border-white/10 border-t pt-4">
               <div className="flex items-start gap-2">
                 <Info size={16} className="mt-0.5 text-[#5865f2]" />
@@ -1706,38 +1762,66 @@ export default function BotForm({ mode = "create", defaultValues }: BotFormProps
                   canSubmit: state.canSubmit,
                   isSubmitting: state.isSubmitting,
                   hasRequiredFields: hasRequiredPublishFields({
+                    botId: state.values.botId ?? "",
                     botDescription: state.values.botDescription ?? "",
                     botLongDescription: state.values.botLongDescription ?? "",
                     botInvite: state.values.botInvite ?? "",
                     botDevelopers: state.values.developers ?? [],
                     botTags: state.values.tags ?? [],
                   }),
+                  botId: state.values.botId,
+                  botInfo: botInfoQuery.data,
+                  isSuccess: botInfoQuery.isSuccess,
                 })}
               >
-                {({ canSubmit, isSubmitting, hasRequiredFields }) => (
-                  <Button
-                    type="submit"
-                    disabled={
-                      !hasRequiredFields ||
-                      !canSubmit ||
-                      isSubmitting ||
-                      submitMutation.isPending ||
-                      isUploadingMedia
+                {({ canSubmit, isSubmitting, hasRequiredFields, botInfo, isSuccess }) => {
+                  if (isSuccess && botInfo && mode === "create") {
+                    const current = form.store.state.values;
+                    if (!current.botDescription?.trim()) {
+                      form.setFieldValue(
+                        "botDescription",
+                        (botInfo.description || "").slice(0, 200),
+                      );
                     }
-                    className="w-full bg-[#5865f2] text-white hover:bg-[#4752c4] disabled:cursor-not-allowed disabled:bg-[#5865f2]/70"
-                  >
-                    {submitMutation.isPending || isSubmitting
-                      ? "儲存中..."
-                      : mode === "edit"
-                        ? "更新機器人"
-                        : "新增機器人"}
-                  </Button>
-                )}
+                    if (!current.botInvite?.trim() && botInfo.install_params) {
+                      const clientId = botInfo.id;
+                      const { scopes, permissions } = botInfo.install_params;
+                      const encodedScopes = encodeURIComponent(scopes.join(" "));
+                      const generatedInvite = `https://discord.com/oauth2/authorize?client_id=${clientId}&scope=${encodedScopes}&permissions=${permissions}`;
+                      form.setFieldValue("botInvite", generatedInvite);
+                    }
+                    if (!current.botLongDescription?.trim()) {
+                      form.setFieldValue("botLongDescription", botInfo.description || "");
+                    }
+                  }
+
+                  return (
+                    <Button
+                      type="submit"
+                      disabled={
+                        !hasRequiredFields ||
+                        !canSubmit ||
+                        isSubmitting ||
+                        submitMutation.isPending ||
+                        isUploadingMedia
+                      }
+                      className="w-full bg-[#5865f2] text-white hover:bg-[#4752c4] disabled:cursor-not-allowed disabled:bg-[#5865f2]/70"
+                    >
+                      {submitMutation.isPending || isSubmitting
+                        ? "儲存中..."
+                        : mode === "edit"
+                          ? "更新機器人"
+                          : "新增機器人"}
+                    </Button>
+                  );
+                }}
               </form.Subscribe>
             </div>
           </div>
 
+          {/* Right Column - Previews (unchanged structure) */}
           <div className="flex h-full flex-col space-y-4 rounded-xl border border-white/10 bg-[#2b2d31] p-5">
+            {/* Banner Preview */}
             <div className="space-y-2">
               <Label>橫幅預覽</Label>
               <div className="h-40 overflow-hidden rounded-lg border border-white/10 bg-[#36393f]">
@@ -1766,6 +1850,7 @@ export default function BotForm({ mode = "create", defaultValues }: BotFormProps
               </div>
             </div>
 
+            {/* Screenshots Preview */}
             <div className="space-y-2">
               <Label>截圖預覽</Label>
               <div className="min-h-32 rounded-lg border border-white/10 bg-[#36393f] p-4">
@@ -1782,6 +1867,7 @@ export default function BotForm({ mode = "create", defaultValues }: BotFormProps
               </div>
             </div>
 
+            {/* Markdown & Embed Previews (unchanged) */}
             <div className="flex h-0 flex-1 flex-col space-y-2">
               <Label>Markdown 預覽</Label>
               <div

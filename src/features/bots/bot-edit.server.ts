@@ -44,6 +44,7 @@ function getBotEditBundleEffect(
       db
         .select({
           bot: {
+            id: bot.id,
             name: bot.name,
             description: bot.description,
             longDescription: bot.longDescription,
@@ -112,7 +113,7 @@ function getBotEditBundleEffect(
 
     // 3. 資料組合邏輯（維持原樣）
     const defaults: BotEditDefaults = {
-      botName: currentBot.name,
+      botId: currentBot.id,
       botPrefix: normalizeOptionalString(currentBot.prefix),
       botDescription: currentBot.description,
       botLongDescription: normalizeOptionalString(currentBot.longDescription),
