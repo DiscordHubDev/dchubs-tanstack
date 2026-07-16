@@ -65,7 +65,6 @@ const updateBotServerCountProgram = Effect.gen(function* () {
     const countOpt = yield* fetchBotServerCountEffect(current.id);
 
     if (Option.isSome(countOpt)) {
-      // Server count 更新頻率較低，且數量少，直接單筆寫入即可
       yield* Effect.tryPromise(() =>
         db
           .update(bot)
@@ -76,6 +75,17 @@ const updateBotServerCountProgram = Effect.gen(function* () {
           .where(eq(bot.id, current.id)),
       );
       console.log(`✅ ${current.name} 更新為 ${countOpt.value} 個伺服器`);
+    } else {
+      // 即使抓取失敗，也要推進 updatedAt，避免此 bot 卡住佇列
+      yield* Effect.tryPromise(() =>
+        db
+          .update(bot)
+          .set({
+            updatedAt: sql`CURRENT_TIMESTAMP`,
+          })
+          .where(eq(bot.id, current.id)),
+      );
+      console.log(`⚠️ ${current.name} 本次抓取失敗，稍後重試`);
     }
 
     // 單線程延遲，避免 Python 後端過載
