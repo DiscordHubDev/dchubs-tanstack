@@ -29,7 +29,7 @@ export const checkBotDeveloperServerFn = createServerFn({ method: "GET" })
 
     try {
       const isDeveloper = await Effect.runPromise(
-        isDeveloperEffect(data.botId, context.user.discordId || ""),
+        isDeveloperEffect(data.botId, context.user.betterAuthId || ""),
       );
 
       return { isLoggedIn: true, isDeveloper };

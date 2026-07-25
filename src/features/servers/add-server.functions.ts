@@ -15,5 +15,5 @@ export const getGuildMembershipBundleFn = createServerFn({
   .middleware([protectedMiddleware]) // ⬅️ 套用保護，強制要求登入
   .validator(strictValidator)
   .handler(async ({ context }) => {
-    return getGuildMembershipBundle(context.user.discordId);
+    return getGuildMembershipBundle(context.user.betterAuthId);
   });

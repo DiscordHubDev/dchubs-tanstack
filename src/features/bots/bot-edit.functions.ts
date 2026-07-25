@@ -8,5 +8,5 @@ export const getBotEditBundleFn = createServerFn({ method: "GET" })
   .middleware([protectedMiddleware])
   .validator(effectInputValidator(BotEditInputSchema))
   .handler(async ({ data, context }) => {
-    return getBotEditBundleById(data.botId, context.user.discordId);
+    return getBotEditBundleById(data.botId, context.user.betterAuthId);
   });

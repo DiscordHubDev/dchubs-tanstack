@@ -409,19 +409,19 @@ function uploadServerBannerEffect(
     }
 
     // === 上傳新圖 ===
-    const uploadResult = yield* uploadImageToCloudinary(input.dataUrl, credentials.cloudName, {
+    const uploadResult = yield* uploadImageToCloudinary(input.dataUrl, credentials, {
       public_id: publicId,
       overwrite: true,
       invalidate: true,
       unique_filename: false,
-      ...(credentials.uploadPreset && { upload_preset: credentials.uploadPreset }),
       context: {
         fingerprint: normalizedFingerprint,
         server_id: input.serverId,
         file_name: input.fileName,
       },
+      // 有 uploadPreset 也可以傳，但有 apiSecret 時會優先走 Signed
+      ...(credentials.uploadPreset && { upload_preset: credentials.uploadPreset }),
     });
-
     if (!uploadResult.secure_url) {
       return yield* Effect.fail(new Error("Cloudinary 未回傳有效的 Banner URL"));
     }

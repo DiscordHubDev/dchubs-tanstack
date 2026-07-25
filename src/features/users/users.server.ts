@@ -785,7 +785,7 @@ export function updateUserSettingsForCurrentUser(
                 }
               : {}),
           })
-          .where(eq(user.discordId, userId))
+          .where(eq(user.id, userId))
           .returning({ discordId: user.discordId }),
       );
 

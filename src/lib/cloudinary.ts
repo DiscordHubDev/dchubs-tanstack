@@ -72,9 +72,10 @@ export function getCloudinaryCredentialsEffect(): Effect.Effect<
 
 // ====================== 上傳 ======================
 
+// ====================== 上傳（修正版） ======================
 export function uploadImageToCloudinary(
   dataUrl: string,
-  cloudName: string,
+  credentials: CloudinaryCredentials,
   options: Record<string, any> = {},
 ): Effect.Effect<any, Error> {
   return Effect.tryPromise({
@@ -82,26 +83,60 @@ export function uploadImageToCloudinary(
       const formData = new FormData();
       formData.append("file", dataUrl);
 
-      if (options.upload_preset) formData.append("upload_preset", options.upload_preset);
-      if (options.public_id) formData.append("public_id", options.public_id);
-      if (options.folder) formData.append("folder", options.folder);
-      if (options.overwrite !== undefined) formData.append("overwrite", String(options.overwrite));
-      if (options.invalidate !== undefined)
-        formData.append("invalidate", String(options.invalidate));
-      if (options.unique_filename !== undefined)
-        formData.append("unique_filename", String(options.unique_filename));
+      const timestamp = Math.round(Date.now() / 1000);
+
+      // 收集所有會送出的參數（file / api_key / signature 不參與簽名）
+      const params: Record<string, string | number | boolean> = {
+        timestamp,
+      };
+
+      if (options.public_id) params.public_id = options.public_id;
+      if (options.folder) params.folder = options.folder;
+      if (options.overwrite !== undefined) params.overwrite = options.overwrite;
+      if (options.invalidate !== undefined) params.invalidate = options.invalidate;
+      if (options.unique_filename !== undefined) params.unique_filename = options.unique_filename;
 
       if (options.context) {
         const contextStr = Object.entries(options.context)
           .map(([k, v]) => `${k}=${v}`)
           .join("|");
-        formData.append("context", contextStr);
+        params.context = contextStr;
       }
 
-      const response = await fetch(`${CLOUDINARY_UPLOAD_URL}/${cloudName}/image/upload`, {
-        method: "POST",
-        body: formData,
-      });
+      const useSigned = Boolean(credentials.apiKey && credentials.apiSecret);
+
+      if (useSigned) {
+        // ========== Signed Upload（推薦） ==========
+        const signature = await generateCloudinarySignature(params, credentials.apiSecret);
+
+        formData.append("api_key", credentials.apiKey);
+        formData.append("timestamp", String(timestamp));
+        formData.append("signature", signature);
+
+        for (const [key, value] of Object.entries(params)) {
+          if (key === "timestamp") continue;
+          formData.append(key, String(value));
+        }
+      } else {
+        // ========== Unsigned Upload（fallback） ==========
+        const preset = options.upload_preset ?? credentials.uploadPreset;
+        if (!preset) {
+          throw new Error(
+            "Unsigned upload 需要 upload_preset。請設定 CLOUDINARY_UPLOAD_PRESET 或傳 options.upload_preset",
+          );
+        }
+        formData.append("upload_preset", preset);
+
+        // Unsigned 只允許有限參數
+        if (options.public_id) formData.append("public_id", options.public_id);
+        if (options.folder) formData.append("folder", options.folder);
+        if (params.context) formData.append("context", String(params.context));
+      }
+
+      const response = await fetch(
+        `${CLOUDINARY_UPLOAD_URL}/${credentials.cloudName}/image/upload`,
+        { method: "POST", body: formData },
+      );
 
       if (!response.ok) {
         const text = await response.text();
@@ -123,22 +158,25 @@ export function destroyCloudinaryImage(
   publicId: string,
   credentials: CloudinaryCredentials,
 ): Effect.Effect<void, SubmitBotFailed> {
-  // ← 改成 SubmitBotFailed
   return Effect.tryPromise({
     try: async () => {
       const timestamp = Math.round(Date.now() / 1000);
-      const signature = await generateCloudinarySignature(
-        publicId,
+
+      // ★ 關鍵：所有要送出的參數都要參與簽名
+      const paramsToSign = {
+        public_id: publicId,
         timestamp,
-        credentials.apiSecret,
-      );
+        invalidate: true, // 必須包含！
+      };
+
+      const signature = await generateCloudinarySignature(paramsToSign, credentials.apiSecret);
 
       const formData = new FormData();
       formData.append("public_id", publicId);
-      formData.append("signature", signature);
-      formData.append("api_key", credentials.apiKey);
       formData.append("timestamp", timestamp.toString());
       formData.append("invalidate", "true");
+      formData.append("api_key", credentials.apiKey);
+      formData.append("signature", signature);
 
       const response = await fetch(
         `${CLOUDINARY_UPLOAD_URL}/${credentials.cloudName}/image/destroy`,
@@ -150,15 +188,10 @@ export function destroyCloudinaryImage(
         throw new Error(`Cloudinary destroy HTTP error: ${response.status} - ${text}`);
       }
 
-      const result: unknown = await response.json();
+      const result: any = await response.json();
 
-      if (typeof result === "object" && result !== null && "result" in result) {
-        const res = result as { result: string };
-        if (res.result !== "ok") {
-          throw new Error(`Delete failed: ${res.result || JSON.stringify(result)}`);
-        }
-      } else {
-        throw new Error("Invalid response from Cloudinary destroy");
+      if (result?.result !== "ok") {
+        throw new Error(`Delete failed: ${result?.result || JSON.stringify(result)}`);
       }
     },
     catch: (error) => {
@@ -171,18 +204,21 @@ export function destroyCloudinaryImage(
 }
 
 async function generateCloudinarySignature(
-  publicId: string,
-  timestamp: number,
+  params: Record<string, string | number | boolean>,
   apiSecret: string,
 ): Promise<string> {
-  const stringToSign = `public_id=${publicId}&timestamp=${timestamp}${apiSecret}`;
+  const toSign = Object.entries(params)
+    .filter(
+      ([key]) => !["file", "api_key", "cloud_name", "resource_type", "signature"].includes(key),
+    )
+    .map(([k, v]) => [k, String(v)] as const)
+    .sort(([a], [b]) => a.localeCompare(b));
 
-  // Use Web Crypto API
+  const stringToSign = toSign.map(([k, v]) => `${k}=${v}`).join("&") + apiSecret;
+
   const encoder = new TextEncoder();
   const data = encoder.encode(stringToSign);
   const hashBuffer = await crypto.subtle.digest("SHA-1", data);
-
-  // Convert buffer to hex string
   const hashArray = Array.from(new Uint8Array(hashBuffer));
   return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
 }
@@ -196,24 +232,24 @@ export function getExistingCloudinaryResource(
   return Effect.tryPromise({
     try: async () => {
       const timestamp = Math.round(Date.now() / 1000);
-      const signature = await generateCloudinarySignatureForResource(
-        publicId,
+
+      const paramsToSign = {
+        public_id: publicId,
         timestamp,
-        credentials.apiSecret,
-      );
+        // 如果有加 context=true、type 等，都要放進來
+      };
+      const signature = await generateCloudinarySignature(paramsToSign, credentials.apiSecret);
 
       const params = new URLSearchParams({
         public_id: publicId,
-        type: "upload",
-        resource_type: "image",
-        context: "true",
-        api_key: credentials.apiKey,
         timestamp: timestamp.toString(),
-        signature: signature,
+        api_key: credentials.apiKey,
+        signature,
+        // context: "true", // 需要的話再加，並同步放進 paramsToSign
       });
 
       const response = await fetch(
-        `${CLOUDINARY_UPLOAD_URL}/${credentials.cloudName}/resources/image?${params.toString()}`,
+        `${CLOUDINARY_UPLOAD_URL}/${credentials.cloudName}/resources/image/upload/${encodeURIComponent(publicId)}?${params.toString()}`,
         { method: "GET" },
       );
 
@@ -230,21 +266,4 @@ export function getExistingCloudinaryResource(
       return new Error(`Failed to fetch existing resource: ${details.message}`);
     },
   });
-}
-
-async function generateCloudinarySignatureForResource(
-  publicId: string,
-  timestamp: number,
-  apiSecret: string,
-): Promise<string> {
-  const stringToSign = `public_id=${publicId}&timestamp=${timestamp}${apiSecret}`;
-
-  // Use Web Crypto API
-  const encoder = new TextEncoder();
-  const data = encoder.encode(stringToSign);
-  const hashBuffer = await crypto.subtle.digest("SHA-1", data);
-
-  // Convert buffer to hex string
-  const hashArray = Array.from(new Uint8Array(hashBuffer));
-  return hashArray.map((b) => b.toString(16).padStart(2, "0")).join("");
 }

@@ -12,7 +12,7 @@ export const sendDiscordWebhookFn = createServerFn({ method: "POST" })
     const tag = payload._tag;
 
     // 🛡️ 安全檢查
-    if (tag === "vote" && payload.user.id !== context.user.discordId) {
+    if (tag === "vote" && payload.user.id !== context.user.betterAuthId) {
       throw new Error("Unauthorized");
     }
     if (tag === "approvedBot" && !context.edgeContext?.isAdmin) {

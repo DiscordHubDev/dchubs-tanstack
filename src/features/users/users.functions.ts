@@ -105,7 +105,7 @@ export const updateUserSettingsFn = createServerFn({ method: "POST" })
   .middleware([protectedMiddleware])
   .validator(effectInputValidator(updateUserSettingsInputEffectSchema))
   .handler(async ({ data, context }) => {
-    return updateUserSettingsForCurrentUser(data, context.user.discordId);
+    return updateUserSettingsForCurrentUser(data, context.user.betterAuthId);
   });
 
 // 5. 切換收藏：必須登入 🔒
@@ -113,7 +113,7 @@ export const toggleFavoriteFn = createServerFn({ method: "POST" })
   .middleware([protectedMiddleware])
   .validator(effectInputValidator(toggleFavoriteInputEffectSchema))
   .handler(async ({ data, context }) => {
-    return toggleFavoriteForCurrentUser(data, context.user.discordId);
+    return toggleFavoriteForCurrentUser(data, context.user.betterAuthId);
   });
 
 // 6. 產生 API Token：必須登入 (高敏感操作) 🔒
@@ -121,7 +121,7 @@ export const createOrRegenerateApiTokenFn = createServerFn({ method: "POST" })
   .middleware([protectedMiddleware])
   .validator(strictValidator)
   .handler(async ({ context }) => {
-    return createOrRegenerateApiTokenForCurrentUser(context.user.discordId);
+    return createOrRegenerateApiTokenForCurrentUser(context.user.betterAuthId);
   });
 
 export const pinItemFn = createServerFn({ method: "POST" })

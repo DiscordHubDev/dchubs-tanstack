@@ -595,7 +595,7 @@ function uploadBotImagesEffect(
     const credentials = yield* getCloudinaryCredentialsEffect();
 
     const results = yield* Effect.forEach(input.files, (file) =>
-      uploadImageToCloudinary(file.dataUrl, credentials.cloudName, {
+      uploadImageToCloudinary(file.dataUrl, credentials, {
         resource_type: "image", // 雖然 fetch 這邊沒用，但保留給未來
         folder: "bots/screenshots",
         unique_filename: true,
@@ -604,6 +604,7 @@ function uploadBotImagesEffect(
         context: {
           file_name: file.fileName,
         },
+        ...(credentials.uploadPreset && { upload_preset: credentials.uploadPreset }),
       }).pipe(
         Effect.catchAll(() => Effect.fail(new ImageUploadFailed({ filename: file.fileName }))),
       ),

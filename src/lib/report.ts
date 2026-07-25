@@ -20,7 +20,7 @@ export function uploadReportAttachmentEffect(
 
     const publicId = `reports/${reportId}/${crypto.randomUUID()}`;
 
-    const uploadResult = yield* uploadImageToCloudinary(input.dataUrl, credentials.cloudName, {
+    const uploadResult = yield* uploadImageToCloudinary(input.dataUrl, credentials, {
       public_id: publicId,
       overwrite: false,
       unique_filename: false,
@@ -29,6 +29,7 @@ export function uploadReportAttachmentEffect(
         file_name: input.fileName,
         report_id: reportId,
       },
+      ...(credentials.uploadPreset && { upload_preset: credentials.uploadPreset }),
     });
 
     if (!uploadResult.secure_url) {

@@ -20,14 +20,14 @@ export const voteBotFn = createServerFn({ method: "POST" })
   .middleware([protectedMiddleware])
   .validator(effectInputValidator(BotVoteInputSchema))
   .handler(async ({ data, context }) => {
-    return voteBotById(data.botId, context.user.discordId);
+    return voteBotById(data.botId, context.user.betterAuthId);
   });
 
 export const rateBotFn = createServerFn({ method: "POST" })
   .middleware([protectedMiddleware])
   .validator(effectInputValidator(BotRateInputSchema))
   .handler(async ({ data, context }) => {
-    return rateBotById(data.botId, data.rating, context.user.discordId);
+    return rateBotById(data.botId, data.rating, context.user.betterAuthId);
   });
 
 export const reportBotFn = createServerFn({ method: "POST" })
@@ -40,6 +40,6 @@ export const reportBotFn = createServerFn({ method: "POST" })
         name: context.user.name,
         username: context.user.username,
       },
-      userId: context.user.discordId,
+      userId: context.user.betterAuthId,
     });
   });
