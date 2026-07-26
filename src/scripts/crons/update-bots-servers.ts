@@ -7,7 +7,7 @@ import { bot } from "#/drizzle/schema";
 const BOT_PROCESS_DELAY_MS = 3000;
 const PROCESS_LIMIT = 15;
 
-const FETCH_TIMEOUT_MS = 710_000;
+const FETCH_TIMEOUT_MS = 720_000;
 const ADVISORY_LOCK_KEY = 727272;
 
 class BotUpdateError extends Data.TaggedError("BotUpdateError")<{
