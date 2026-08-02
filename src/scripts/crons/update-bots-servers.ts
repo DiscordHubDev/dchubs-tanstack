@@ -43,19 +43,23 @@ const fetchBotServerCountEffect = (botId: string) =>
     }),
   );
 
-// 嘗試取得 advisory lock；拿不到代表已有另一個實例在跑，直接跳過本次排程
-const tryAcquireLockEffect = Effect.tryPromise(() =>
-  db.execute(sql`SELECT pg_try_advisory_lock(${ADVISORY_LOCK_KEY}) AS locked`),
-);
-
-const releaseLockEffect = Effect.tryPromise(() =>
-  db.execute(sql`SELECT pg_advisory_unlock(${ADVISORY_LOCK_KEY})`),
-).pipe(Effect.catchAll(() => Effect.void));
-
-// 用交易 + SKIP LOCKED 認領這批 bot：一開始就把 updatedAt 更新掉（等同標記「處理中」），
-// 這樣即使有並發實例，也不會撈到同一批 bot，從根本避免「同一 bot_id 被重複請求」。
-const claimBotsEffect = Effect.tryPromise(() =>
+// 取鎖 + 認領批次，全部包在「同一個短交易」裡：
+// - pg_try_advisory_xact_lock 綁定在這個 transaction 上，commit 的瞬間自動釋放，
+//   不需要也不能手動 unlock，完全不受連線池換連線影響。
+// - 認領（查詢 + 更新 updatedAt 標記處理中）也在同一條連線內完成，
+//   搭配 for update skip locked，天然避免並發實例撈到同一批 bot。
+// - 交易一結束就 commit，鎖立刻釋放，不會因為後面的 fetch 迴圈而長時間佔用連線。
+const claimBotsWithLockEffect = Effect.tryPromise(() =>
   db.transaction(async (tx) => {
+    const lockResult = await tx.execute(
+      sql`SELECT pg_try_advisory_xact_lock(${ADVISORY_LOCK_KEY}) AS locked`,
+    );
+    const locked = (lockResult as unknown as { rows: { locked: boolean }[] }).rows?.[0]?.locked;
+
+    if (!locked) {
+      return { locked: false as const, bots: [] as { id: string; name: string }[] };
+    }
+
     const bots = await tx
       .select({ id: bot.id, name: bot.name })
       .from(bot)
@@ -76,57 +80,49 @@ const claimBotsEffect = Effect.tryPromise(() =>
         );
     }
 
-    return bots;
+    return { locked: true as const, bots };
   }),
 );
 
 const updateBotServerCountProgram = Effect.gen(function* () {
   console.log("🔢 開始排程更新伺服器數量...");
 
-  const lockResult = yield* tryAcquireLockEffect;
-  const locked = (lockResult as unknown as { rows: { locked: boolean }[] }).rows?.[0]?.locked;
+  const { locked, bots } = yield* claimBotsWithLockEffect;
 
   if (!locked) {
     console.log("⏭️ 已有另一個排程實例正在執行，本次跳過");
     return;
   }
 
-  try {
-    // 認領批次（同時完成「查詢」與「標記處理中」，避免並發重複撈取）
-    const bots = yield* claimBotsEffect;
+  console.log(`📋 本次排程將處理 ${bots.length} 個 Bot 的伺服器數量`);
 
-    console.log(`📋 本次排程將處理 ${bots.length} 個 Bot 的伺服器數量`);
+  for (let i = 0; i < bots.length; i++) {
+    const current = bots[i];
+    console.log(`🔄 [伺服器數量] 處理 ${current.name} (${current.id}) [${i + 1}/${bots.length}]`);
 
-    for (let i = 0; i < bots.length; i++) {
-      const current = bots[i];
-      console.log(`🔄 [伺服器數量] 處理 ${current.name} (${current.id}) [${i + 1}/${bots.length}]`);
+    const countOpt = yield* fetchBotServerCountEffect(current.id);
 
-      const countOpt = yield* fetchBotServerCountEffect(current.id);
-
-      if (Option.isSome(countOpt)) {
-        yield* Effect.tryPromise(() =>
-          db
-            .update(bot)
-            .set({
-              servers: countOpt.value,
-              updatedAt: sql`CURRENT_TIMESTAMP`,
-            })
-            .where(eq(bot.id, current.id)),
-        );
-        console.log(`✅ ${current.name} 更新為 ${countOpt.value} 個伺服器`);
-      } else {
-        console.log(`⚠️ ${current.name} 本次抓取失敗，稍後重試`);
-      }
-
-      if (i < bots.length - 1) {
-        yield* Effect.sleep(`${BOT_PROCESS_DELAY_MS} millis`);
-      }
+    if (Option.isSome(countOpt)) {
+      yield* Effect.tryPromise(() =>
+        db
+          .update(bot)
+          .set({
+            servers: countOpt.value,
+            updatedAt: sql`CURRENT_TIMESTAMP`,
+          })
+          .where(eq(bot.id, current.id)),
+      );
+      console.log(`✅ ${current.name} 更新為 ${countOpt.value} 個伺服器`);
+    } else {
+      console.log(`⚠️ ${current.name} 本次抓取失敗，稍後重試`);
     }
 
-    console.log("🎉 本次伺服器數量批次更新完畢！");
-  } finally {
-    yield* releaseLockEffect;
+    if (i < bots.length - 1) {
+      yield* Effect.sleep(`${BOT_PROCESS_DELAY_MS} millis`);
+    }
   }
+
+  console.log("🎉 本次伺服器數量批次更新完畢！");
 });
 
 Effect.runPromiseExit(updateBotServerCountProgram).then((exit) => {
