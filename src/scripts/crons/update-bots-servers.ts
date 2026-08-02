@@ -54,6 +54,7 @@ const claimBotsWithLockEffect = Effect.tryPromise(() =>
     const lockResult = await tx.execute(
       sql`SELECT pg_try_advisory_xact_lock(${ADVISORY_LOCK_KEY}) AS locked`,
     );
+    console.log("🔍 lockResult:", JSON.stringify(lockResult));
     const locked = (lockResult as unknown as { rows: { locked: boolean }[] }).rows?.[0]?.locked;
 
     if (!locked) {
