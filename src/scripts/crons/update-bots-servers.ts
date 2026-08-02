@@ -51,11 +51,12 @@ const fetchBotServerCountEffect = (botId: string) =>
 // - 交易一結束就 commit，鎖立刻釋放，不會因為後面的 fetch 迴圈而長時間佔用連線。
 const claimBotsWithLockEffect = Effect.tryPromise(() =>
   db.transaction(async (tx) => {
+    // 注意：drizzle-orm/bun-sql (Bun 內建的 bun:sql) 回傳結果是「陣列本身」，
+    // 不像 node-pg 那樣包一層 .rows，這裡要直接取第一筆。
     const lockResult = await tx.execute(
       sql`SELECT pg_try_advisory_xact_lock(${ADVISORY_LOCK_KEY}) AS locked`,
     );
-    console.log("🔍 lockResult:", JSON.stringify(lockResult));
-    const locked = (lockResult as unknown as { rows: { locked: boolean }[] }).rows?.[0]?.locked;
+    const locked = (lockResult as unknown as { locked: boolean }[])?.[0]?.locked;
 
     if (!locked) {
       return { locked: false as const, bots: [] as { id: string; name: string }[] };
